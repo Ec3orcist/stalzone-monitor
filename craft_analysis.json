@@ -1,0 +1,44 @@
+{
+  "total_recipes": 343,
+  "total_ingredients": 263,
+  "raw_with_price": 69,
+  "raw_no_price_count": 9,
+  "raw_no_price": [
+    {
+      "id": "1r0y6",
+      "name": "1r0y6"
+    },
+    {
+      "id": "5ddo",
+      "name": "5ddo"
+    },
+    {
+      "id": "5lzyg",
+      "name": "5lzyg"
+    },
+    {
+      "id": "9mmq",
+      "name": "9mmq"
+    },
+    {
+      "id": "g00n",
+      "name": "g00n"
+    },
+    {
+      "id": "g4rz0",
+      "name": "g4rz0"
+    },
+    {
+      "id": "lynkj",
+      "name": "lynkj"
+    },
+    {
+      "id": "rw1mg",
+      "name": "rw1mg"
+    },
+    {
+      "id": "wo6z",
+      "name": "wo6z"
+    }
+  ]
+}
