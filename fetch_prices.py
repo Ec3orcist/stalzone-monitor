@@ -19,7 +19,6 @@ MAX_LOTS_PER_ITEM = 10
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
-
 EXISTING_ICONS = None
 
 
@@ -43,12 +42,10 @@ ITEM_DB_DIR = find_item_db_dir()
 def load_existing_icons():
     icons_root = Path("itemdb") / ICON_REALM / "icons"
     if not icons_root.exists():
-        print(f"⚠️ Папка {icons_root} не найдена.")
         return None
     icons = set()
     for png in icons_root.rglob("*.png"):
-        rel = png.relative_to(icons_root).as_posix()
-        icons.add(rel)
+        icons.add(png.relative_to(icons_root).as_posix())
     print(f"🖼️ Найдено иконок в базе: {len(icons)}")
     return icons
 
@@ -79,14 +76,11 @@ def get_localized_name(content):
 def build_icon_url(item_id, category):
     if not category or EXISTING_ICONS is None:
         return ""
-    variants = [category, category.split("/")[0]]
-    for cat in variants:
+    for cat in [category, category.split("/")[0]]:
         rel = f"{cat}/{item_id}.png"
         if rel in EXISTING_ICONS:
-            return (
-                f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
-                f"{ICON_REALM}/icons/{rel}"
-            )
+            return (f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
+                    f"{ICON_REALM}/icons/{rel}")
     return ""
 
 
@@ -95,11 +89,9 @@ def discover_tradable_items():
     if ITEM_DB_DIR is None:
         print("❌ Папка с базой предметов не найдена.")
         return items
-
     print(f"📁 Используем базу: {ITEM_DB_DIR}")
     all_files = list(ITEM_DB_DIR.rglob("*.json"))
     print(f"Всего файлов в базе: {len(all_files)}")
-
     skipped = 0
     with_icon = 0
     for path in all_files:
@@ -108,28 +100,22 @@ def discover_tradable_items():
                 content = json.load(f)
         except Exception:
             continue
-
         status = content.get("status", {})
         state = status.get("state", "") if isinstance(status, dict) else str(status)
         if state in ("PERSONAL_ON_USE", "PERSONAL"):
             skipped += 1
             continue
-
         item_id = path.stem
         category = content.get("category", "")
         icon = build_icon_url(item_id, category)
         if icon:
             with_icon += 1
-
-        top_category = category.split("/")[0] if category else "other"
-
         items.append({
             "id": item_id,
             "name": get_localized_name(content),
             "icon": icon,
-            "category": top_category
+            "category": category.split("/")[0] if category else "other"
         })
-
     print(f"Отфильтровано персональных: {skipped}")
     print(f"Торгуемых предметов: {len(items)} (с иконкой: {with_icon})")
     return items
@@ -143,13 +129,7 @@ def fetch_lots_for_item(token, item_id):
         if r.status_code != 200:
             return item_id, []
         data = r.json()
-        if isinstance(data, dict) and "lots" in data:
-            raw_lots = data["lots"]
-        elif isinstance(data, list):
-            raw_lots = data
-        else:
-            raw_lots = []
-
+        raw_lots = data.get("lots", []) if isinstance(data, dict) else data
         processed = []
         for lot in raw_lots:
             buyout = lot.get("buyoutPrice") or 0
@@ -162,7 +142,6 @@ def fetch_lots_for_item(token, item_id):
                 "amount": amount,
                 "endTime": lot.get("endTime", ""),
             })
-
         processed.sort(key=lambda l: l["price_per_unit"])
         return item_id, processed
     except Exception:
@@ -182,17 +161,56 @@ def save_history(history):
 
 
 def load_recipes():
-    """Загружает рецепты из recipes.json, если он есть."""
-    if os.path.exists(RECIPES_FILE):
-        with open(RECIPES_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    """Читает recipes.json в формате lunar-zone."""
+    if not os.path.exists(RECIPES_FILE):
+        print("ℹ️ recipes.json не найден — крафты не будут построены.")
+        return {}
+
+    with open(RECIPES_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    recipes = {}
+    if isinstance(data, dict) and "recipes" in data:
+        source_list = data["recipes"]
+        print(f"📖 Найдено рецептов: {len(source_list)}")
+    elif isinstance(data, list):
+        source_list = data
+    else:
+        source_list = []
+
+    for r in source_list:
+        item_id = r.get("itemId")
+        if not item_id:
+            continue
+        recipes[item_id] = {
+            "name": r.get("name", item_id),
+            "energy": r.get("energy", 0),
+            "craftAmount": r.get("craftAmount", 1),
+            "station": r.get("station", ""),
+            "bench": r.get("bench", ""),
+            "skill": r.get("skill", ""),
+            "skillId": r.get("skillId", ""),
+            "skillLevel": r.get("skillLevel", 0),
+            "experience": r.get("experience", 0),
+            "experienceSkill": r.get("experienceSkill", ""),
+            "category": r.get("category", ""),
+            "subcategory": r.get("subcategory", ""),
+            "icon": r.get("icon", ""),
+            "requiredStations": r.get("requiredStations", []),
+            "stations": r.get("stations", []),
+            "ingredients": [
+                {"id": res["itemId"], "amount": res["amount"]}
+                for res in r.get("resources", [])
+                if res.get("itemId") and res.get("amount")
+            ]
+        }
+    print(f"✅ Загружено рецептов: {len(recipes)}")
+    return recipes
 
 
 def aggregate_history(records):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
-
     fresh, old = [], []
     for r in records:
         try:
@@ -203,18 +221,12 @@ def aggregate_history(records):
             fresh.append(r)
         else:
             old.append((ts, r))
-
-    last_name = ""
-    last_icon = ""
+    last_name = last_icon = last_category = ""
     last_category = "other"
     for r in records:
-        if r.get("name"):
-            last_name = r["name"]
-        if r.get("icon"):
-            last_icon = r["icon"]
-        if r.get("category"):
-            last_category = r["category"]
-
+        if r.get("name"): last_name = r["name"]
+        if r.get("icon"): last_icon = r["icon"]
+        if r.get("category"): last_category = r["category"]
     buckets = {}
     for ts, r in old:
         key = ts.strftime("%Y-%m-%dT%H")
@@ -222,128 +234,94 @@ def aggregate_history(records):
             buckets[key] = {"min_price": r["price"]}
         else:
             buckets[key]["min_price"] = min(buckets[key]["min_price"], r["price"])
-
     aggregated = [
-        {
-            "timestamp": k + ":00:00+00:00",
-            "price": v["min_price"],
-            "name": last_name,
-            "icon": last_icon,
-            "category": last_category,
-            "aggregated": True
-        }
+        {"timestamp": k + ":00:00+00:00", "price": v["min_price"],
+         "name": last_name, "icon": last_icon, "category": last_category,
+         "aggregated": True}
         for k, v in sorted(buckets.items())
     ]
-
     result = aggregated + fresh
     return result[-MAX_HISTORY:] if len(result) > MAX_HISTORY else result
 
 
-def build_craft_tree(recipes, prices, item_id, depth=0, visited=None):
-    """
-    Рекурсивно строит дерево крафта для предмета.
-    Возвращает словарь: {id, name, icon, craftable, cost, ingredients: [...]}.
-    """
+def build_craft_tree(recipes, prices, item_id, visited=None):
     if visited is None:
         visited = set()
-
     if item_id in visited:
         return None
     visited.add(item_id)
 
     price_info = prices.get(item_id, {})
-    name = price_info.get("name", item_id)
-    icon = price_info.get("icon", "")
     sell_price = price_info.get("price", 0)
-
     recipe = recipes.get(item_id)
 
     node = {
         "id": item_id,
-        "name": name,
-        "icon": icon,
+        "name": price_info.get("name") or (recipe or {}).get("name", item_id),
+        "icon": price_info.get("icon") or "",
         "sell_price": sell_price,
         "craftable": bool(recipe),
         "ingredients": [],
-        "cost": 0,
-        "profit": 0,
-        "roi": 0,
+        "cost": 0, "profit": 0, "roi": 0,
     }
 
     if not recipe:
-        # Не крафтится — стоимость = цена на аукционе
         node["cost"] = sell_price
         return node
 
-    # Считаем себестоимость по ингредиентам
+    node["energy"] = recipe.get("energy", 0)
+    node["craftAmount"] = recipe.get("craftAmount", 1)
+    node["station"] = recipe.get("station", "")
+    node["skill"] = recipe.get("skill", "")
+    node["skillLevel"] = recipe.get("skillLevel", 0)
+    node["experience"] = recipe.get("experience", 0)
+    node["experienceSkill"] = recipe.get("experienceSkill", "")
+    node["stations"] = recipe.get("stations", [])
+    node["category"] = recipe.get("category", "")
+    node["subcategory"] = recipe.get("subcategory", "")
+
     total_cost = 0
     for ing in recipe.get("ingredients", []):
-        ing_id = ing["id"]
-        ing_amount = ing.get("amount", 1)
-        sub = build_craft_tree(recipes, prices, ing_id, depth + 1, visited)
+        sub = build_craft_tree(recipes, prices, ing["id"], visited.copy())
         if sub is None:
             continue
-        sub["amount"] = ing_amount
-        sub["total_cost"] = sub["cost"] * ing_amount
+        sub["amount"] = ing["amount"]
+        sub["total_cost"] = sub["cost"] * ing["amount"]
         node["ingredients"].append(sub)
         total_cost += sub["total_cost"]
 
-    # Добавляем энергию как часть себестоимости (если указана)
-    energy = recipe.get("energy", 0)
-    if energy > 0:
-        node["energy"] = energy
-        # Энергия обычно бесплатна, но можно учесть её стоимость
-
-    node["cost"] = total_cost
-    node["profit"] = sell_price - total_cost
-    node["roi"] = (node["profit"] / total_cost * 100) if total_cost > 0 else 0
-
+    craft_amount = recipe.get("craftAmount", 1) or 1
+    node["total_cost_batch"] = total_cost
+    node["cost"] = total_cost / craft_amount
+    node["profit"] = sell_price - node["cost"]
+    node["roi"] = (node["profit"] / node["cost"] * 100) if node["cost"] > 0 else 0
     return node
 
 
 def main():
     global EXISTING_ICONS
-
-    print(f"Запуск сбора данных (регион: {REGION}, язык: {LANG})...")
-
+    print(f"Запуск сбора данных (регион: {REGION})...")
     EXISTING_ICONS = load_existing_icons()
-
     token = get_access_token()
     print("✅ Токен получен.")
-
     all_items = discover_tradable_items()
     if not all_items:
-        print("❌ Не найдено торгуемых предметов.")
         return
-
     items_to_process = all_items[:MAX_ITEMS]
     print(f"Обрабатываем предметов: {len(items_to_process)}")
-
-    meta_map = {
-        item["id"]: {
-            "name": item["name"],
-            "icon": item["icon"],
-            "category": item.get("category", "other")
-        }
-        for item in items_to_process
-    }
+    meta_map = {item["id"]: item for item in items_to_process}
 
     history = load_history()
     now = datetime.now(timezone.utc).isoformat()
     updated = 0
-
     with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-        futures = {
-            executor.submit(fetch_lots_for_item, token, item["id"]): item["id"]
-            for item in items_to_process
-        }
+        futures = {executor.submit(fetch_lots_for_item, token, item["id"]): item["id"]
+                   for item in items_to_process}
         for n, fut in enumerate(as_completed(futures), 1):
             item_id, lots = fut.result()
             if lots:
                 best = lots[0]
                 total_amount = sum(l["amount"] for l in lots)
-                top_lots = lots[:MAX_LOTS_PER_ITEM]
-
                 meta = meta_map.get(item_id, {})
                 history.setdefault(item_id, []).append({
                     "timestamp": now,
@@ -352,7 +330,7 @@ def main():
                     "best_lot_buyout": best["buyout"],
                     "total_amount": total_amount,
                     "lots_count": len(lots),
-                    "lots": top_lots,
+                    "lots": lots[:MAX_LOTS_PER_ITEM],
                     "name": meta.get("name", item_id),
                     "icon": meta.get("icon", ""),
                     "category": meta.get("category", "other"),
@@ -361,40 +339,29 @@ def main():
                 updated += 1
             if n % 200 == 0:
                 print(f"  обработано {n}/{len(items_to_process)}")
-
     save_history(history)
-    print(f"✅ Готово. Обновлено предметов: {updated}")
-    print(f"   Файл {DATA_FILE}: {os.path.getsize(DATA_FILE)} байт")
+    print(f"✅ Цены обновлены. Предметов: {updated}")
 
-    # --- Построение дерева крафтов (если есть recipes.json) ---
+    # --- Построение дерева крафтов ---
     recipes = load_recipes()
     if recipes:
-        print(f"📦 Найдено рецептов: {len(recipes)}")
-
-        # Собираем текущие цены из history (последняя запись по каждому предмету)
         current_prices = {}
-        for item_id, records in history.items():
+        for iid, records in history.items():
             if records:
                 last = records[-1]
-                current_prices[item_id] = {
-                    "name": last.get("name", item_id),
+                current_prices[iid] = {
+                    "name": last.get("name", iid),
                     "icon": last.get("icon", ""),
                     "price": last.get("price", 0),
                 }
-
-        # Строим дерево для каждого рецепта
         craft_trees = {}
-        for item_id in recipes:
-            tree = build_craft_tree(recipes, current_prices, item_id)
+        for iid in recipes:
+            tree = build_craft_tree(recipes, current_prices, iid)
             if tree:
-                craft_trees[item_id] = tree
-
-        # Сохраняем результат в отдельный файл
+                craft_trees[iid] = tree
         with open("crafts.json", "w", encoding="utf-8") as f:
             json.dump(craft_trees, f, ensure_ascii=False, separators=(",", ":"))
-        print(f"✅ Дерево крафтов сохранено в crafts.json ({len(craft_trees)} рецептов)")
-    else:
-        print("ℹ️ Файл recipes.json не найден — пропускаем построение дерева крафтов.")
+        print(f"✅ crafts.json сохранён ({len(craft_trees)} рецептов)")
 
 
 if __name__ == "__main__":
