@@ -12,6 +12,7 @@ import requests
 REGION = os.environ.get("REGION", "EU")
 LANG = "ru"
 ICON_REALM = "ru"
+ICON_CDN = "https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main"
 
 TOKEN_URL = "https://exbo.net/oauth/token"
 API_BASE = "https://eapi.stalcraft.net"
@@ -171,11 +172,29 @@ def icon_url(item_id, category, existing_icons):
     for cat in (category, category.split("/")[0]):
         rel = f"{cat}/{item_id}.png"
         if rel in existing_icons:
-            return (
-                "https://cdn.jsdelivr.net/gh/EXBO-Studio/stalzone-database@main/"
-                f"{ICON_REALM}/icons/{rel}"
-            )
+            return f"{ICON_CDN}/{ICON_REALM}/icons/{rel}"
     return ""
+
+
+def normalize_icon(icon):
+    if not icon:
+        return ""
+    path = icon.replace("\\", "/").replace(".webp", ".png")
+    if path.startswith(ICON_CDN + "/"):
+        return path
+    if "stalzone-database/" in path:
+        path = path.split("stalzone-database/", 1)[1]
+        for prefix in ("raw/main/", "blob/main/", "main/"):
+            if path.startswith(prefix):
+                path = path[len(prefix):]
+                break
+    elif path.startswith("http"):
+        return path
+    else:
+        path = path.lstrip("/")
+        if not path.startswith("ru/"):
+            path = f"ru/{path}"
+    return f"{ICON_CDN}/{path}"
 
 
 def scan_item_database(item_db_dir, existing_icons):
@@ -427,11 +446,16 @@ def load_recipes():
             "experienceSkill": recipe.get("experienceSkill", ""),
             "category": recipe.get("category", ""),
             "subcategory": recipe.get("subcategory", ""),
-            "icon": recipe.get("icon", ""),
+            "icon": normalize_icon(recipe.get("icon", "")),
             "requiredStations": recipe.get("requiredStations", []),
             "stations": recipe.get("stations", []),
             "ingredients": [
-                {"id": res.get("itemId") or res.get("id"), "amount": res["amount"]}
+                {
+                    "id": res.get("itemId") or res.get("id"),
+                    "amount": res["amount"],
+                    "name": res.get("name") or "",
+                    "icon": normalize_icon(res.get("icon", "")),
+                }
                 for res in resources
                 if isinstance(res, dict) and (res.get("itemId") or res.get("id")) and res.get("amount")
             ],
@@ -516,7 +540,7 @@ def compute_recipe_costs(recipes, prices):
         row = {
             "id": item_id,
             "name": info.get("name") or recipe.get("name", item_id),
-            "icon": info.get("icon") or recipe.get("icon", ""),
+            "icon": normalize_icon(info.get("icon") or recipe.get("icon", "")),
             "sell_price": sell,
             "craftable": True,
             "energy": recipe.get("energy", 0),
@@ -626,15 +650,30 @@ def update_crafts(recipes, history, all_meta, sales):
         meta = all_meta.get(item_id, {})
         listing = last.get("price", 0) or 0
         typical = sales_typical(sales.get(item_id) or [])
+        recipe = recipes.get(item_id, {})
         current_prices[item_id] = {
-            "name": last.get("name") or meta.get("name") or recipes.get(item_id, {}).get("name") or item_id,
-            "icon": last.get("icon") or meta.get("icon") or "",
+            "name": last.get("name") or meta.get("name") or recipe.get("name") or item_id,
+            "icon": normalize_icon(last.get("icon") or meta.get("icon") or recipe.get("icon") or ""),
             "price": listing or typical,
             "sales_avg": typical,
         }
     trees = compute_recipe_costs(recipes, current_prices)
+    catalog = {}
+    for item_id, recipe in recipes.items():
+        catalog[item_id] = {
+            "name": trees.get(item_id, {}).get("name") or recipe.get("name") or item_id,
+            "icon": trees.get(item_id, {}).get("icon") or recipe.get("icon") or "",
+        }
+        for ing in recipe.get("ingredients", []):
+            if ing["id"] in catalog:
+                continue
+            catalog[ing["id"]] = {
+                "name": ing.get("name") or ing["id"],
+                "icon": ing.get("icon") or "",
+            }
+    trees["_items"] = catalog
     save_json(CRAFTS_FILE, trees)
-    print(f"✅ Крафты: {len(trees)}")
+    print(f"✅ Крафты: {len(trees) - 1}")
 
 
 def main():

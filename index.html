@@ -348,27 +348,39 @@
         }
         function resolveIcon(src) {
             if (!src) return '';
-            const db = 'https://cdn.jsdelivr.net/gh/EXBO-Studio/stalzone-database@main/';
-            if (src.includes('stalzone-database')) {
-                const path = src.split('stalzone-database/')[1]
+            const db = 'https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main/';
+            let path = src.replace(/\.webp(\?.*)?$/i, '.png');
+            if (path.includes('stalzone-database')) {
+                path = path.split('stalzone-database/')[1]
                     .replace(/^raw\/main\//, '')
+                    .replace(/^blob\/main\//, '')
                     .replace(/^main\//, '');
                 return db + path;
             }
-            if (src.startsWith('http')) return src;
-            return db + 'ru/' + src.replace(/^\/+/, '');
+            if (path.startsWith('http')) return path;
+            path = path.replace(/^\/+/, '');
+            if (!path.startsWith('ru/')) path = 'ru/' + path;
+            return db + path;
+        }
+        function itemCatalog(id) {
+            return (craftsData._items || {})[id] || {};
+        }
+        function recipeIds() {
+            return Object.keys(craftsData).filter(id => id !== '_items');
         }
         function resolveNode(nodeOrId) {
             if (!nodeOrId) return { id: '', name: '', icon: '', ingredients: [], sell_price: 0, craftable: false };
             const id = typeof nodeOrId === 'string' ? nodeOrId : nodeOrId.id;
             const craft = craftsData[id] || {};
             const last = lastListing(id) || {};
-            const amount = typeof nodeOrId === 'object' ? nodeOrId.amount : undefined;
+            const fromNode = typeof nodeOrId === 'object' ? nodeOrId : {};
+            const catalog = itemCatalog(id);
+            const amount = fromNode.amount;
             return {
                 ...craft,
                 id,
-                name: last.name || craft.name || id,
-                icon: resolveIcon(last.icon || craft.icon || ''),
+                name: last.name || craft.name || fromNode.name || catalog.name || id,
+                icon: resolveIcon(last.icon || craft.icon || fromNode.icon || catalog.icon || ''),
                 sell_price: last.price || craft.sell_price || typicalSale(id) || 0,
                 craftable: Boolean(craft.ingredients && craft.ingredients.length),
                 ingredients: craft.ingredients || [],
@@ -485,7 +497,7 @@
                 populateCategories();
                 populateCraftSkills();
                 applyFilters();
-                els.craftResultCount.textContent = `Рецептов: ${Object.keys(craftsData).length}`;
+                els.craftResultCount.textContent = `Рецептов: ${recipeIds().length}`;
             } catch (e) {
                 console.error(e);
             }
@@ -540,7 +552,8 @@
 
         function populateCraftSkills() {
             const counts = {};
-            Object.values(craftsData).forEach(craft => {
+            recipeIds().forEach(id => {
+                const craft = craftsData[id];
                 const skill = craft.skill || "Сырье и материалы";
                 counts[skill] = (counts[skill] || 0) + 1;
             });
@@ -766,14 +779,14 @@
             const sortMode = els.craftSortSelect.value;
             const container = els.craftListContainer;
 
-            const recipeIds = Object.keys(craftsData);
-            if (recipeIds.length === 0) {
+            const ids = recipeIds();
+            if (ids.length === 0) {
                 container.innerHTML = '<div class="empty-state">Рецепты ещё грузятся…</div>';
                 els.craftResultCount.textContent = 'Загрузка...';
                 return;
             }
 
-            let items = recipeIds.map(id => ({ id, ...craftsData[id] }));
+            let items = ids.map(id => resolveNode(id));
 
             if (skillFilter) {
                 items = items.filter(item => (item.skill || "Сырье и материалы") === skillFilter);
@@ -862,7 +875,7 @@
             const profitClass = !hasProfit ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
             const profitSign = hasProfit && profit > 0 ? '+' : '';
             const iconHtml = item.icon
-                ? `<img class="craft-list-icon" src="${resolveIcon(item.icon)}" alt="" loading="lazy" decoding="async" draggable="false" onerror="this.style.display='none'">`
+                ? `<img class="craft-list-icon" src="${item.icon}" alt="" loading="lazy" decoding="async" draggable="false" onerror="this.src=''; this.alt=''; this.style.background='#12140f'">`
                 : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
             const levelBadge = item.skillLevel
                 ? `<span class="skill-level-badge lvl-${item.skillLevel}">ур. ${item.skillLevel}</span>`
