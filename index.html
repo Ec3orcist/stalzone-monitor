@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stalzone Auction Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #e0e0e0; margin: 0; padding: 20px; }
+        h1 { color: #61dafb; text-align: center; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 16px; }
+        button { cursor: pointer; background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
+        button:hover { background: #4fa8c7; }
+        .card { background: #2b2b3c; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .stats { display: flex; justify-content: space-around; text-align: center; margin-top: 10px; }
+        .stat-item { flex: 1; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #61dafb; }
+        .stat-label { font-size: 14px; color: #aaa; }
+        canvas { max-height: 400px; }
+        .green { color: #4caf50; }
+        .red { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Stalzone Auction Monitor</h1>
+        <div class="controls">
+            <select id="itemSelect"><option value="">Загрузка...</option></select>
+            <button onclick="loadData()">Обновить</button>
+        </div>
+        <div class="card" id="statsCard" style="display:none;">
+            <h2 id="itemName">Предмет</h2>
+            <div class="stats">
+                <div class="stat-item"><div class="stat-value" id="currentPrice">-</div><div class="stat-label">Текущая цена</div></div>
+                <div class="stat-item"><div class="stat-value" id="avgPrice">-</div><div class="stat-label">Средняя (7 дней)</div></div>
+                <div class="stat-item"><div class="stat-value" id="deviation">-</div><div class="stat-label">Отклонение</div></div>
+            </div>
+        </div>
+        <div class="card"><canvas id="priceChart"></canvas></div>
+    </div>
+    <script>
+        let allData = {}, chartInstance = null;
+        async function loadData() {
+            try {
+                const resp = await fetch('prices.json?t=' + Date.now());
+                allData = await resp.json();
+                populateSelect();
+            } catch (e) {
+                console.error(e);
+                alert("Не удалось загрузить данные. Запустите GitHub Action вручную.");
+            }
+        }
+        function populateSelect() {
+            const sel = document.getElementById('itemSelect');
+            sel.innerHTML = '<option value="">Выберите предмет...</option>';
+            const items = Object.keys(allData).sort();
+            items.forEach(id => {
+                const opt = document.createElement('option');
+                opt.value = id; opt.textContent = id;
+                sel.appendChild(opt);
+            });
+            if (items.length) { sel.value = items[0]; renderChart(); }
+        }
+        function renderChart() {
+            const id = document.getElementById('itemSelect').value;
+            if (!id || !allData[id] || !allData[id].length) { document.getElementById('statsCard').style.display = 'none'; return; }
+            const hist = allData[id];
+            const labels = hist.map(h => new Date(h.timestamp).toLocaleString());
+            const prices = hist.map(h => h.price);
+            const cur = prices[prices.length - 1];
+            const avg = prices.reduce((a,b)=>a+b,0) / prices.length;
+            const dev = ((cur - avg) / avg) * 100;
+            document.getElementById('statsCard').style.display = 'block';
+            document.getElementById('itemName').textContent = `Предмет: ${id}`;
+            document.getElementById('currentPrice').textContent = cur.toLocaleString() + ' ₽';
+            document.getElementById('avgPrice').textContent = Math.round(avg).toLocaleString() + ' ₽';
+            const devEl = document.getElementById('deviation');
+            devEl.textContent = (dev>0?'+':'') + dev.toFixed(1) + '%';
+            devEl.className = 'stat-value ' + (dev>0?'red':'green');
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Цена', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
+                        { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#e0e0e0' } } },
+                    scales: { x: { ticks: { color: '#aaa' }, grid: { color: '#444' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#444' } } }
+                }
+            });
+        }
+        document.getElementById('itemSelect').addEventListener('change', renderChart);
+        loadData();
+    </script>
+</body>
+</html>
