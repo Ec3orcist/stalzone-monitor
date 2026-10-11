@@ -96,6 +96,9 @@
         .craft-list-profit.green { color: var(--accent-2); }
         .craft-list-profit.red { color: var(--danger); }
         .craft-list-stations { font-size: 11px; color: #8b7da3; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .craft-prices { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 3px; }
+        .craft-prices b { color: var(--text); font-weight: 650; }
+        .craft-prices .buy b { color: var(--accent); }
         .station-mini { background: var(--bg); padding: 1px 6px; border-radius: 3px; color: var(--muted); }
 
         .skill-header { background: linear-gradient(90deg, var(--panel), var(--panel-2)); padding: 15px; border-radius: 10px; margin-bottom: 12px; margin-top: 20px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--line); }
@@ -978,12 +981,18 @@
                 stationsHtml = `<div class="craft-list-stations">🏗️ ${names.map(n => `<span class="station-mini">${escapeHtml(n)}</span>`).join('')}</div>`;
             }
 
+            const buy = directBuyCost(item, 1 / (item.craftAmount || 1));
+            const deepUnit = item.cost_craft || 0;
+            const rub = (n) => n > 0 ? Math.round(n).toLocaleString('ru-RU') + ' ₽' : '—';
+
             row.innerHTML = `
                 ${iconHtml}
                 <div class="craft-list-info">
                     <div class="craft-list-name">${escapeHtml(item.name)}${levelBadge}${bonusBadge}</div>
-                    <div style="font-size:12px;color:#888;">
-                        ${(item.cost_direct || item.cost) ? Math.round(item.cost_direct || item.cost).toLocaleString('ru-RU') + ' ₽' : '—'} → ${item.sell_price ? item.sell_price.toLocaleString('ru-RU') + ' ₽' : 'нет лотов'}
+                    <div class="craft-prices">
+                        <span class="buy">Купить <b>${rub(buy.cost)}</b>${buy.missing ? ` <span style="color:#8b7da3">· ${buy.missing} без цены</span>` : ''}</span>
+                        <span>С нуля <b>${rub(deepUnit)}</b></span>
+                        <span>Продажа <b>${item.sell_price ? rub(item.sell_price) : 'нет лотов'}</b></span>
                     </div>
                     ${stationsHtml}
                 </div>
@@ -1187,19 +1196,30 @@
             return { cost, missing };
         }
 
+        function directBuyCost(craft, craftsNeeded) {
+            let cost = 0;
+            let missing = 0;
+            (craft.ingredients || []).forEach(ing => {
+                const price = resolveNode(ing).sell_price || 0;
+                if (price > 0) cost += price * (ing.amount || 0) * craftsNeeded;
+                else missing += 1;
+            });
+            return { cost, missing };
+        }
+
         function renderSummary(flatBonus, flatBase, craft, qty, bonusMultiplier) {
             const { cost: materialsBonus, missing } = sumFlat(flatBonus);
             const { cost: materialsBase } = sumFlat(flatBase);
             const sellUnit = craft.sell_price || 0;
             const sellTotal = sellUnit * qty;
             const b = bonusMultiplier || 1;
-            const batchDirect = craft.total_direct_cost_batch || ((craft.cost_direct || 0) * (craft.craftAmount || 1));
-            const craftsBase = qty / (craft.craftAmount || 1);
-            const costDirect = batchDirect * craftsBase;
-            const costDirectBonus = b > 1 ? batchDirect * (qty / ((craft.craftAmount || 1) * b)) : 0;
+            const perCraft = (craft.craftAmount || 1) * (b > 1 ? b : 1);
+            const bought = directBuyCost(craft, qty / perCraft);
+            const costDirect = bought.cost;
+            const profitBuy = sellTotal > 0 && costDirect > 0 ? sellTotal - costDirect : null;
             const profit = sellTotal > 0 && materialsBonus > 0 ? sellTotal - materialsBonus : null;
-            const profitClass = profit === null ? '' : (profit > 0 ? 'green' : 'red');
-            const profitText = profit === null ? '—' : `${profit > 0 ? '+' : ''}${Math.round(profit).toLocaleString('ru-RU')} ₽`;
+            const profitClass = profitBuy === null ? '' : (profitBuy > 0 ? 'green' : 'red');
+            const profitText = profitBuy === null ? '—' : `${profitBuy > 0 ? '+' : ''}${Math.round(profitBuy).toLocaleString('ru-RU')} ₽`;
 
             return `
         <div class="craft-summary-grid">
@@ -1208,8 +1228,13 @@
                 <div class="craft-summary-label">Хотим получить</div>
             </div>
             <div class="craft-summary-item">
+                <div class="craft-summary-value">${costDirect ? Math.round(costDirect).toLocaleString('ru-RU') + ' ₽' : '—'}</div>
+                <div class="craft-summary-label">Купить нужное</div>
+                ${bought.missing > 0 ? `<div style="font-size:11px;color:#9a917c;margin-top:2px;">${bought.missing} без цены</div>` : ''}
+            </div>
+            <div class="craft-summary-item">
                 <div class="craft-summary-value">${materialsBonus ? Math.round(materialsBonus).toLocaleString('ru-RU') + ' ₽' : '—'}</div>
-                <div class="craft-summary-label">Материалы</div>
+                <div class="craft-summary-label">С нуля</div>
                 ${missing > 0 ? `<div style="font-size:11px;color:#9a917c;margin-top:2px;">${missing} без цены</div>` : ''}
             </div>
             <div class="craft-summary-item">
@@ -1219,7 +1244,8 @@
             </div>
             <div class="craft-summary-item">
                 <div class="craft-summary-value ${profitClass}">${profitText}</div>
-                <div class="craft-summary-label">Прибыль</div>
+                <div class="craft-summary-label">Прибыль, если купить</div>
+                <div style="font-size:11px;color:#9a917c;margin-top:2px;">С нуля: ${profit === null ? '—' : (profit > 0 ? '+' : '') + Math.round(profit).toLocaleString('ru-RU') + ' ₽'}</div>
             </div>
         </div>
         <table class="shopping-table" style="margin-top:15px;">
@@ -1233,14 +1259,13 @@
                 </tr>
             </thead>
             <tbody>
-                ${moneyRow('Купить ингредиенты', costDirect, sellTotal)}
-                ${moneyRow('Крафт до сырья', materialsBase, sellTotal)}
-                ${b > 1 ? moneyRow('Ингредиенты с бонусом ×' + b.toFixed(2), costDirectBonus, sellTotal) : ''}
-                ${b > 1 ? moneyRow('До сырья с бонусом ×' + b.toFixed(2), materialsBonus, sellTotal) : ''}
+                ${moneyRow('Купить нужное для крафта', costDirect, sellTotal)}
+                ${moneyRow('Крафт с нуля', materialsBase, sellTotal)}
+                ${b > 1 ? moneyRow('С нуля и бонусом ×' + b.toFixed(2), materialsBonus, sellTotal) : ''}
             </tbody>
         </table>
         <div style="font-size:12px;color:#9a917c;margin-top:10px;">
-            Купить ингредиенты — рыночная цена прямых компонентов. До сырья — вся цепочка. Бонус уменьшает число крафтов, а не делит уже посчитанную смету повторно.
+            Купить нужное — рыночная цена прямых ингредиентов этого рецепта. С нуля — вся цепочка до сырья. Бонус уменьшает число крафтов.
         </div>`;
         }
 
