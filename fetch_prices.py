@@ -7,7 +7,7 @@ from pathlib import Path
 
 # --- Настройки ---
 REGION = os.environ.get("REGION", "EU")
-LANG = "ru"           # "en" для EU, "ru" для RU
+LANG = "ru"           # "ru" — русские названия, "en" — английские
 ICON_REALM = "ru"     # Иконки лежат в папке ru даже для EU-региона
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
@@ -18,7 +18,7 @@ WORKERS = 8
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 
-# Путь к базе предметов (ищем папку ru, т.к. ID одинаковые для всех регионов)
+
 def find_item_db_dir():
     base = Path("itemdb")
     if not base.exists():
@@ -32,7 +32,9 @@ def find_item_db_dir():
             return d / "items"
     return None
 
+
 ITEM_DB_DIR = find_item_db_dir()
+
 
 def get_access_token():
     payload = {
@@ -45,6 +47,7 @@ def get_access_token():
     resp.raise_for_status()
     return resp.json().get("access_token")
 
+
 def get_localized_name(content):
     try:
         name = content.get("name", {})
@@ -55,12 +58,18 @@ def get_localized_name(content):
     except Exception:
         return ""
 
+
 def build_icon_url(item_id, category):
     """Строит URL иконки по официальной схеме."""
     if not category:
         return ""
-    # category вида "weapon/pistol" или "misc"
-    return f"https://github.com/EXBO-Studio/stalzone-database/raw/main/{ICON_REALM}/icons/{category}/{item_id}.png"
+    # Если category вида "weapon/pistol" — берём только первую часть ("weapon")
+    top_category = category.split("/")[0]
+    return (
+        f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
+        f"{ICON_REALM}/icons/{top_category}/{item_id}.png"
+    )
+
 
 def discover_tradable_items():
     items = []
@@ -98,6 +107,7 @@ def discover_tradable_items():
     print(f"Торгуемых предметов: {len(items)}")
     return items
 
+
 def fetch_lots_for_item(token, item_id):
     url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/lots?limit=200"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
@@ -114,19 +124,25 @@ def fetch_lots_for_item(token, item_id):
     except Exception:
         return item_id, []
 
+
 def load_history():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
+
 def save_history(history):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
 
+
 def aggregate_history(records):
+    """Оставляем детально 24 часа, старше — по одной точке в час.
+    name и icon сохраняются, чтобы не теряться при сжатии."""
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
+
     fresh, old = [], []
     for r in records:
         try:
@@ -137,6 +153,17 @@ def aggregate_history(records):
             fresh.append(r)
         else:
             old.append((ts, r))
+
+    # Запоминаем последние известные name/icon — иначе старые записи без них
+    last_name = ""
+    last_icon = ""
+    for r in records:
+        if r.get("name"):
+            last_name = r["name"]
+        if r.get("icon"):
+            last_icon = r["icon"]
+
+    # Агрегация по часам
     buckets = {}
     for ts, r in old:
         key = ts.strftime("%Y-%m-%dT%H")
@@ -144,12 +171,21 @@ def aggregate_history(records):
             buckets[key] = {"min_price": r["price"]}
         else:
             buckets[key]["min_price"] = min(buckets[key]["min_price"], r["price"])
+
     aggregated = [
-        {"timestamp": k + ":00:00+00:00", "price": v["min_price"], "aggregated": True}
+        {
+            "timestamp": k + ":00:00+00:00",
+            "price": v["min_price"],
+            "name": last_name,
+            "icon": last_icon,
+            "aggregated": True
+        }
         for k, v in sorted(buckets.items())
     ]
+
     result = aggregated + fresh
     return result[-720:] if len(result) > 720 else result
+
 
 def main():
     print(f"Запуск сбора данных (регион: {REGION}, язык: {LANG})...")
@@ -164,8 +200,10 @@ def main():
     items_to_process = all_items[:MAX_ITEMS]
     print(f"Обрабатываем предметов: {len(items_to_process)}")
 
-    # Сохраняем мета-данные (имя, иконку) для каждого предмета
-    meta_map = {item["id"]: {"name": item["name"], "icon": item["icon"]} for item in items_to_process}
+    meta_map = {
+        item["id"]: {"name": item["name"], "icon": item["icon"]}
+        for item in items_to_process
+    }
 
     history = load_history()
     now = datetime.now(timezone.utc).isoformat()
@@ -201,6 +239,7 @@ def main():
     save_history(history)
     print(f"✅ Готово. Обновлено предметов: {updated}")
     print(f"   Файл {DATA_FILE}: {os.path.getsize(DATA_FILE)} байт")
+
 
 if __name__ == "__main__":
     main()
