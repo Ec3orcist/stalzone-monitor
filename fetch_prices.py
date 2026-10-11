@@ -9,10 +9,10 @@ from pathlib import Path
 REGION = os.environ.get("REGION", "RU")
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
-ITEM_DB_DIR = "itemdb/ru/items"   # папка со склонированной базой
+ITEM_DB_DIR = "itemdb/ru/items"
 MAX_HISTORY = 500
-MAX_ITEMS = 300                   # максимум предметов за один прогон (для скорости)
-WORKERS = 15                      # параллельных запросов
+MAX_ITEMS = 300
+WORKERS = 15
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -28,17 +28,44 @@ def get_access_token():
     resp.raise_for_status()
     return resp.json().get("access_token")
 
-def discover_item_ids():
-    """Собирает все ID предметов из локально склонированной базы."""
+def discover_tradable_item_ids():
+    """
+    Читает базу предметов и возвращает только те ID,
+    которые НЕ являются персональными (можно продать на аукционе).
+    """
     ids = []
     root = Path(ITEM_DB_DIR)
     if not root.exists():
-        print(f"❌ Папка {ITEM_DB_DIR} не найдена. Проверьте шаг Clone в workflow.")
+        print(f"❌ Папка {ITEM_DB_DIR} не найдена.")
         return ids
-    # Рекурсивно обходим все .json файлы — имя файла = ID предмета
-    for path in root.rglob("*.json"):
+
+    all_files = list(root.rglob("*.json"))
+    print(f"Всего файлов в базе: {len(all_files)}")
+
+    skipped_personal = 0
+    for path in all_files:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = json.load(f)
+        except Exception:
+            continue
+
+        # Проверяем статус: если предмет персональный — пропускаем
+        status = content.get("status", {})
+        if isinstance(status, dict):
+            state = status.get("state", "")
+        else:
+            state = str(status) if status else ""
+
+        # PERSONAL_ON_USE и PERSONAL — не торгуются
+        if state in ("PERSONAL_ON_USE", "PERSONAL"):
+            skipped_personal += 1
+            continue
+
         ids.append(path.stem)
-    print(f"Найдено предметов в базе: {len(ids)}")
+
+    print(f"Отфильтровано персональных: {skipped_personal}")
+    print(f"Торгуемых предметов: {len(ids)}")
     return ids
 
 def fetch_lots_for_item(token, item_id):
@@ -98,13 +125,13 @@ def main():
     token = get_access_token()
     print("✅ Токен получен.")
 
-    item_ids = discover_item_ids()
-    if not item_ids:
-        print("❌ Не удалось получить список предметов.")
+    tradable_ids = discover_tradable_item_ids()
+    if not tradable_ids:
+        print("❌ Не найдено торгуемых предметов.")
         return
 
-    # Ограничиваем количество для скорости (при необходимости увеличьте MAX_ITEMS)
-    item_ids = item_ids[:MAX_ITEMS]
+    # Берём только первые MAX_ITEMS торгуемых
+    item_ids = tradable_ids[:MAX_ITEMS]
     print(f"Обрабатываем предметов: {len(item_ids)}")
 
     history = load_history()
