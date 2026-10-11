@@ -468,6 +468,7 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
     node["category"] = recipe.get("category", "")
     node["subcategory"] = recipe.get("subcategory", "")
     total_cost = 0
+    direct_cost = 0
     for ing in recipe.get("ingredients", []):
         sub = build_craft_tree(recipes, prices, ing["id"], visited.copy())
         if sub is None:
@@ -476,11 +477,25 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
         sub["total_cost"] = sub["cost"] * ing["amount"]
         node["ingredients"].append(sub)
         total_cost += sub["total_cost"]
+
+        # Стоимость «1 ступени»: покупаем готовый ингредиент по его рыночной цене
+        ing_market = prices.get(ing["id"], {}).get("price", 0)
+        direct_cost += ing_market * ing["amount"]
+
     craft_amount = recipe.get("craftAmount", 1) or 1
+
+    # --- Обычный расчёт (через крафт до сырья) ---
     node["total_cost_batch"] = total_cost
     node["cost"] = total_cost / craft_amount
     node["profit"] = sell_price - node["cost"]
     node["roi"] = (node["profit"] / node["cost"] * 100) if node["cost"] > 0 else 0
+
+    # --- Расчёт «1 ступени» (покупка прямых ингредиентов) ---
+    node["total_direct_cost_batch"] = direct_cost
+    node["cost_direct"] = direct_cost / craft_amount
+    node["profit_direct"] = sell_price - node["cost_direct"]
+    node["roi_direct"] = (node["profit_direct"] / node["cost_direct"] * 100) if node["cost_direct"] > 0 else 0
+
     return node
 
 
