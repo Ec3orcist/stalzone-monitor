@@ -2,7 +2,7 @@ name: Update Auction Data
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -33,4 +33,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Auto-update prices & crafts"
-          file_pattern: "prices.json crafts.json craft_analysis.json"
+          file_pattern: "prices.json crafts.json craft_analysis.json active_items.json"
