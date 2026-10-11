@@ -1003,43 +1003,108 @@
             `;
         }
 
-        function renderSummary(flat, craft, qty) {
-            let materialsCost = 0;
-            let missingCount = 0;
-            for (const item of flat.values()) {
-                if (item.unit_price > 0) materialsCost += item.total_cost;
-                else missingCount++;
-            }
-            const sellUnit = craft.sell_price || 0;
-            const sellTotal = sellUnit * qty;
-            const profit = sellTotal - materialsCost;
-            const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
-            const profitSign = profit > 0 ? '+' : '';
-            const roi = materialsCost > 0 ? (profit / materialsCost * 100) : 0;
-            return `
-                <div class="craft-summary-grid">
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value">${qty.toLocaleString('ru-RU')} шт</div>
-                        <div class="craft-summary-label">Хотим получить</div>
-                    </div>
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value">${Math.round(materialsCost).toLocaleString('ru-RU')} ₽</div>
-                        <div class="craft-summary-label">Материалы</div>
-                        ${missingCount > 0 ? `<div style="font-size:11px;color:#888;margin-top:2px;">${missingCount} без цены</div>` : ''}
-                    </div>
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</div>
-                        <div class="craft-summary-label">Продажа (среднее)</div>
-                        <div style="font-size:11px;color:#888;margin-top:2px;">${sellUnit.toLocaleString('ru-RU')} ₽/шт</div>
-                    </div>
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value ${profitClass}">${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽</div>
-                        <div class="craft-summary-label">Прибыль</div>
-                        <div style="font-size:11px;color:#888;margin-top:2px;">ROI: ${roi.toFixed(1)}%</div>
-                    </div>
-                </div>
-            `;
-        }
+        function renderSummary(flat, craft, qty, bonusMultiplier) {
+    // --- Глубокая себестоимость (крафт до сырья) ---
+    let materialsCost = 0;
+    let missingCount = 0;
+    for (const item of flat.values()) {
+        if (item.unit_price > 0) materialsCost += item.total_cost;
+        else missingCount++;
+    }
+    const sellUnit = craft.sell_price || 0;
+    const sellTotal = sellUnit * qty;
+    const profit = sellTotal - materialsCost;
+    const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
+    const profitSign = profit > 0 ? '+' : '';
+    const roi = materialsCost > 0 ? (profit / materialsCost * 100) : 0;
+
+    // --- 1 ступень (покупка прямых ингредиентов) ---
+    const costDirect = craft.cost_direct || 0;
+    const costDirectTotal = costDirect * qty;
+    const profitDirect = sellTotal - costDirectTotal;
+    const profitDirectClass = profitDirect > 0 ? 'green' : (profitDirect < 0 ? 'red' : '');
+    const profitDirectSign = profitDirect > 0 ? '+' : '';
+    const roiDirect = costDirectTotal > 0 ? (profitDirect / costDirectTotal * 100) : 0;
+
+    // --- С бонусом от уровня ---
+    const b = bonusMultiplier || 1;
+    const costWithBonus = b > 0 ? (materialsCost / b) : materialsCost;
+    const profitWithBonus = sellTotal - costWithBonus;
+    const profitWithBonusClass = profitWithBonus > 0 ? 'green' : (profitWithBonus < 0 ? 'red' : '');
+    const profitWithBonusSign = profitWithBonus > 0 ? '+' : '';
+    const roiWithBonus = costWithBonus > 0 ? (profitWithBonus / costWithBonus * 100) : 0;
+
+    let bonusRowHtml = '';
+    if (b > 1) {
+        bonusRowHtml = `
+            <tr>
+                <td>✨ С бонусом (×${b.toFixed(2)})</td>
+                <td style="text-align:right;">${Math.round(costWithBonus).toLocaleString('ru-RU')} ₽</td>
+                <td style="text-align:right;">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</td>
+                <td style="text-align:right;" class="${profitWithBonusClass}">${profitWithBonusSign}${Math.round(profitWithBonus).toLocaleString('ru-RU')} ₽</td>
+                <td style="text-align:right;" class="${profitWithBonusClass}">${roiWithBonus.toFixed(1)}%</td>
+            </tr>
+        `;
+    }
+
+    return `
+        <div class="craft-summary-grid">
+            <div class="craft-summary-item">
+                <div class="craft-summary-value">${qty.toLocaleString('ru-RU')} шт</div>
+                <div class="craft-summary-label">Хотим получить</div>
+            </div>
+            <div class="craft-summary-item">
+                <div class="craft-summary-value">${Math.round(materialsCost).toLocaleString('ru-RU')} ₽</div>
+                <div class="craft-summary-label">Материалы (через крафт)</div>
+                ${missingCount > 0 ? `<div style="font-size:11px;color:#888;margin-top:2px;">${missingCount} без цены</div>` : ''}
+            </div>
+            <div class="craft-summary-item">
+                <div class="craft-summary-value">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</div>
+                <div class="craft-summary-label">Продажа</div>
+                <div style="font-size:11px;color:#888;margin-top:2px;">${sellUnit.toLocaleString('ru-RU')} ₽/шт</div>
+            </div>
+            <div class="craft-summary-item">
+                <div class="craft-summary-value ${profitClass}">${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽</div>
+                <div class="craft-summary-label">Прибыль (крафт)</div>
+                <div style="font-size:11px;color:#888;margin-top:2px;">ROI: ${roi.toFixed(1)}%</div>
+            </div>
+        </div>
+
+        <table class="shopping-table" style="margin-top:15px;">
+            <thead>
+                <tr>
+                    <th>Вариант</th>
+                    <th style="text-align:right;">Себестоимость</th>
+                    <th style="text-align:right;">Продажа</th>
+                    <th style="text-align:right;">Прибыль</th>
+                    <th style="text-align:right;">ROI</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>🛒 Купить прямые ингредиенты (1 ступень)</td>
+                    <td style="text-align:right;">${Math.round(costDirectTotal).toLocaleString('ru-RU')} ₽</td>
+                    <td style="text-align:right;">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</td>
+                    <td style="text-align:right;" class="${profitDirectClass}">${profitDirectSign}${Math.round(profitDirect).toLocaleString('ru-RU')} ₽</td>
+                    <td style="text-align:right;" class="${profitDirectClass}">${roiDirect.toFixed(1)}%</td>
+                </tr>
+                <tr>
+                    <td>🔨 Скрафтить ингредиенты самостоятельно</td>
+                    <td style="text-align:right;">${Math.round(materialsCost).toLocaleString('ru-RU')} ₽</td>
+                    <td style="text-align:right;">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</td>
+                    <td style="text-align:right;" class="${profitClass}">${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽</td>
+                    <td style="text-align:right;" class="${profitClass}">${roi.toFixed(1)}%</td>
+                </tr>
+                ${bonusRowHtml}
+            </tbody>
+        </table>
+        <div style="font-size:12px;color:#888;margin-top:10px;">
+            💡 <b>1 ступень</b> — покупаете прямые ингредиенты готовыми по рыночной цене, не тратя время на их крафт.<br>
+            🔨 <b>Самостоятельный крафт</b> — считаем себестоимость через всю цепочку до сырья.<br>
+            ✨ <b>С бонусом</b> — учитываем ваш уровень и повышенный выход.
+        </div>
+    `;
+}
 
         function renderIngredientRow(ing, isSubCraft) {
             const iconHtml = ing.icon
@@ -1226,7 +1291,10 @@
                 const flat = new Map();
                 const excess = new Map();
                 flattenTree(craft, quantity, flat, excess, userLevels);
-                document.getElementById('craftSummaryBox').innerHTML = renderSummary(flat, craft, quantity);
+                const bonusMult = userLevels[skill] > reqLevel
+    ? computeBonus(reqLevel, userLevels[skill]).multiplier
+    : 1;
+document.getElementById('craftSummaryBox').innerHTML = renderSummary(flat, craft, quantity, bonusMult);
                 document.getElementById('craftExcessBox').innerHTML = renderExcess(excess);
                 document.getElementById('craftShoppingBox').innerHTML = renderShoppingList(flat);
                 document.getElementById('craftTreeBox').innerHTML = renderTreeRoot(craft, userLevels);
