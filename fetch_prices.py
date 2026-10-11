@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -311,48 +312,83 @@ def sales_needs_refresh(sales):
     return (utc_now() - ts).total_seconds() >= SALES_REFRESH_HOURS * 3600
 
 
-def aggregate_history(records):
+def _parse_ts(record):
+    try:
+        return datetime.fromisoformat(record["timestamp"].replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def slim_point(record, keep_meta=False, keep_lots=False):
+    point = {"timestamp": record.get("timestamp", ""), "price": record.get("price", 0)}
+    if keep_meta:
+        point.update({
+            "name": record.get("name", ""),
+            "icon": record.get("icon", ""),
+            "category": record.get("category", "other"),
+            "total_amount": record.get("total_amount", 0),
+            "lots_count": record.get("lots_count", 0),
+            "best_lot_amount": record.get("best_lot_amount"),
+            "best_lot_buyout": record.get("best_lot_buyout"),
+        })
+    if keep_lots:
+        point["lots"] = record.get("lots") or []
+    return point
+
+
+def compact_history(records):
+    if not records:
+        return []
     now = utc_now()
-    cutoff = now - timedelta(hours=24)
-    fresh, old = [], []
-    last_name = last_icon = ""
-    last_category = "other"
+    cutoff = now - timedelta(hours=48)
+    last_meta = {}
+    last_full = records[-1]
+    hourly = {}
+    fresh = []
     for record in records:
-        if record.get("name"):
-            last_name = record["name"]
-        if record.get("icon"):
-            last_icon = record["icon"]
-        if record.get("category"):
-            last_category = record["category"]
-        try:
-            ts = datetime.fromisoformat(record["timestamp"].replace("Z", "+00:00"))
-        except (KeyError, TypeError, ValueError):
+        ts = _parse_ts(record)
+        if ts is None:
             continue
+        for key in ("name", "icon", "category"):
+            if record.get(key):
+                last_meta[key] = record[key]
         if ts >= cutoff:
-            fresh.append(record)
-        else:
-            old.append((ts, record))
-
-    buckets = {}
-    for ts, record in old:
+            fresh.append(slim_point(record))
+            continue
         key = ts.strftime("%Y-%m-%dT%H")
-        prev = buckets.get(key)
-        if prev is None or record["price"] < prev["price"]:
-            buckets[key] = record
+        prev = hourly.get(key)
+        if prev is None or record.get("price", 0) < prev["price"]:
+            hourly[key] = {"timestamp": f"{key}:00:00+00:00", "price": record.get("price", 0), "aggregated": True}
 
-    aggregated = [
-        {
-            "timestamp": f"{key}:00:00+00:00",
-            "price": record["price"],
-            "name": last_name,
-            "icon": last_icon,
-            "category": last_category,
-            "aggregated": True,
-        }
-        for key, record in sorted(buckets.items())
-    ]
-    result = aggregated + fresh
+    result = [hourly[k] for k in sorted(hourly)] + fresh
+    if not result:
+        result = [last_full]
+    result[-1] = slim_point(
+        {**last_meta, **last_full},
+        keep_meta=True,
+        keep_lots=True,
+    )
     return result[-MAX_HISTORY:]
+
+
+def sales_typical(entries, days=14):
+    if not entries:
+        return 0
+    cutoff = (utc_now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    recent = [e for e in entries if isinstance(e, dict) and e.get("avg", 0) > 0 and e.get("t", "")[:10] >= cutoff]
+    if not recent:
+        recent = [e for e in entries if isinstance(e, dict) and e.get("avg", 0) > 0][-days:]
+    if not recent:
+        return 0
+    avgs = sorted(e["avg"] for e in recent)
+    median = avgs[len(avgs) // 2]
+    clean = [e for e in recent if e["avg"] <= median * 8]
+    if not clean:
+        clean = recent
+    total_qty = sum(e.get("a", 0) for e in clean)
+    if total_qty <= 0:
+        return median
+    return round(sum(e["avg"] * e.get("a", 0) for e in clean) / total_qty)
 
 
 def load_recipes():
@@ -404,67 +440,108 @@ def load_recipes():
     return recipes
 
 
-def build_craft_tree(recipes, prices, item_id, visited=None):
-    visited = set() if visited is None else visited
-    if item_id in visited:
-        return None
-    visited = visited | {item_id}
+def market_price(info):
+    return info.get("price") or info.get("sales_avg") or 0
 
-    price_info = prices.get(item_id, {})
-    sell_price = price_info.get("price", 0)
-    recipe = recipes.get(item_id)
-    node = {
-        "id": item_id,
-        "name": price_info.get("name") or (recipe or {}).get("name", item_id),
-        "icon": price_info.get("icon") or "",
-        "sell_price": sell_price,
-        "craftable": bool(recipe and recipe.get("ingredients")),
-        "ingredients": [],
-        "cost": 0,
-        "profit": 0,
-        "roi": 0,
-    }
-    if not recipe:
-        node["cost"] = sell_price
-        return node
 
-    node.update({
-        "energy": recipe.get("energy", 0),
-        "craftAmount": recipe.get("craftAmount", 1),
-        "station": recipe.get("station", ""),
-        "skill": recipe.get("skill", ""),
-        "skillLevel": recipe.get("skillLevel", 0),
-        "experience": recipe.get("experience", 0),
-        "experienceSkill": recipe.get("experienceSkill", ""),
-        "stations": recipe.get("stations", []),
-        "category": recipe.get("category", ""),
-        "subcategory": recipe.get("subcategory", ""),
-    })
-    if not node["icon"]:
-        node["icon"] = recipe.get("icon", "")
+def profit_fields(sell, cost):
+    if sell <= 0 or cost <= 0:
+        return {"profit": None, "roi": None}
+    profit = sell - cost
+    return {"profit": profit, "roi": profit / cost * 100}
 
-    total_cost = 0
-    direct_cost = 0
-    for ing in recipe.get("ingredients", []):
-        sub = build_craft_tree(recipes, prices, ing["id"], visited)
-        if sub is None:
-            continue
-        sub["amount"] = ing["amount"]
-        sub["total_cost"] = sub["cost"] * ing["amount"]
-        node["ingredients"].append(sub)
-        total_cost += sub["total_cost"]
-        direct_cost += prices.get(ing["id"], {}).get("price", 0) * ing["amount"]
 
-    craft_amount = recipe.get("craftAmount", 1) or 1
-    node["total_cost_batch"] = total_cost
-    node["cost"] = total_cost / craft_amount
-    node["profit"] = sell_price - node["cost"]
-    node["roi"] = (node["profit"] / node["cost"] * 100) if node["cost"] > 0 else 0
-    node["total_direct_cost_batch"] = direct_cost
-    node["cost_direct"] = direct_cost / craft_amount
-    node["profit_direct"] = sell_price - node["cost_direct"]
-    node["roi_direct"] = (node["profit_direct"] / node["cost_direct"] * 100) if node["cost_direct"] > 0 else 0
-    return node
+def compute_recipe_costs(recipes, prices):
+    computed = {}
+
+    def deep(item_id, stack):
+        cached = computed.get(item_id)
+        if cached is not None:
+            return cached["cost_craft"]
+        info = prices.get(item_id, {})
+        market = market_price(info)
+        recipe = recipes.get(item_id)
+        if not recipe or item_id in stack:
+            computed[item_id] = {
+                "cost_craft": market,
+                "cost_direct": market,
+                "cost": market,
+                "sell_price": market,
+            }
+            return market
+
+        stack = stack | {item_id}
+        batch_craft = 0
+        batch_direct = 0
+        missing_direct = 0
+        for ing in recipe["ingredients"]:
+            child_id = ing["id"]
+            child_craft = deep(child_id, stack)
+            child_market = market_price(prices.get(child_id, {}))
+            batch_craft += (child_craft or child_market) * ing["amount"]
+            if child_market > 0:
+                batch_direct += child_market * ing["amount"]
+            elif child_craft > 0:
+                batch_direct += child_craft * ing["amount"]
+            else:
+                missing_direct += 1
+
+        amount = recipe.get("craftAmount", 1) or 1
+        cost_craft = batch_craft / amount
+        cost_direct = batch_direct / amount
+        options = [n for n in (market, cost_craft) if n > 0]
+        cost = min(options) if options else 0
+        computed[item_id] = {
+            "cost_craft": cost_craft,
+            "cost_direct": cost_direct,
+            "cost": cost,
+            "sell_price": market,
+            "missing_direct": missing_direct,
+            "total_direct_cost_batch": batch_direct,
+            "total_cost_batch": batch_craft,
+        }
+        return cost_craft
+
+    for item_id in recipes:
+        deep(item_id, frozenset())
+
+    result = {}
+    for item_id, recipe in recipes.items():
+        info = prices.get(item_id, {})
+        costs = computed.get(item_id, {})
+        sell = costs.get("sell_price") or 0
+        cost = costs.get("cost") or 0
+        cost_direct = costs.get("cost_direct") or 0
+        cost_craft = costs.get("cost_craft") or 0
+        row = {
+            "id": item_id,
+            "name": info.get("name") or recipe.get("name", item_id),
+            "icon": info.get("icon") or recipe.get("icon", ""),
+            "sell_price": sell,
+            "craftable": True,
+            "energy": recipe.get("energy", 0),
+            "craftAmount": recipe.get("craftAmount", 1),
+            "station": recipe.get("station", ""),
+            "skill": recipe.get("skill", ""),
+            "skillLevel": recipe.get("skillLevel", 0),
+            "experience": recipe.get("experience", 0),
+            "experienceSkill": recipe.get("experienceSkill", ""),
+            "stations": recipe.get("stations", []),
+            "category": recipe.get("category", ""),
+            "subcategory": recipe.get("subcategory", ""),
+            "ingredients": recipe.get("ingredients", []),
+            "cost": cost,
+            "cost_craft": cost_craft,
+            "cost_direct": cost_direct,
+            "total_direct_cost_batch": costs.get("total_direct_cost_batch", 0),
+            "total_cost_batch": costs.get("total_cost_batch", 0),
+            "missing_direct": costs.get("missing_direct", 0),
+        }
+        row.update({f"{k}_direct": v for k, v in profit_fields(sell, cost_direct).items()})
+        row.update({f"{k}_craft": v for k, v in profit_fields(sell, cost_craft).items()})
+        row.update(profit_fields(sell, cost_direct if cost_direct > 0 else cost))
+        result[item_id] = row
+    return result
 
 
 def run_pool(ids, worker, label):
@@ -503,7 +580,7 @@ def update_prices(api, items, history):
             "icon": meta.get("icon", ""),
             "category": meta.get("category", "other"),
         })
-        history[item_id] = aggregate_history(history[item_id])
+        history[item_id] = compact_history(history[item_id])
         updated += 1
     save_json(DATA_FILE, history)
     print(f"✅ Цены: {updated} предметов")
@@ -539,24 +616,23 @@ def update_sales(api, item_ids, previous):
     return sales
 
 
-def update_crafts(recipes, history, all_meta):
+def update_crafts(recipes, history, all_meta, sales):
     if not recipes:
         return
     current_prices = {}
-    for item_id in set(history) | set(all_meta):
+    for item_id in set(history) | set(all_meta) | set(recipes):
         records = history.get(item_id, [])
         last = records[-1] if records else {}
         meta = all_meta.get(item_id, {})
+        listing = last.get("price", 0) or 0
+        typical = sales_typical(sales.get(item_id) or [])
         current_prices[item_id] = {
-            "name": last.get("name") or meta.get("name") or item_id,
+            "name": last.get("name") or meta.get("name") or recipes.get(item_id, {}).get("name") or item_id,
             "icon": last.get("icon") or meta.get("icon") or "",
-            "price": last.get("price", 0),
+            "price": listing or typical,
+            "sales_avg": typical,
         }
-    trees = {
-        item_id: tree
-        for item_id in recipes
-        if (tree := build_craft_tree(recipes, current_prices, item_id))
-    }
+    trees = compute_recipe_costs(recipes, current_prices)
     save_json(CRAFTS_FILE, trees)
     print(f"✅ Крафты: {len(trees)}")
 
@@ -581,14 +657,26 @@ def main():
     active_ids = set(cached_active) if isinstance(cached_active, list) else None
     items = pick_items(tradable, active_ids)
 
-    history = update_prices(api, items, load_json(DATA_FILE, {}))
+    history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
+    history = update_prices(api, items, history)
     active_now = {item_id for item_id, records in history.items() if records}
     save_json(ACTIVE_ITEMS_FILE, sorted(active_now), compact=False)
     print(f"💾 Активных: {len(active_now)}")
 
-    update_sales(api, [item["id"] for item in items], load_json(SALES_FILE, {}))
-    update_crafts(load_recipes(), history, all_meta)
+    sales = update_sales(api, [item["id"] for item in items], load_json(SALES_FILE, {}))
+    update_crafts(load_recipes(), history, all_meta, sales)
+
+
+def rebuild_offline():
+    history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
+    save_json(DATA_FILE, history)
+    print(f"🗜️ История сжата: {DATA_FILE.stat().st_size / 1024:.0f} КБ")
+    sales = load_json(SALES_FILE, {})
+    update_crafts(load_recipes(), history, {}, sales)
 
 
 if __name__ == "__main__":
-    main()
+    if "--offline" in sys.argv:
+        rebuild_offline()
+    else:
+        main()

@@ -6,84 +6,99 @@
     <title>Stalzone Auction Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --bg: #12140f;
+            --bg-2: #181b14;
+            --panel: #1e2219;
+            --panel-2: #262b20;
+            --line: #3a4030;
+            --text: #e8e2d2;
+            --muted: #9a917c;
+            --accent: #d4b06a;
+            --accent-2: #8fba6a;
+            --danger: #d46a54;
+        }
         * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #e0e0e0; margin: 0; padding: 20px; }
-        h1 { color: #61dafb; text-align: center; margin-top: 0; }
+        body { font-family: "Segoe UI", "Trebuchet MS", sans-serif; background:
+            radial-gradient(1200px 500px at 50% -10%, #2a2e22 0%, var(--bg) 55%);
+            color: var(--text); margin: 0; padding: 20px; min-height: 100vh; }
+        h1 { color: var(--accent); text-align: center; margin: 8px 0 6px; font-weight: 650; letter-spacing: .04em; }
+        .subtitle { text-align: center; color: var(--muted); margin: 0 0 22px; font-size: 13px; }
         .container { max-width: 1400px; margin: 0 auto; }
-        .tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 25px; border-bottom: 1px solid #3a3a4f; }
-        .tab { padding: 12px 24px; background: transparent; border: none; color: #888; font-size: 16px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; }
-        .tab:hover { color: #ccc; }
-        .tab.active { color: #61dafb; border-bottom-color: #61dafb; }
+        .tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 22px; }
+        .tab { padding: 10px 22px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 15px; cursor: pointer; border-radius: 999px; transition: .15s; }
+        .tab:hover { color: var(--text); border-color: var(--accent); }
+        .tab.active { color: #1a160e; background: var(--accent); border-color: var(--accent); font-weight: 650; }
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
-        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 15px; }
+        input, select, button { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 15px; }
         input { min-width: 180px; }
         button { cursor: pointer; }
-        #refreshBtn { background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
-        #refreshBtn:hover { background: #4fa8c7; }
-        .stats-bar { text-align: center; color: #888; font-size: 14px; margin-bottom: 15px; }
+        #refreshBtn { background: var(--accent); color: #1a160e; font-weight: 700; border: none; }
+        #refreshBtn:hover { filter: brightness(1.08); }
+        .stats-bar { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 15px; }
         .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-        .item-card { background: #2b2b3c; border-radius: 10px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: all 0.15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid transparent; }
-        .item-card:hover { background: #32324a; transform: translateY(-2px); border-color: #61dafb; }
+        .item-card { background: var(--panel); border-radius: 14px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: .15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid var(--line); }
+        .item-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
         .card-star { position: absolute; top: 4px; right: 4px; background: transparent; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 2px 7px; line-height: 1; border-radius: 4px; }
-        .card-star:hover { color: #888; }
-        .card-star.active { color: #ffc107; }
+        .card-star:hover { color: var(--muted); }
+        .card-star.active { color: var(--accent); }
         .card-icon { width: 64px; height: 64px; object-fit: contain; border-radius: 6px; }
-        .card-icon-empty { width: 64px; height: 64px; background: #1e1e2f; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #444; font-size: 24px; }
-        .card-name { font-size: 13px; color: #e0e0e0; line-height: 1.3; min-height: 34px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; }
-        .card-price { font-size: 16px; font-weight: bold; color: #61dafb; }
-        .card-meta { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; color: #888; flex-wrap: wrap; }
-        .card-dev { font-weight: bold; }
-        .card-dev.green { color: #4caf50; }
-        .card-dev.red { color: #f44336; }
-        .card-dev.neutral { color: #888; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #888; font-size: 16px; grid-column: 1 / -1; }
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; z-index: 100; overflow-y: auto; }
-        .modal { background: #1e1e2f; border-radius: 12px; max-width: 1100px; width: 100%; padding: 25px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
-        .modal-close { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #888; font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1; }
-        .modal-close:hover { color: #fff; }
+        .card-icon-empty { width: 64px; height: 64px; background: var(--bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 24px; }
+        .card-name { font-size: 13px; color: var(--text); line-height: 1.3; min-height: 34px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; }
+        .card-price { font-size: 16px; font-weight: 700; color: var(--accent); }
+        .card-meta { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+        .card-dev { font-weight: 700; }
+        .card-dev.green { color: var(--accent-2); }
+        .card-dev.red { color: var(--danger); }
+        .card-dev.neutral { color: var(--muted); }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 16px; grid-column: 1 / -1; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(8, 10, 6, 0.82); display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; z-index: 100; overflow-y: auto; }
+        .modal { background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; max-width: 1100px; width: 100%; padding: 25px; position: relative; box-shadow: 0 16px 50px rgba(0,0,0,.5); }
+        .modal-close { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--muted); font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1; }
+        .modal-close:hover { color: var(--text); }
         .item-header { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; padding-right: 40px; }
-        .item-icon { width: 96px; height: 96px; border-radius: 10px; background: #2b2b3c; object-fit: contain; flex-shrink: 0; }
-        .item-icon-empty { width: 96px; height: 96px; border-radius: 10px; background: #2b2b3c; display: flex; align-items: center; justify-content: center; color: #444; font-size: 36px; flex-shrink: 0; }
-        .item-title { font-size: 24px; font-weight: bold; color: #61dafb; margin-bottom: 6px; }
-        .item-id { font-size: 14px; color: #888; }
-        .category-badge { display: inline-block; padding: 3px 10px; border-radius: 4px; background: #3a3a4f; font-size: 12px; color: #61dafb; margin-left: 10px; vertical-align: middle; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .stat-item { background: #2b2b3c; padding: 14px; border-radius: 8px; text-align: center; }
-        .stat-value { font-size: 22px; font-weight: bold; color: #61dafb; }
-        .stat-label { font-size: 12px; color: #aaa; margin-top: 4px; }
-        .stat-sub { font-size: 11px; color: #888; margin-top: 3px; }
-        .green { color: #4caf50 !important; }
-        .red { color: #f44336 !important; }
-        .chart-container { background: #2b2b3c; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .item-icon { width: 96px; height: 96px; border-radius: 10px; background: var(--panel); object-fit: contain; flex-shrink: 0; }
+        .item-icon-empty { width: 96px; height: 96px; border-radius: 10px; background: var(--panel); display: flex; align-items: center; justify-content: center; color: #555; font-size: 36px; flex-shrink: 0; }
+        .item-title { font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+        .item-id { font-size: 13px; color: var(--muted); }
+        .category-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--panel-2); font-size: 12px; color: var(--accent); margin-left: 10px; vertical-align: middle; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .stat-item { background: var(--panel); padding: 14px; border-radius: 10px; text-align: center; border: 1px solid var(--line); }
+        .stat-value { font-size: 22px; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .stat-sub { font-size: 11px; color: #7d7664; margin-top: 3px; }
+        .green { color: var(--accent-2) !important; }
+        .red { color: var(--danger) !important; }
+        .chart-container { background: var(--panel); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--line); }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #3a3a4f; }
-        th { color: #61dafb; font-weight: bold; font-size: 14px; }
-        td { font-size: 15px; }
-        tr:hover { background: #32324a; }
-        .price-cell { color: #61dafb; font-weight: bold; }
-        .time-cell { color: #aaa; font-size: 13px; }
-        .lots-title { color: #61dafb; margin-top: 0; margin-bottom: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--line); }
+        th { color: var(--accent); font-weight: 700; font-size: 13px; }
+        td { font-size: 14px; }
+        tr:hover { background: var(--panel-2); }
+        .price-cell { color: var(--accent); font-weight: 700; }
+        .time-cell { color: var(--muted); font-size: 13px; }
+        .lots-title { color: var(--accent); margin-top: 0; margin-bottom: 10px; }
         canvas { max-height: 350px; }
 
         .craft-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-        .craft-list-item { background: #2b2b3c; border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.15s; border: 1px solid transparent; }
-        .craft-list-item:hover { background: #32324a; border-color: #61dafb; }
-        .craft-list-icon { width: 44px; height: 44px; object-fit: contain; border-radius: 4px; background: #1e1e2f; flex-shrink: 0; }
+        .craft-list-item { background: var(--panel); border-radius: 10px; padding: 12px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: .15s; border: 1px solid var(--line); }
+        .craft-list-item:hover { border-color: var(--accent); }
+        .craft-list-icon { width: 44px; height: 44px; object-fit: contain; border-radius: 4px; background: var(--bg); flex-shrink: 0; }
         .craft-list-info { flex: 1; min-width: 0; }
-        .craft-list-name { font-weight: bold; color: #e0e0e0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .craft-list-profit { font-weight: bold; text-align: right; flex-shrink: 0; }
-        .craft-list-profit.green { color: #4caf50; }
-        .craft-list-profit.red { color: #f44336; }
-        .craft-list-stations { font-size: 11px; color: #666; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
-        .station-mini { background: #26263a; padding: 1px 6px; border-radius: 3px; color: #888; }
+        .craft-list-name { font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .craft-list-profit { font-weight: 700; text-align: right; flex-shrink: 0; }
+        .craft-list-profit.green { color: var(--accent-2); }
+        .craft-list-profit.red { color: var(--danger); }
+        .craft-list-stations { font-size: 11px; color: #7a7364; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .station-mini { background: var(--bg); padding: 1px 6px; border-radius: 3px; color: var(--muted); }
 
-        .skill-header { background: linear-gradient(90deg, #2b2b3c, #32324a); padding: 15px; border-radius: 8px; margin-bottom: 12px; margin-top: 20px; display: flex; align-items: center; gap: 15px; }
+        .skill-header { background: linear-gradient(90deg, var(--panel), var(--panel-2)); padding: 15px; border-radius: 10px; margin-bottom: 12px; margin-top: 20px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--line); }
         .skill-header:first-child { margin-top: 0; }
-        .skill-header-icon { width: 48px; height: 48px; border-radius: 8px; background: #1e1e2f; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+        .skill-header-icon { width: 48px; height: 48px; border-radius: 8px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
         .skill-header-info { flex: 1; }
-        .skill-header-name { font-size: 18px; font-weight: bold; color: #61dafb; }
-        .skill-header-desc { font-size: 13px; color: #888; margin-top: 3px; }
-        .subcat-header { color: #aaa; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 8px 0; padding-left: 8px; border-left: 3px solid #61dafb; }
+        .skill-header-name { font-size: 18px; font-weight: 700; color: var(--accent); }
+        .skill-header-desc { font-size: 13px; color: var(--muted); margin-top: 3px; }
+        .subcat-header { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 8px 0; padding-left: 8px; border-left: 3px solid var(--accent); }
 
         .skill-level-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #2b2b3c; border: 1px solid #555; color: #ccc; font-weight: bold; }
         .skill-level-badge.lvl-1 { border-color: #4caf50; color: #4caf50; }
@@ -154,7 +169,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 Stalzone Auction Monitor</h1>
+        <h1>Stalzone Auction</h1>
+        <p class="subtitle">Лоты, сделки и себестоимость крафта</p>
         <div class="tabs">
             <button class="tab active" data-tab="market">🏪 Аукцион</button>
             <button class="tab" data-tab="crafts">🔨 Крафты</button>
@@ -308,6 +324,44 @@
             return idx === -1 ? 9999 : idx;
         }
 
+        function typicalSale(id) {
+            const sales = (salesData[id] || []).filter(s => s && s.avg > 0);
+            if (!sales.length) return 0;
+            const cutoff = Date.now() - 14 * 86400000;
+            let recent = sales.filter(s => {
+                const t = Date.parse(s.t);
+                return Number.isFinite(t) && t >= cutoff;
+            });
+            if (!recent.length) recent = sales.slice(-14);
+            const avgs = recent.map(s => s.avg).sort((a, b) => a - b);
+            const median = avgs[Math.floor(avgs.length / 2)];
+            const clean = recent.filter(s => s.avg <= median * 8);
+            const src = clean.length ? clean : recent;
+            const qty = src.reduce((sum, s) => sum + (s.a || 0), 0);
+            if (!qty) return median;
+            return Math.round(src.reduce((sum, s) => sum + s.avg * (s.a || 0), 0) / qty);
+        }
+        function lastListing(id) {
+            const hist = allData[id];
+            if (!hist || !hist.length) return null;
+            return hist[hist.length - 1];
+        }
+        function resolveNode(nodeOrId) {
+            const id = typeof nodeOrId === 'string' ? nodeOrId : nodeOrId.id;
+            const craft = craftsData[id] || {};
+            const last = lastListing(id) || {};
+            const amount = typeof nodeOrId === 'object' ? nodeOrId.amount : undefined;
+            return {
+                ...craft,
+                id,
+                name: last.name || craft.name || id,
+                icon: last.icon || craft.icon || '',
+                sell_price: last.price || craft.sell_price || typicalSale(id) || 0,
+                craftable: Boolean(craft.ingredients && craft.ingredients.length),
+                ingredients: craft.ingredients || [],
+                amount
+            };
+        }
         function computeBonus(requiredLevel, myLevel) {
             if (!myLevel || myLevel <= requiredLevel) {
                 return { bonusLevels: 0, chance: 0, guaranteed: 0, fractional: 0, multiplier: 1 };
@@ -413,9 +467,8 @@
                 const hist = allData[id];
                 if (!hist || !hist.length) return null;
                 const last = hist[hist.length - 1];
-                const prices = hist.map(h => h.price);
-                const cur = prices[prices.length - 1];
-                const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+                const cur = last.price;
+                const avg = typicalSale(id) || (hist.reduce((sum, h) => sum + h.price, 0) / hist.length);
                 const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
                 return {
                     id, name: last.name || id, icon: last.icon || '',
@@ -561,10 +614,9 @@
             if (!item) return;
             const hist = allData[id];
             const sales = (salesData[id] || []).slice();
-            const prices = hist.map(h => h.price);
             const last = hist[hist.length - 1];
-            const cur = prices[prices.length - 1];
-            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const cur = last.price;
+            const avg = typicalSale(id) || item.avg;
             const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
             const fav = isFavorite(id);
             const iconHtml = item.icon
@@ -628,7 +680,7 @@
                 </div>
                 <div class="stats">
                     <div class="stat-item"><div class="stat-value">${cur.toLocaleString('ru-RU')} ₽</div><div class="stat-label">Цена за 1 шт</div><div class="stat-sub">${bestLotInfo}</div></div>
-                    <div class="stat-item"><div class="stat-value">${Math.round(avg).toLocaleString('ru-RU')} ₽</div><div class="stat-label">Средняя (7 дней)</div></div>
+                    <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя сделок (14 дней)</div></div>
                     <div class="stat-item"><div class="stat-value ${devClass}">${(dev > 0 ? '+' : '') + dev.toFixed(1)}%</div><div class="stat-label">Отклонение</div></div>
                     <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div></div>
                     <div class="stat-item"><div class="stat-value">${prices.length}</div><div class="stat-label">Точек истории</div></div>
@@ -652,40 +704,22 @@
             requestAnimationFrame(() => {
                 const ctx = document.getElementById('modalChart').getContext('2d');
                 if (currentChart) currentChart.destroy();
-                const labels = hist.map(h => new Date(h.timestamp).toLocaleString('ru-RU'));
+                const salePoints = sales.filter(s => s.avg > 0);
+                const useSales = salePoints.length > 0;
+                const labels = useSales
+                    ? salePoints.map(s => new Date(s.t).toLocaleDateString('ru-RU'))
+                    : hist.map(h => new Date(h.timestamp).toLocaleString('ru-RU'));
+                const mainData = useSales ? salePoints.map(s => s.avg) : hist.map(h => h.price);
                 currentChart = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels,
                         datasets: [
-                            { label: 'Цена за 1 шт', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
-                            { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false },
-                            {
-    label: 'Продажи',
-    data: (() => {
-        const result = new Array(hist.length).fill(null);
-        for (const s of sales) {
-            if (!s.t) continue;
-            const saleDay = s.t.slice(0, 10);  // "2026-10-09"
-            hist.forEach((h, i) => {
-                const histDay = h.timestamp.slice(0, 10);
-                if (histDay === saleDay) {
-                    result[i] = s.avg;
-                }
-            });
-        }
-        return result;
-    })(),
-                                borderColor: '#4caf50',
-                                backgroundColor: '#4caf50',
-                                pointRadius: 5,
-                                pointStyle: 'rectRot',
-                                showLine: false,
-                                fill: false
-                            }
+                            { label: useSales ? 'Средняя сделка' : 'Лот', data: mainData, borderColor: '#d4b06a', backgroundColor: 'rgba(212,176,106,0.12)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.15 },
+                            { label: 'Средняя 14д', data: new Array(labels.length).fill(avg || null), borderColor: '#d46a54', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false }
                         ]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#e0e0e0' } } }, scales: { x: { ticks: { color: '#aaa', maxTicksLimit: 12 }, grid: { color: '#444' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#444' } } } }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#e8e2d2' } } }, scales: { x: { ticks: { color: '#9a917c', maxTicksLimit: 12 }, grid: { color: '#3a4030' } }, y: { ticks: { color: '#9a917c' }, grid: { color: '#3a4030' } } } }
                 });
             });
         }
@@ -794,9 +828,10 @@
             const row = document.createElement('div');
             row.className = 'craft-list-item';
             row.dataset.id = item.id;
-            const profit = item.profit || 0;
-            const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
-            const profitSign = profit > 0 ? '+' : '';
+            const profit = item.profit;
+            const hasProfit = typeof profit === 'number';
+            const profitClass = !hasProfit ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
+            const profitSign = hasProfit && profit > 0 ? '+' : '';
             const iconHtml = item.icon
                 ? `<img class="craft-list-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
                 : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
@@ -824,13 +859,13 @@
                 <div class="craft-list-info">
                     <div class="craft-list-name">${escapeHtml(item.name)}${levelBadge}${bonusBadge}</div>
                     <div style="font-size:12px;color:#888;">
-                        ${Math.round(item.cost || 0).toLocaleString('ru-RU')} ₽ → ${(item.sell_price || 0).toLocaleString('ru-RU')} ₽
+                        ${(item.cost_direct || item.cost) ? Math.round(item.cost_direct || item.cost).toLocaleString('ru-RU') + ' ₽' : '—'} → ${item.sell_price ? item.sell_price.toLocaleString('ru-RU') + ' ₽' : 'нет лотов'}
                     </div>
                     ${stationsHtml}
                 </div>
                 <div class="craft-list-profit ${profitClass}">
-                    ${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽
-                    <div style="font-size:12px;font-weight:normal;color:#888;">ROI: ${(item.roi || 0).toFixed(1)}%</div>
+                    ${hasProfit ? `${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽` : 'нет цены'}
+                    <div style="font-size:12px;font-weight:normal;color:#9a917c;">${hasProfit ? 'ROI: ' + (item.roi || 0).toFixed(1) + '%' : 'нет лотов / сырья'}</div>
                 </div>
             `;
             return row;
@@ -838,56 +873,48 @@
 
         function flattenTree(node, quantity, flat, excess, userLevels) {
             if (!node) return;
-            flat = flat || new Map();
-            excess = excess || new Map();
-            const hasIngredients = node.ingredients && node.ingredients.length > 0;
-            const isCraftable = node.craftable && hasIngredients;
+            const resolved = resolveNode(node);
+            const ings = resolved.ingredients || [];
+            const canCraft = resolved.craftable && ings.length > 0;
 
-            if (!isCraftable) {
-                const id = node.id;
-                if (!flat.has(id)) {
-                    flat.set(id, {
-                        id, name: node.name, icon: node.icon,
+            if (!canCraft) {
+                if (!flat.has(resolved.id)) {
+                    flat.set(resolved.id, {
+                        id: resolved.id, name: resolved.name, icon: resolved.icon,
                         quantity: 0,
-                        unit_price: node.sell_price || 0,
+                        unit_price: resolved.sell_price || 0,
                         total_cost: 0
                     });
                 }
-                const item = flat.get(id);
+                const item = flat.get(resolved.id);
                 item.quantity += quantity;
                 item.total_cost = item.quantity * item.unit_price;
                 return;
             }
 
-            const skill = node.skill || "Сырье и материалы";
-            const requiredLevel = node.skillLevel || 1;
+            const skill = resolved.skill || "Сырье и материалы";
+            const requiredLevel = resolved.skillLevel || 1;
             const myLevel = (userLevels && userLevels[skill]) || requiredLevel;
             const bonus = computeBonus(requiredLevel, myLevel);
-
-            const baseAmount = node.craftAmount || 1;
+            const baseAmount = resolved.craftAmount || 1;
             const avgPerCraft = baseAmount * bonus.multiplier;
-
-            const craftsNeeded = Math.ceil(quantity / avgPerCraft - 1e-9);
-            const totalProduced = craftsNeeded * avgPerCraft;
-            const excessQty = totalProduced - quantity;
-
-            if (excessQty > 1e-9) {
-                const id = node.id;
-                if (!excess.has(id)) {
-                    excess.set(id, {
-                        id, name: node.name, icon: node.icon,
+            const craftsNeeded = quantity / avgPerCraft;
+            const excessQty = craftsNeeded * avgPerCraft - quantity;
+            if (excessQty > 1e-6) {
+                if (!excess.has(resolved.id)) {
+                    excess.set(resolved.id, {
+                        id: resolved.id, name: resolved.name, icon: resolved.icon,
                         quantity: 0,
-                        unit_price: node.sell_price || 0
+                        unit_price: resolved.sell_price || 0
                     });
                 }
-                const ex = excess.get(id);
+                const ex = excess.get(resolved.id);
                 ex.quantity += excessQty;
                 ex.total_value = ex.quantity * ex.unit_price;
             }
-
-            for (const ing of node.ingredients) {
-                flattenTree(ing, ing.amount * craftsNeeded, flat, excess, userLevels);
-            }
+            ings.forEach(ing => {
+                flattenTree(ing, (ing.amount || 0) * craftsNeeded, flat, excess, userLevels);
+            });
         }
 
         function renderShoppingList(flat) {
@@ -1005,73 +1032,67 @@
             `;
         }
 
-        function renderSummary(flat, craft, qty, bonusMultiplier) {
-    // --- Глубокая себестоимость (крафт до сырья) ---
-    let materialsCost = 0;
-    let missingCount = 0;
-    for (const item of flat.values()) {
-        if (item.unit_price > 0) materialsCost += item.total_cost;
-        else missingCount++;
-    }
-    const sellUnit = craft.sell_price || 0;
-    const sellTotal = sellUnit * qty;
-    const profit = sellTotal - materialsCost;
-    const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
-    const profitSign = profit > 0 ? '+' : '';
-    const roi = materialsCost > 0 ? (profit / materialsCost * 100) : 0;
+        function moneyRow(label, cost, sell) {
+            const hasSell = sell > 0;
+            const hasCost = cost > 0;
+            const profit = hasSell && hasCost ? sell - cost : null;
+            const roi = profit !== null && cost > 0 ? profit / cost * 100 : null;
+            const pClass = profit === null ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
+            const profitText = profit === null ? '—' : `${profit > 0 ? '+' : ''}${Math.round(profit).toLocaleString('ru-RU')} ₽`;
+            const roiText = roi === null ? '—' : `${roi.toFixed(1)}%`;
+            return `<tr>
+                <td>${label}</td>
+                <td style="text-align:right;">${hasCost ? Math.round(cost).toLocaleString('ru-RU') + ' ₽' : '—'}</td>
+                <td style="text-align:right;">${hasSell ? Math.round(sell).toLocaleString('ru-RU') + ' ₽' : 'нет лотов'}</td>
+                <td style="text-align:right;" class="${pClass}">${profitText}</td>
+                <td style="text-align:right;" class="${pClass}">${roiText}</td>
+            </tr>`;
+        }
 
-    // --- 1 ступень (покупка прямых ингредиентов) ---
-    const costDirect = craft.cost_direct || 0;
-    const costDirectTotal = costDirect * qty;
-    const profitDirect = sellTotal - costDirectTotal;
-    const profitDirectClass = profitDirect > 0 ? 'green' : (profitDirect < 0 ? 'red' : '');
-    const profitDirectSign = profitDirect > 0 ? '+' : '';
-    const roiDirect = costDirectTotal > 0 ? (profitDirect / costDirectTotal * 100) : 0;
+        function sumFlat(flat) {
+            let cost = 0, missing = 0;
+            for (const item of flat.values()) {
+                if (item.unit_price > 0) cost += item.total_cost;
+                else missing += 1;
+            }
+            return { cost, missing };
+        }
 
-    // --- С бонусом от уровня ---
-    const b = bonusMultiplier || 1;
-    const costWithBonus = b > 0 ? (materialsCost / b) : materialsCost;
-    const profitWithBonus = sellTotal - costWithBonus;
-    const profitWithBonusClass = profitWithBonus > 0 ? 'green' : (profitWithBonus < 0 ? 'red' : '');
-    const profitWithBonusSign = profitWithBonus > 0 ? '+' : '';
-    const roiWithBonus = costWithBonus > 0 ? (profitWithBonus / costWithBonus * 100) : 0;
+        function renderSummary(flatBonus, flatBase, craft, qty, bonusMultiplier) {
+            const { cost: materialsBonus, missing } = sumFlat(flatBonus);
+            const { cost: materialsBase } = sumFlat(flatBase);
+            const sellUnit = craft.sell_price || 0;
+            const sellTotal = sellUnit * qty;
+            const b = bonusMultiplier || 1;
+            const batchDirect = craft.total_direct_cost_batch || ((craft.cost_direct || 0) * (craft.craftAmount || 1));
+            const craftsBase = qty / (craft.craftAmount || 1);
+            const costDirect = batchDirect * craftsBase;
+            const costDirectBonus = b > 1 ? batchDirect * (qty / ((craft.craftAmount || 1) * b)) : 0;
+            const profit = sellTotal > 0 && materialsBonus > 0 ? sellTotal - materialsBonus : null;
+            const profitClass = profit === null ? '' : (profit > 0 ? 'green' : 'red');
+            const profitText = profit === null ? '—' : `${profit > 0 ? '+' : ''}${Math.round(profit).toLocaleString('ru-RU')} ₽`;
 
-    let bonusRowHtml = '';
-    if (b > 1) {
-        bonusRowHtml = `
-            <tr>
-                <td>✨ С бонусом (×${b.toFixed(2)})</td>
-                <td style="text-align:right;">${Math.round(costWithBonus).toLocaleString('ru-RU')} ₽</td>
-                <td style="text-align:right;">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</td>
-                <td style="text-align:right;" class="${profitWithBonusClass}">${profitWithBonusSign}${Math.round(profitWithBonus).toLocaleString('ru-RU')} ₽</td>
-                <td style="text-align:right;" class="${profitWithBonusClass}">${roiWithBonus.toFixed(1)}%</td>
-            </tr>
-        `;
-    }
-
-    return `
+            return `
         <div class="craft-summary-grid">
             <div class="craft-summary-item">
                 <div class="craft-summary-value">${qty.toLocaleString('ru-RU')} шт</div>
                 <div class="craft-summary-label">Хотим получить</div>
             </div>
             <div class="craft-summary-item">
-                <div class="craft-summary-value">${Math.round(materialsCost).toLocaleString('ru-RU')} ₽</div>
-                <div class="craft-summary-label">Материалы (через крафт)</div>
-                ${missingCount > 0 ? `<div style="font-size:11px;color:#888;margin-top:2px;">${missingCount} без цены</div>` : ''}
+                <div class="craft-summary-value">${materialsBonus ? Math.round(materialsBonus).toLocaleString('ru-RU') + ' ₽' : '—'}</div>
+                <div class="craft-summary-label">Материалы</div>
+                ${missing > 0 ? `<div style="font-size:11px;color:#9a917c;margin-top:2px;">${missing} без цены</div>` : ''}
             </div>
             <div class="craft-summary-item">
-                <div class="craft-summary-value">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</div>
+                <div class="craft-summary-value">${sellUnit ? Math.round(sellTotal).toLocaleString('ru-RU') + ' ₽' : '—'}</div>
                 <div class="craft-summary-label">Продажа</div>
-                <div style="font-size:11px;color:#888;margin-top:2px;">${sellUnit.toLocaleString('ru-RU')} ₽/шт</div>
+                <div style="font-size:11px;color:#9a917c;margin-top:2px;">${sellUnit ? sellUnit.toLocaleString('ru-RU') + ' ₽/шт' : 'нет лотов'}</div>
             </div>
             <div class="craft-summary-item">
-                <div class="craft-summary-value ${profitClass}">${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽</div>
-                <div class="craft-summary-label">Прибыль (крафт)</div>
-                <div style="font-size:11px;color:#888;margin-top:2px;">ROI: ${roi.toFixed(1)}%</div>
+                <div class="craft-summary-value ${profitClass}">${profitText}</div>
+                <div class="craft-summary-label">Прибыль</div>
             </div>
         </div>
-
         <table class="shopping-table" style="margin-top:15px;">
             <thead>
                 <tr>
@@ -1083,38 +1104,26 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>🛒 Купить прямые ингредиенты (1 ступень)</td>
-                    <td style="text-align:right;">${Math.round(costDirectTotal).toLocaleString('ru-RU')} ₽</td>
-                    <td style="text-align:right;">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</td>
-                    <td style="text-align:right;" class="${profitDirectClass}">${profitDirectSign}${Math.round(profitDirect).toLocaleString('ru-RU')} ₽</td>
-                    <td style="text-align:right;" class="${profitDirectClass}">${roiDirect.toFixed(1)}%</td>
-                </tr>
-                <tr>
-                    <td>🔨 Скрафтить ингредиенты самостоятельно</td>
-                    <td style="text-align:right;">${Math.round(materialsCost).toLocaleString('ru-RU')} ₽</td>
-                    <td style="text-align:right;">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</td>
-                    <td style="text-align:right;" class="${profitClass}">${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽</td>
-                    <td style="text-align:right;" class="${profitClass}">${roi.toFixed(1)}%</td>
-                </tr>
-                ${bonusRowHtml}
+                ${moneyRow('Купить ингредиенты', costDirect, sellTotal)}
+                ${moneyRow('Крафт до сырья', materialsBase, sellTotal)}
+                ${b > 1 ? moneyRow('Ингредиенты с бонусом ×' + b.toFixed(2), costDirectBonus, sellTotal) : ''}
+                ${b > 1 ? moneyRow('До сырья с бонусом ×' + b.toFixed(2), materialsBonus, sellTotal) : ''}
             </tbody>
         </table>
-        <div style="font-size:12px;color:#888;margin-top:10px;">
-            💡 <b>1 ступень</b> — покупаете прямые ингредиенты готовыми по рыночной цене, не тратя время на их крафт.<br>
-            🔨 <b>Самостоятельный крафт</b> — считаем себестоимость через всю цепочку до сырья.<br>
-            ✨ <b>С бонусом</b> — учитываем ваш уровень и повышенный выход.
-        </div>
-    `;
-}
+        <div style="font-size:12px;color:#9a917c;margin-top:10px;">
+            Купить ингредиенты — рыночная цена прямых компонентов. До сырья — вся цепочка. Бонус уменьшает число крафтов, а не делит уже посчитанную смету повторно.
+        </div>`;
+        }
 
         function renderIngredientRow(ing, isSubCraft) {
             const iconHtml = ing.icon
                 ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="" onerror="this.style.display='none'">`
                 : `<div class="craft-ingredient-icon" style="display:flex;align-items:center;justify-content:center;color:#444;font-size:11px;">?</div>`;
             const subInfo = isSubCraft ? `<span style="color:#61dafb;font-size:11px;margin-left:6px;">(крафт)</span>` : '';
-            const costText = ing.total_cost > 0
-                ? `${Math.round(ing.total_cost).toLocaleString('ru-RU')} ₽`
+            const unit = ing.total_cost > 0 ? ing.total_cost / (ing.amount || 1) : (ing.cost_direct || ing.sell_price || ing.cost || 0);
+            const lineCost = ing.total_cost > 0 ? ing.total_cost : unit * (ing.amount || 0);
+            const costText = lineCost > 0
+                ? `${Math.round(lineCost).toLocaleString('ru-RU')} ₽`
                 : '—';
             return `
                 ${iconHtml}
@@ -1128,6 +1137,7 @@
             if (!ingredients || ingredients.length === 0) return '';
             let html = '<div class="craft-ingredients">';
             ingredients.forEach(ing => {
+                ing = resolveNode(ing);
                 const isCraft = ing.craftable && ing.ingredients && ing.ingredients.length > 0;
                 if (isCraft) {
                     const extra = [];
@@ -1161,7 +1171,8 @@
 
         function renderTreeRoot(node, userLevels) {
             if (!node) return '';
-            const profit = node.profit || 0;
+            node = resolveNode(node);
+            const profit = typeof node.profit === 'number' ? node.profit : 0;
             const nodeClass = profit > 0 ? 'profitable' : (profit < 0 ? 'unprofitable' : '');
             const iconHtml = node.icon
                 ? `<img class="craft-node-icon" src="${node.icon}" alt="" onerror="this.style.display='none'">`
@@ -1292,11 +1303,13 @@
             function refresh() {
                 const flat = new Map();
                 const excess = new Map();
+                const flatBase = new Map();
                 flattenTree(craft, quantity, flat, excess, userLevels);
+                flattenTree(craft, quantity, flatBase, new Map(), { [skill]: reqLevel });
                 const bonusMult = userLevels[skill] > reqLevel
-    ? computeBonus(reqLevel, userLevels[skill]).multiplier
-    : 1;
-document.getElementById('craftSummaryBox').innerHTML = renderSummary(flat, craft, quantity, bonusMult);
+                    ? computeBonus(reqLevel, userLevels[skill]).multiplier
+                    : 1;
+                document.getElementById('craftSummaryBox').innerHTML = renderSummary(flat, flatBase, craft, quantity, bonusMult);
                 document.getElementById('craftExcessBox').innerHTML = renderExcess(excess);
                 document.getElementById('craftShoppingBox').innerHTML = renderShoppingList(flat);
                 document.getElementById('craftTreeBox').innerHTML = renderTreeRoot(craft, userLevels);
