@@ -16,7 +16,7 @@
         .tab.active { color: #61dafb; border-bottom-color: #61dafb; }
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
         input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 15px; }
-        input { min-width: 240px; }
+        input { min-width: 200px; }
         button { cursor: pointer; }
         #refreshBtn { background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
         #refreshBtn:hover { background: #4fa8c7; }
@@ -76,7 +76,21 @@
         .craft-list-profit { font-weight: bold; }
         .craft-list-profit.green { color: #4caf50; }
         .craft-list-profit.red { color: #f44336; }
-        .craft-category-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; background: #3a3a4f; font-size: 11px; color: #888; margin-left: 8px; }
+        .skill-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px; }
+        .skill-badge.skill-ammunition { background: #4a3020; color: #ffb066; }
+        .skill-badge.skill-pyrotechnics { background: #4a2020; color: #ff8080; }
+        .skill-badge.skill-armorer { background: #20304a; color: #80aaff; }
+        .skill-badge.skill-engineering { background: #30304a; color: #a0a0ff; }
+        .skill-badge.skill-cooking { background: #4a3a20; color: #ffd080; }
+        .skill-badge.skill-brewing { background: #3a2040; color: #d080ff; }
+        .skill-badge.skill-medicine { background: #204a3a; color: #80ffc0; }
+        .skill-badge.skill-materials { background: #3a3a3a; color: #c0c0c0; }
+        .skill-level-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; background: #2b2b3c; border: 1px solid #555; color: #ccc; font-weight: bold; }
+        .skill-level-badge.lvl-1 { border-color: #4caf50; color: #4caf50; }
+        .skill-level-badge.lvl-2 { border-color: #8bc34a; color: #8bc34a; }
+        .skill-level-badge.lvl-3 { border-color: #ffc107; color: #ffc107; }
+        .skill-level-badge.lvl-4 { border-color: #ff9800; color: #ff9800; }
+        .skill-level-badge.lvl-5 { border-color: #f44336; color: #f44336; }
 
         .craft-node { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #444; }
         .craft-node.profitable { border-left-color: #4caf50; }
@@ -85,7 +99,6 @@
         .craft-node-icon { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #1e1e2f; }
         .craft-node-name { font-size: 16px; font-weight: bold; color: #61dafb; }
         .craft-node-id { font-size: 12px; color: #888; }
-        .craft-node-stats { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; }
         .craft-ingredients { margin-left: 20px; margin-top: 10px; padding-left: 15px; border-left: 2px dashed #3a3a4f; }
         .craft-ingredient { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
         .craft-ingredient-icon { width: 28px; height: 28px; object-fit: contain; border-radius: 3px; background: #1e1e2f; }
@@ -93,47 +106,13 @@
         .craft-ingredient-amount { color: #888; font-size: 12px; }
         .craft-ingredient-cost { color: #61dafb; margin-left: auto; font-weight: bold; }
 
-        /* Раскрывающийся подкрафт */
-        details.craft-sub {
-            margin: 4px 0 4px 0;
-            border-left: 3px solid #61dafb;
-            background: #26263a;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        details.craft-sub > summary {
-            cursor: pointer;
-            padding: 8px 12px;
-            list-style: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            user-select: none;
-        }
+        details.craft-sub { margin: 4px 0; border-left: 3px solid #61dafb; background: #26263a; border-radius: 6px; overflow: hidden; }
+        details.craft-sub > summary { cursor: pointer; padding: 8px 12px; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 14px; user-select: none; }
         details.craft-sub > summary::-webkit-details-marker { display: none; }
-        details.craft-sub > summary::before {
-            content: "+";
-            display: inline-block;
-            width: 20px;
-            font-weight: bold;
-            color: #61dafb;
-            text-align: center;
-            transition: transform 0.15s;
-        }
-        details.craft-sub[open] > summary::before {
-            content: "−";
-        }
-        details.craft-sub > summary:hover {
-            background: #32324a;
-        }
-        details.craft-sub .craft-sub-body {
-            padding: 8px 12px 12px 24px;
-            border-top: 1px solid #3a3a4f;
-        }
-        .craft-sub-name { font-weight: bold; color: #61dafb; }
-        .craft-sub-qty { color: #888; font-size: 12px; }
-        .craft-sub-cost { color: #61dafb; margin-left: auto; font-weight: bold; }
+        details.craft-sub > summary::before { content: "+"; display: inline-block; width: 20px; font-weight: bold; color: #61dafb; text-align: center; }
+        details.craft-sub[open] > summary::before { content: "−"; }
+        details.craft-sub > summary:hover { background: #32324a; }
+        details.craft-sub .craft-sub-body { padding: 8px 12px 12px 24px; border-top: 1px solid #3a3a4f; }
 
         .shopping-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #2b2b3c; border-radius: 8px; overflow: hidden; }
         .shopping-table th { background: #32324a; padding: 12px; text-align: left; font-size: 13px; color: #61dafb; }
@@ -156,6 +135,12 @@
         .excess-section { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 20px; border-left: 4px solid #ffc107; }
         .excess-section h3 { color: #ffc107; margin: 0 0 10px 0; }
         .excess-hint { font-size: 12px; color: #888; margin-top: 8px; }
+
+        .skill-header { background: linear-gradient(90deg, #2b2b3c, #32324a); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        .skill-header-icon { width: 48px; height: 48px; border-radius: 8px; background: #1e1e2f; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .skill-header-info { flex: 1; }
+        .skill-header-name { font-size: 18px; font-weight: bold; color: #61dafb; }
+        .skill-header-desc { font-size: 13px; color: #888; margin-top: 3px; }
     </style>
 </head>
 <body>
@@ -187,11 +172,21 @@
 
         <div id="tab-crafts" style="display:none;">
             <div class="controls">
-                <select id="craftCategorySelect"><option value="">Все разделы крафта</option></select>
+                <select id="craftSkillSelect"><option value="">Все навыки</option></select>
+                <select id="craftLevelSelect">
+                    <option value="">Любой уровень</option>
+                    <option value="1">Уровень 1</option>
+                    <option value="2">Уровень 2</option>
+                    <option value="3">Уровень 3</option>
+                    <option value="4">Уровень 4</option>
+                    <option value="5">Уровень 5</option>
+                </select>
                 <select id="craftSortSelect">
                     <option value="profit_desc">Сначала выгодные</option>
                     <option value="profit_asc">Сначала убыточные</option>
                     <option value="name">По названию (А-Я)</option>
+                    <option value="level_asc">По уровню навыка ↑</option>
+                    <option value="level_desc">По уровню навыка ↓</option>
                     <option value="cost_asc">По себестоимости ↑</option>
                     <option value="cost_desc">По себестоимости ↓</option>
                 </select>
@@ -246,12 +241,54 @@
         ];
         const FAVORITES_KEY = "__favorites__";
 
-        // Порядок разделов крафта (как в игре)
-        const CRAFT_CATEGORY_ORDER = [
-            "Материалы", "Боеприпасы", "Бронепластины", "Взрывчатка",
-            "Медицина", "Кулинария", "Алкоголь",
-            "Функциональные объекты", "Декоративная мебель", "Прочее"
-        ];
+        // ---- КЛАССИФИКАЦИЯ ПО НАВЫКАМ (как в игре) ----
+        const SKILL_INFO = {
+            "Боеприпасы":           { icon: "🎯", desc: "боеприпасы, заготовки",                        order: 1 },
+            "Пиротехника":          { icon: "💥", desc: "взрывчатка, гранаты, порох",                   order: 2 },
+            "Защитное снаряжение":  { icon: "🛡️", desc: "бронепластины",                                order: 3 },
+            "Инженерия":            { icon: "🔧", desc: "пристройки, материалы, ключницы",              order: 4 },
+            "Кулинария":            { icon: "🍲", desc: "ингредиенты, еда",                             order: 5 },
+            "Самогоноварение":      { icon: "🍷", desc: "сырьё, алкоголь",                              order: 6 },
+            "Медицина":             { icon: "💊", desc: "медикаменты",                                  order: 7 },
+            "Сырье и материалы":    { icon: "⚙️", desc: "материалы на верстаке и лабораторном столе",   order: 8 }
+        };
+
+        const SKILLID_TO_NAME = {
+            "ammunition": "Боеприпасы",
+            "pyrotechnics": "Пиротехника",
+            "armorer": "Защитное снаряжение",
+            "engineering": "Инженерия",
+            "cooking": "Кулинария",
+            "brewing": "Самогоноварение",
+            "medicine": "Медицина",
+            "materials": "Сырье и материалы"
+        };
+
+        function skillOrder(name) {
+            const info = SKILL_INFO[name];
+            return info ? info.order : 9999;
+        }
+        function skillIcon(name) {
+            const info = SKILL_INFO[name];
+            return info ? info.icon : "❓";
+        }
+        function skillDesc(name) {
+            const info = SKILL_INFO[name];
+            return info ? info.desc : "";
+        }
+        function skillBadgeClass(skill) {
+            const map = {
+                "Боеприпасы": "skill-ammunition",
+                "Пиротехника": "skill-pyrotechnics",
+                "Защитное снаряжение": "skill-armorer",
+                "Инженерия": "skill-engineering",
+                "Кулинария": "skill-cooking",
+                "Самогоноварение": "skill-brewing",
+                "Медицина": "skill-medicine",
+                "Сырье и материалы": "skill-materials"
+            };
+            return map[skill] || "skill-materials";
+        }
 
         function categoryName(key) {
             if (key === FAVORITES_KEY) return "⭐ Избранное";
@@ -260,10 +297,6 @@
         function categoryOrder(key) {
             if (key === FAVORITES_KEY) return -1;
             const idx = CATEGORY_ORDER.indexOf(key);
-            return idx === -1 ? 9999 : idx;
-        }
-        function craftCategoryOrder(key) {
-            const idx = CRAFT_CATEGORY_ORDER.indexOf(key);
             return idx === -1 ? 9999 : idx;
         }
 
@@ -291,7 +324,8 @@
             modalOverlay: document.getElementById('modalOverlay'),
             modalContent: document.getElementById('modalContent'),
             modalClose: document.getElementById('modalClose'),
-            craftCategorySelect: document.getElementById('craftCategorySelect'),
+            craftSkillSelect: document.getElementById('craftSkillSelect'),
+            craftLevelSelect: document.getElementById('craftLevelSelect'),
             craftSortSelect: document.getElementById('craftSortSelect'),
             craftSearchInput: document.getElementById('craftSearchInput'),
             craftListContainer: document.getElementById('craftListContainer'),
@@ -328,7 +362,7 @@
                 }
                 buildItemsCache();
                 populateCategories();
-                populateCraftCategories();
+                populateCraftSkills();
                 applyFilters();
                 els.resultCount.textContent = `Загружено: ${itemsCache.length} предметов`;
             } catch (e) {
@@ -385,26 +419,23 @@
             else els.categorySelect.value = '';
         }
 
-        function populateCraftCategories() {
+        // Наполняем фильтр навыков (из данных crafts.json)
+        function populateCraftSkills() {
             const counts = {};
             Object.values(craftsData).forEach(craft => {
-                const cat = craft.category || "Прочее";
-                counts[cat] = (counts[cat] || 0) + 1;
+                const skill = craft.skill || "Сырье и материалы";
+                counts[skill] = (counts[skill] || 0) + 1;
             });
-            const current = els.craftCategorySelect.value;
-            els.craftCategorySelect.innerHTML = '<option value="">Все разделы крафта</option>';
-            const sortedCats = Object.keys(counts).sort((a, b) => {
-                const oa = craftCategoryOrder(a), ob = craftCategoryOrder(b);
-                if (oa !== ob) return oa - ob;
-                return a.localeCompare(b, 'ru');
-            });
-            sortedCats.forEach(cat => {
+            const current = els.craftSkillSelect.value;
+            els.craftSkillSelect.innerHTML = '<option value="">Все навыки</option>';
+            const sortedSkills = Object.keys(counts).sort((a, b) => skillOrder(a) - skillOrder(b));
+            sortedSkills.forEach(skill => {
                 const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = `${cat} (${counts[cat]})`;
-                els.craftCategorySelect.appendChild(opt);
+                opt.value = skill;
+                opt.textContent = `${skillIcon(skill)} ${skill} (${counts[skill]})`;
+                els.craftSkillSelect.appendChild(opt);
             });
-            if (current) els.craftCategorySelect.value = current;
+            if (current) els.craftSkillSelect.value = current;
         }
 
         function applyFilters() {
@@ -570,9 +601,11 @@
             if (currentChart) { currentChart.destroy(); currentChart = null; }
         }
 
+        // ---- СПИСОК КРАФТОВ ----
         function renderCraftList() {
             const query = els.craftSearchInput.value.toLowerCase().trim();
-            const catFilter = els.craftCategorySelect.value;
+            const skillFilter = els.craftSkillSelect.value;
+            const levelFilter = els.craftLevelSelect.value;
             const sortMode = els.craftSortSelect.value;
             const container = els.craftListContainer;
 
@@ -585,8 +618,12 @@
 
             let items = recipeIds.map(id => ({ id, ...craftsData[id] }));
 
-            if (catFilter) {
-                items = items.filter(item => (item.category || "Прочее") === catFilter);
+            if (skillFilter) {
+                items = items.filter(item => (item.skill || "Сырье и материалы") === skillFilter);
+            }
+            if (levelFilter) {
+                const lvl = parseInt(levelFilter);
+                items = items.filter(item => (item.skillLevel || 0) === lvl);
             }
             if (query) {
                 items = items.filter(item =>
@@ -598,6 +635,8 @@
                 case 'profit_desc': items.sort((a, b) => (b.profit || 0) - (a.profit || 0)); break;
                 case 'profit_asc': items.sort((a, b) => (a.profit || 0) - (b.profit || 0)); break;
                 case 'name': items.sort((a, b) => a.name.localeCompare(b.name, 'ru')); break;
+                case 'level_asc': items.sort((a, b) => (a.skillLevel || 0) - (b.skillLevel || 0)); break;
+                case 'level_desc': items.sort((a, b) => (b.skillLevel || 0) - (a.skillLevel || 0)); break;
                 case 'cost_asc': items.sort((a, b) => (a.cost || 0) - (b.cost || 0)); break;
                 case 'cost_desc': items.sort((a, b) => (b.cost || 0) - (a.cost || 0)); break;
             }
@@ -605,38 +644,75 @@
             els.craftResultCount.textContent = `Найдено рецептов: ${items.length}`;
 
             if (items.length === 0) {
-                container.innerHTML = '<div class="empty-state">Ничего не найдено</div>';
+                container.innerHTML = '<div class="empty-state">Ничего не найдено. Попробуйте изменить фильтры.</div>';
                 return;
             }
 
-            container.innerHTML = '<div class="craft-list"></div>';
-            const list = container.querySelector('.craft-list');
-            items.forEach(item => {
-                const row = document.createElement('div');
-                row.className = 'craft-list-item';
-                row.dataset.id = item.id;
-                const profit = item.profit || 0;
-                const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
-                const profitSign = profit > 0 ? '+' : '';
-                const iconHtml = item.icon
-                    ? `<img class="craft-list-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
-                    : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
-                const catBadge = item.category ? `<span class="craft-category-badge">${escapeHtml(item.category)}</span>` : '';
-                row.innerHTML = `
-                    ${iconHtml}
-                    <div class="craft-list-info">
-                        <div class="craft-list-name">${escapeHtml(item.name)}${catBadge}</div>
-                        <div style="font-size:12px;color:#888;">
-                            Себестоимость: ${Math.round(item.cost || 0).toLocaleString('ru-RU')} ₽ · Продажа: ${(item.sell_price || 0).toLocaleString('ru-RU')} ₽
+            // Если фильтр по навыку — группируем по навыку, иначе — плоский список
+            let html = '';
+            if (!skillFilter) {
+                // Группируем по навыкам
+                const groups = {};
+                items.forEach(item => {
+                    const skill = item.skill || "Сырье и материалы";
+                    if (!groups[skill]) groups[skill] = [];
+                    groups[skill].push(item);
+                });
+                const sortedSkills = Object.keys(groups).sort((a, b) => skillOrder(a) - skillOrder(b));
+                sortedSkills.forEach(skill => {
+                    html += `
+                        <div class="skill-header">
+                            <div class="skill-header-icon">${skillIcon(skill)}</div>
+                            <div class="skill-header-info">
+                                <div class="skill-header-name">${escapeHtml(skill)}</div>
+                                <div class="skill-header-desc">${escapeHtml(skillDesc(skill))} · ${groups[skill].length} рецептов</div>
+                            </div>
                         </div>
+                        <div class="craft-list" data-skill="${escapeHtml(skill)}"></div>
+                    `;
+                });
+                container.innerHTML = html;
+                sortedSkills.forEach(skill => {
+                    const listEl = container.querySelector(`.craft-list[data-skill="${CSS.escape(skill)}"]`);
+                    groups[skill].forEach(item => listEl.appendChild(buildCraftRow(item)));
+                });
+            } else {
+                html = '<div class="craft-list"></div>';
+                container.innerHTML = html;
+                const listEl = container.querySelector('.craft-list');
+                items.forEach(item => listEl.appendChild(buildCraftRow(item)));
+            }
+        }
+
+        function buildCraftRow(item) {
+            const row = document.createElement('div');
+            row.className = 'craft-list-item';
+            row.dataset.id = item.id;
+            const profit = item.profit || 0;
+            const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
+            const profitSign = profit > 0 ? '+' : '';
+            const iconHtml = item.icon
+                ? `<img class="craft-list-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
+                : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
+            const skill = item.skill || "Сырье и материалы";
+            const skillBadge = `<span class="skill-badge ${skillBadgeClass(skill)}">${escapeHtml(skill)}</span>`;
+            const levelBadge = item.skillLevel
+                ? `<span class="skill-level-badge lvl-${item.skillLevel}">ур. ${item.skillLevel}</span>`
+                : '';
+            row.innerHTML = `
+                ${iconHtml}
+                <div class="craft-list-info">
+                    <div class="craft-list-name">${escapeHtml(item.name)}${skillBadge}${levelBadge}</div>
+                    <div style="font-size:12px;color:#888;">
+                        Себестоимость: ${Math.round(item.cost || 0).toLocaleString('ru-RU')} ₽ · Продажа: ${(item.sell_price || 0).toLocaleString('ru-RU')} ₽
                     </div>
-                    <div class="craft-list-profit ${profitClass}" style="text-align:right;">
-                        ${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽
-                        <div style="font-size:12px;font-weight:normal;color:#888;">ROI: ${(item.roi || 0).toFixed(1)}%</div>
-                    </div>
-                `;
-                list.appendChild(row);
-            });
+                </div>
+                <div class="craft-list-profit ${profitClass}" style="text-align:right;">
+                    ${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽
+                    <div style="font-size:12px;font-weight:normal;color:#888;">ROI: ${(item.roi || 0).toFixed(1)}%</div>
+                </div>
+            `;
+            return row;
         }
 
         // ---------- Калькулятор крафта ----------
@@ -741,7 +817,6 @@
         function renderExcess(excess) {
             const items = Array.from(excess.values()).sort((a, b) => b.quantity - a.quantity);
             if (items.length === 0) return '';
-
             const rows = items.map(item => {
                 const iconHtml = item.icon
                     ? `<img class="shopping-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
@@ -755,7 +830,6 @@
                     <td style="text-align:right;">${valueText}</td>
                 </tr>`;
             }).join('');
-
             return `
                 <div class="excess-section">
                     <h3>📦 Останется после крафта (излишек)</h3>
@@ -787,7 +861,6 @@
             const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
             const profitSign = profit > 0 ? '+' : '';
             const roi = materialsCost > 0 ? (profit / materialsCost * 100) : 0;
-
             return `
                 <div class="craft-summary-grid">
                     <div class="craft-summary-item">
@@ -813,7 +886,6 @@
             `;
         }
 
-        // ---- Рендер дерева с раскрывающимися подкрафтами ----
         function renderIngredientRow(ing, isSubCraft) {
             const iconHtml = ing.icon
                 ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="" onerror="this.style.display='none'">`
@@ -836,13 +908,11 @@
             ingredients.forEach(ing => {
                 const isCraft = ing.craftable && ing.ingredients && ing.ingredients.length > 0;
                 if (isCraft) {
-                    // Раскрывающийся подкрафт
                     const extra = [];
                     if (ing.craftAmount && ing.craftAmount > 1) extra.push(`×${ing.craftAmount}`);
                     if (ing.energy) extra.push(`⚡${ing.energy}`);
                     if (ing.skill) extra.push(`${ing.skill} ур.${ing.skillLevel}`);
                     if (ing.station) extra.push(`🛠 ${ing.station}`);
-
                     html += `
                         <details class="craft-sub">
                             <summary>
@@ -855,7 +925,6 @@
                         </details>
                     `;
                 } else {
-                    // Листовой ингредиент
                     html += `<div class="craft-ingredient">${renderIngredientRow(ing, false)}</div>`;
                 }
             });
@@ -898,6 +967,9 @@
             if (!craft) return;
             let quantity = 1;
 
+            const skill = craft.skill || "Сырье и материалы";
+            const skillLevel = craft.skillLevel || 0;
+
             const qtyRowHtml = `
                 <div class="qty-row">
                     <label for="craftQtyInput">Сколько крафтить:</label>
@@ -910,9 +982,20 @@
                 </div>
             `;
 
+            const skillHeaderHtml = `
+                <div class="skill-header">
+                    <div class="skill-header-icon">${skillIcon(skill)}</div>
+                    <div class="skill-header-info">
+                        <div class="skill-header-name">${escapeHtml(skill)} <span class="skill-level-badge lvl-${skillLevel}">требуется ур. ${skillLevel}</span></div>
+                        <div class="skill-header-desc">${escapeHtml(skillDesc(skill))}</div>
+                    </div>
+                </div>
+            `;
+
             els.craftModalContent.innerHTML = `
                 <h2 style="color:#61dafb; margin-top:0;">🔨 Калькулятор крафта</h2>
-                <div style="font-size:18px;color:#e0e0e0;margin-bottom:15px;">${escapeHtml(craft.name)}${craft.category ? `<span class="craft-category-badge">${escapeHtml(craft.category)}</span>` : ''}</div>
+                <div style="font-size:18px;color:#e0e0e0;margin-bottom:15px;">${escapeHtml(craft.name)}</div>
+                ${skillHeaderHtml}
                 ${qtyRowHtml}
                 <div class="craft-summary" id="craftSummaryBox"></div>
                 <div id="craftExcessBox"></div>
@@ -1004,7 +1087,8 @@
             }
         });
 
-        els.craftCategorySelect.addEventListener('change', renderCraftList);
+        els.craftSkillSelect.addEventListener('change', renderCraftList);
+        els.craftLevelSelect.addEventListener('change', renderCraftList);
         els.craftSortSelect.addEventListener('change', renderCraftList);
         let craftSearchTimer = null;
         els.craftSearchInput.addEventListener('input', () => {
