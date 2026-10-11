@@ -10,6 +10,12 @@
         body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #e0e0e0; margin: 0; padding: 20px; }
         h1 { color: #61dafb; text-align: center; margin-top: 0; }
         .container { max-width: 1400px; margin: 0 auto; }
+
+        .tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 25px; border-bottom: 1px solid #3a3a4f; }
+        .tab { padding: 12px 24px; background: transparent; border: none; color: #888; font-size: 16px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; }
+        .tab:hover { color: #ccc; }
+        .tab.active { color: #61dafb; border-bottom-color: #61dafb; }
+
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
         input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 15px; }
         input { min-width: 260px; }
@@ -19,87 +25,17 @@
 
         .stats-bar { text-align: center; color: #888; font-size: 14px; margin-bottom: 15px; }
 
-        .items-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px;
-        }
-
-        .item-card {
-            background: #2b2b3c;
-            border-radius: 10px;
-            padding: 14px 10px 12px;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.15s;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid transparent;
-        }
+        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+        .item-card { background: #2b2b3c; border-radius: 10px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: all 0.15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid transparent; }
         .item-card:hover { background: #32324a; transform: translateY(-2px); border-color: #61dafb; }
-
-        .card-star {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            background: transparent;
-            border: none;
-            color: #555;
-            font-size: 22px;
-            cursor: pointer;
-            padding: 2px 7px;
-            line-height: 1;
-            transition: color 0.15s, transform 0.15s;
-            border-radius: 4px;
-        }
+        .card-star { position: absolute; top: 4px; right: 4px; background: transparent; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 2px 7px; line-height: 1; transition: color 0.15s, transform 0.15s; border-radius: 4px; }
         .card-star:hover { color: #888; transform: scale(1.15); }
         .card-star.active { color: #ffc107; }
-
-        .card-icon {
-            width: 64px;
-            height: 64px;
-            object-fit: contain;
-            border-radius: 6px;
-        }
-        .card-icon-empty {
-            width: 64px;
-            height: 64px;
-            background: #1e1e2f;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #444;
-            font-size: 24px;
-        }
-
-        .card-name {
-            font-size: 13px;
-            color: #e0e0e0;
-            line-height: 1.3;
-            min-height: 34px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            word-break: break-word;
-            width: 100%;
-        }
-
+        .card-icon { width: 64px; height: 64px; object-fit: contain; border-radius: 6px; }
+        .card-icon-empty { width: 64px; height: 64px; background: #1e1e2f; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #444; font-size: 24px; }
+        .card-name { font-size: 13px; color: #e0e0e0; line-height: 1.3; min-height: 34px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; }
         .card-price { font-size: 16px; font-weight: bold; color: #61dafb; }
-
-        .card-meta {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: #888;
-            flex-wrap: wrap;
-        }
+        .card-meta { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; color: #888; flex-wrap: wrap; }
         .card-dev { font-weight: bold; }
         .card-dev.green { color: #4caf50; }
         .card-dev.red { color: #f44336; }
@@ -107,33 +43,16 @@
 
         .empty-state { text-align: center; padding: 60px 20px; color: #888; font-size: 16px; grid-column: 1 / -1; }
 
-        /* Модальное окно */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.75);
-            display: flex; justify-content: center; align-items: flex-start;
-            padding: 40px 20px; z-index: 100; overflow-y: auto;
-        }
-        .modal {
-            background: #1e1e2f; border-radius: 12px;
-            max-width: 1000px; width: 100%;
-            padding: 25px; position: relative;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-        }
-        .modal-close {
-            position: absolute; top: 12px; right: 12px;
-            background: transparent; border: none; color: #888;
-            font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1;
-        }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; z-index: 100; overflow-y: auto; }
+        .modal { background: #1e1e2f; border-radius: 12px; max-width: 1000px; width: 100%; padding: 25px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        .modal-close { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #888; font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1; }
         .modal-close:hover { color: #fff; }
-
         .item-header { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; padding-right: 40px; }
         .item-icon { width: 96px; height: 96px; border-radius: 10px; background: #2b2b3c; object-fit: contain; flex-shrink: 0; }
         .item-icon-empty { width: 96px; height: 96px; border-radius: 10px; background: #2b2b3c; display: flex; align-items: center; justify-content: center; color: #444; font-size: 36px; flex-shrink: 0; }
         .item-title { font-size: 24px; font-weight: bold; color: #61dafb; margin-bottom: 6px; }
         .item-id { font-size: 14px; color: #888; }
         .category-badge { display: inline-block; padding: 3px 10px; border-radius: 4px; background: #3a3a4f; font-size: 12px; color: #61dafb; margin-left: 10px; vertical-align: middle; }
-
         .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-item { background: #2b2b3c; padding: 14px; border-radius: 8px; text-align: center; }
         .stat-value { font-size: 22px; font-weight: bold; color: #61dafb; }
@@ -141,9 +60,7 @@
         .stat-sub { font-size: 11px; color: #888; margin-top: 3px; }
         .green { color: #4caf50 !important; }
         .red { color: #f44336 !important; }
-
         .chart-container { background: #2b2b3c; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #3a3a4f; }
         th { color: #61dafb; font-weight: bold; font-size: 14px; }
@@ -151,36 +68,89 @@
         tr:hover { background: #32324a; }
         .price-cell { color: #61dafb; font-weight: bold; }
         .time-cell { color: #aaa; font-size: 13px; }
-
         .lots-title { color: #61dafb; margin-top: 0; margin-bottom: 10px; }
-
         canvas { max-height: 350px; }
+
+        /* Стили для дерева крафтов */
+        .craft-tree { margin-top: 15px; }
+        .craft-node { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #444; }
+        .craft-node.profitable { border-left-color: #4caf50; }
+        .craft-node.unprofitable { border-left-color: #f44336; }
+        .craft-node-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .craft-node-icon { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #1e1e2f; }
+        .craft-node-name { font-size: 16px; font-weight: bold; color: #61dafb; }
+        .craft-node-id { font-size: 12px; color: #888; }
+        .craft-node-stats { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; }
+        .craft-node-stat { display: flex; flex-direction: column; }
+        .craft-node-stat-label { font-size: 11px; color: #888; }
+        .craft-node-stat-value { font-size: 15px; font-weight: bold; }
+        .craft-ingredients { margin-left: 20px; margin-top: 10px; padding-left: 15px; border-left: 2px dashed #3a3a4f; }
+        .craft-ingredient { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
+        .craft-ingredient-icon { width: 28px; height: 28px; object-fit: contain; border-radius: 3px; background: #1e1e2f; }
+        .craft-ingredient-name { color: #ccc; }
+        .craft-ingredient-amount { color: #888; font-size: 12px; }
+        .craft-ingredient-cost { color: #61dafb; margin-left: auto; font-weight: bold; }
+
+        .craft-summary { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .craft-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
+        .craft-summary-item { text-align: center; }
+        .craft-summary-value { font-size: 20px; font-weight: bold; }
+        .craft-summary-label { font-size: 12px; color: #888; margin-top: 4px; }
+
+        .craft-search { margin-bottom: 20px; }
+        .craft-search input { width: 100%; }
+        .craft-list { display: flex; flex-direction: column; gap: 10px; }
+        .craft-list-item { background: #2b2b3c; border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.15s; border: 1px solid transparent; }
+        .craft-list-item:hover { background: #32324a; border-color: #61dafb; }
+        .craft-list-icon { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #1e1e2f; }
+        .craft-list-info { flex: 1; }
+        .craft-list-name { font-weight: bold; color: #e0e0e0; }
+        .craft-list-profit { font-weight: bold; }
+        .craft-list-profit.green { color: #4caf50; }
+        .craft-list-profit.red { color: #f44336; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Stalzone Auction Monitor</h1>
 
-        <div class="controls">
-            <select id="categorySelect"><option value="">Все категории</option></select>
-            <input type="text" id="searchInput" placeholder="Поиск по названию или ID...">
-            <select id="sortSelect">
-                <option value="name">По названию (А-Я)</option>
-                <option value="price_asc">По цене ↑</option>
-                <option value="price_desc">По цене ↓</option>
-                <option value="dev_asc">По скидке (сначала дешёвые)</option>
-                <option value="dev_desc">По наценке (сначала дорогие)</option>
-                <option value="amount_desc">По количеству на аукционе</option>
-            </select>
-            <button id="refreshBtn">🔄 Обновить</button>
+        <div class="tabs">
+            <button class="tab active" data-tab="market">🏪 Аукцион</button>
+            <button class="tab" data-tab="crafts">🔨 Крафты</button>
         </div>
 
-        <div class="stats-bar"><span id="resultCount">Загрузка...</span></div>
+        <!-- ВКЛАДКА: АУКЦИОН -->
+        <div id="tab-market">
+            <div class="controls">
+                <select id="categorySelect"><option value="">Все категории</option></select>
+                <input type="text" id="searchInput" placeholder="Поиск по названию или ID...">
+                <select id="sortSelect">
+                    <option value="name">По названию (А-Я)</option>
+                    <option value="price_asc">По цене ↑</option>
+                    <option value="price_desc">По цене ↓</option>
+                    <option value="dev_asc">По скидке (сначала дешёвые)</option>
+                    <option value="dev_desc">По наценке (сначала дорогие)</option>
+                    <option value="amount_desc">По количеству на аукционе</option>
+                </select>
+                <button id="refreshBtn">🔄 Обновить</button>
+            </div>
+            <div class="stats-bar"><span id="resultCount">Загрузка...</span></div>
+            <div class="items-grid" id="itemsGrid"></div>
+            <div id="sentinel" style="height: 20px;"></div>
+        </div>
 
-        <div class="items-grid" id="itemsGrid"></div>
-        <div id="sentinel" style="height: 20px;"></div>
+        <!-- ВКЛАДКА: КРАФТЫ -->
+        <div id="tab-crafts" style="display:none;">
+            <div class="craft-search">
+                <input type="text" id="craftSearchInput" placeholder="Поиск по названию предмета...">
+            </div>
+            <div id="craftListContainer">
+                <div class="empty-state">Загрузка рецептов...</div>
+            </div>
+        </div>
     </div>
 
+    <!-- Модальное окно предмета -->
     <div class="modal-overlay" id="modalOverlay" style="display:none;">
         <div class="modal">
             <button class="modal-close" id="modalClose">×</button>
@@ -188,67 +158,49 @@
         </div>
     </div>
 
+    <!-- Модальное окно крафта -->
+    <div class="modal-overlay" id="craftModalOverlay" style="display:none;">
+        <div class="modal" style="max-width: 900px;">
+            <button class="modal-close" id="craftModalClose">×</button>
+            <div id="craftModalContent"></div>
+        </div>
+    </div>
+
     <script>
         // ============ СОСТОЯНИЕ ============
         let allData = {};
+        let craftsData = {};
         let itemsCache = [];
         let favorites = [];
         let filteredItems = [];
         let currentChunk = 0;
         const CHUNK_SIZE = 120;
         let currentChart = null;
-        let currentModalId = null;
 
         const FAV_STORAGE_KEY = 'sz_favorites';
 
         // ============ КАТЕГОРИИ ============
         const CATEGORY_NAMES = {
-            "weapon":         "Оружие",
-            "weapon_modules": "Модули оружия",
-            "attachment":     "Обвесы",
-            "ammo":           "Патроны",
-            "bullet":         "Патроны",
-            "armor":          "Костюмы",
-            "armour":         "Костюмы",
-            "artefact":       "Артефакты",
-            "artifact":       "Артефакты",
-            "backpacks":      "Рюкзаки и сумки",
-            "backpack":       "Рюкзаки и сумки",
-            "containers":     "Контейнеры",
-            "container":      "Контейнеры",
-            "medicine":       "Медикаменты и еда",
-            "meds":           "Медикаменты и еда",
-            "grenade":        "Гранаты",
-            "grenades":       "Гранаты",
-            "device":         "Устройства",
-            "devices":        "Устройства",
-            "supply":         "Расходники",
-            "supplies":       "Расходники",
-            "misc":           "Разное",
-            "other":          "Прочее"
+            "weapon": "Оружие", "weapon_modules": "Модули оружия", "attachment": "Обвесы",
+            "ammo": "Патроны", "bullet": "Патроны", "armor": "Костюмы", "armour": "Костюмы",
+            "artefact": "Артефакты", "artifact": "Артефакты", "backpacks": "Рюкзаки и сумки",
+            "backpack": "Рюкзаки и сумки", "containers": "Контейнеры", "container": "Контейнеры",
+            "medicine": "Медикаменты и еда", "meds": "Медикаменты и еда", "grenade": "Гранаты",
+            "grenades": "Гранаты", "device": "Устройства", "devices": "Устройства",
+            "supply": "Расходники", "supplies": "Расходники", "misc": "Разное", "other": "Прочее"
         };
-
         const CATEGORY_ORDER = [
-            "weapon", "weapon_modules", "attachment",
-            "ammo", "bullet",
-            "armor", "armour",
-            "backpacks", "backpack",
-            "artefact", "artifact",
-            "containers", "container",
-            "medicine", "meds",
-            "grenade", "grenades",
-            "device", "devices",
-            "supply", "supplies",
-            "misc", "other"
+            "weapon", "weapon_modules", "attachment", "ammo", "bullet", "armor", "armour",
+            "backpacks", "backpack", "artefact", "artifact", "containers", "container",
+            "medicine", "meds", "grenade", "grenades", "device", "devices", "supply",
+            "supplies", "misc", "other"
         ];
-
         const FAVORITES_KEY = "__favorites__";
 
         function categoryName(key) {
             if (key === FAVORITES_KEY) return "⭐ Избранное";
             return CATEGORY_NAMES[key] || key;
         }
-
         function categoryOrder(key) {
             if (key === FAVORITES_KEY) return -1;
             const idx = CATEGORY_ORDER.indexOf(key);
@@ -257,26 +209,14 @@
 
         // ============ ИЗБРАННОЕ ============
         function loadFavorites() {
-            try {
-                return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]');
-            } catch { return []; }
+            try { return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]'); } catch { return []; }
         }
-
-        function saveFavorites() {
-            localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify(favorites));
-        }
-
-        function isFavorite(id) {
-            return favorites.includes(id);
-        }
-
+        function saveFavorites() { localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify(favorites)); }
+        function isFavorite(id) { return favorites.includes(id); }
         function toggleFavorite(id) {
             const idx = favorites.indexOf(id);
-            if (idx >= 0) {
-                favorites.splice(idx, 1);
-            } else {
-                favorites.push(id);
-            }
+            if (idx >= 0) favorites.splice(idx, 1);
+            else favorites.push(id);
             saveFavorites();
             return isFavorite(id);
         }
@@ -293,17 +233,43 @@
             modalOverlay: document.getElementById('modalOverlay'),
             modalContent: document.getElementById('modalContent'),
             modalClose: document.getElementById('modalClose'),
+            craftSearchInput: document.getElementById('craftSearchInput'),
+            craftListContainer: document.getElementById('craftListContainer'),
+            craftModalOverlay: document.getElementById('craftModalOverlay'),
+            craftModalContent: document.getElementById('craftModalContent'),
+            craftModalClose: document.getElementById('craftModalClose'),
         };
 
-        // ============ ЗАГРУЗКА ДАННЫХ ============
+        // ============ ВКЛАДКИ ============
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const tabName = tab.dataset.tab;
+                document.getElementById('tab-market').style.display = tabName === 'market' ? 'block' : 'none';
+                document.getElementById('tab-crafts').style.display = tabName === 'crafts' ? 'block' : 'none';
+                if (tabName === 'crafts') renderCraftList();
+            });
+        });
+
+        // ============ ЗАГРУЗКА ============
         async function loadData() {
             els.resultCount.textContent = 'Загрузка данных...';
             try {
-                const resp = await fetch('prices.json?t=' + Date.now());
-                allData = await resp.json();
+                const [pricesResp, craftsResp] = await Promise.all([
+                    fetch('prices.json?t=' + Date.now()),
+                    fetch('crafts.json?t=' + Date.now()).catch(() => null)
+                ]);
+                allData = await pricesResp.json();
+                if (craftsResp && craftsResp.ok) {
+                    craftsData = await craftsResp.json();
+                } else {
+                    craftsData = {};
+                }
                 buildItemsCache();
                 populateCategories();
                 applyFilters();
+                els.resultCount.textContent = `Загружено: ${itemsCache.length} предметов`;
             } catch (e) {
                 console.error(e);
                 els.resultCount.textContent = '❌ Не удалось загрузить prices.json';
@@ -320,13 +286,9 @@
                 const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
                 const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
                 return {
-                    id,
-                    name: last.name || id,
-                    icon: last.icon || '',
+                    id, name: last.name || id, icon: last.icon || '',
                     category: last.category || 'other',
-                    price: cur,
-                    avg: avg,
-                    deviation: dev,
+                    price: cur, avg, deviation: dev,
                     total_amount: last.total_amount || 0,
                     lots_count: last.lots_count || 0,
                     lastRecord: last
@@ -337,90 +299,55 @@
         function populateCategories() {
             const current = els.categorySelect.value;
             els.categorySelect.innerHTML = '';
-
-            // Избранное — всегда сверху
             const favOpt = document.createElement('option');
             favOpt.value = FAVORITES_KEY;
             favOpt.textContent = `⭐ Избранное (${favorites.length})`;
             els.categorySelect.appendChild(favOpt);
-
-            // Все категории
             const allOpt = document.createElement('option');
             allOpt.value = '';
             allOpt.textContent = 'Все категории';
             els.categorySelect.appendChild(allOpt);
 
-            // Считаем предметы по категориям
             const counts = {};
-            itemsCache.forEach(item => {
-                counts[item.category] = (counts[item.category] || 0) + 1;
-            });
-
+            itemsCache.forEach(item => { counts[item.category] = (counts[item.category] || 0) + 1; });
             const sortedCats = Object.keys(counts).sort((a, b) => {
-                const oa = categoryOrder(a);
-                const ob = categoryOrder(b);
+                const oa = categoryOrder(a), ob = categoryOrder(b);
                 if (oa !== ob) return oa - ob;
                 return categoryName(a).localeCompare(categoryName(b), 'ru');
             });
-
             sortedCats.forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat;
                 opt.textContent = `${categoryName(cat)} (${counts[cat]})`;
                 els.categorySelect.appendChild(opt);
             });
-
-            // Восстанавливаем или ставим "Все категории" по умолчанию
-            if (current) {
-                els.categorySelect.value = current;
-            } else {
-                els.categorySelect.value = '';
-            }
+            if (current) els.categorySelect.value = current;
+            else els.categorySelect.value = '';
         }
 
-        // ============ ФИЛЬТРАЦИЯ И СОРТИРОВКА ============
+        // ============ ФИЛЬТРАЦИЯ ============
         function applyFilters() {
             const cat = els.categorySelect.value;
             const query = els.searchInput.value.toLowerCase().trim();
             const sort = els.sortSelect.value;
 
             let items = itemsCache.slice();
+            if (cat === FAVORITES_KEY) items = items.filter(it => isFavorite(it.id));
+            else if (cat) items = items.filter(it => it.category === cat);
 
-            // Фильтр по категории
-            if (cat === FAVORITES_KEY) {
-                items = items.filter(it => isFavorite(it.id));
-            } else if (cat) {
-                items = items.filter(it => it.category === cat);
-            }
-
-            // Поиск
             if (query) {
                 items = items.filter(it =>
-                    it.id.toLowerCase().includes(query) ||
-                    it.name.toLowerCase().includes(query)
+                    it.id.toLowerCase().includes(query) || it.name.toLowerCase().includes(query)
                 );
             }
 
-            // Сортировка
             switch (sort) {
-                case 'name':
-                    items.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-                    break;
-                case 'price_asc':
-                    items.sort((a, b) => a.price - b.price);
-                    break;
-                case 'price_desc':
-                    items.sort((a, b) => b.price - a.price);
-                    break;
-                case 'dev_asc':
-                    items.sort((a, b) => a.deviation - b.deviation);
-                    break;
-                case 'dev_desc':
-                    items.sort((a, b) => b.deviation - a.deviation);
-                    break;
-                case 'amount_desc':
-                    items.sort((a, b) => b.total_amount - a.total_amount);
-                    break;
+                case 'name': items.sort((a, b) => a.name.localeCompare(b.name, 'ru')); break;
+                case 'price_asc': items.sort((a, b) => a.price - b.price); break;
+                case 'price_desc': items.sort((a, b) => b.price - a.price); break;
+                case 'dev_asc': items.sort((a, b) => a.deviation - b.deviation); break;
+                case 'dev_desc': items.sort((a, b) => b.deviation - a.deviation); break;
+                case 'amount_desc': items.sort((a, b) => b.total_amount - a.total_amount); break;
             }
 
             filteredItems = items;
@@ -447,16 +374,13 @@
         function renderNextChunk() {
             const start = currentChunk * CHUNK_SIZE;
             if (start >= filteredItems.length) return;
-
             const end = Math.min(start + CHUNK_SIZE, filteredItems.length);
             const fragment = document.createDocumentFragment();
-
             for (let i = start; i < end; i++) {
                 fragment.appendChild(createCard(filteredItems[i]));
             }
             els.itemsGrid.appendChild(fragment);
             currentChunk++;
-
             if (currentChunk * CHUNK_SIZE >= filteredItems.length) {
                 els.sentinel.style.display = 'none';
             }
@@ -466,25 +390,14 @@
             const card = document.createElement('div');
             card.className = 'item-card';
             card.dataset.id = item.id;
-
             const iconHtml = item.icon
                 ? `<img class="card-icon" src="${item.icon}" alt="" onerror="this.outerHTML='<div class=&quot;card-icon-empty&quot;>?</div>'">`
                 : `<div class="card-icon-empty">?</div>`;
-
-            let devClass = 'neutral';
-            let devText = '—';
-            if (item.deviation > 0.5) {
-                devClass = 'red';
-                devText = '+' + item.deviation.toFixed(1) + '%';
-            } else if (item.deviation < -0.5) {
-                devClass = 'green';
-                devText = item.deviation.toFixed(1) + '%';
-            } else {
-                devText = '0%';
-            }
-
+            let devClass = 'neutral', devText = '—';
+            if (item.deviation > 0.5) { devClass = 'red'; devText = '+' + item.deviation.toFixed(1) + '%'; }
+            else if (item.deviation < -0.5) { devClass = 'green'; devText = item.deviation.toFixed(1) + '%'; }
+            else { devText = '0%'; }
             const fav = isFavorite(item.id);
-
             card.innerHTML = `
                 <button class="card-star ${fav ? 'active' : ''}" data-star="${item.id}" title="${fav ? 'Убрать из избранного' : 'В избранное'}">★</button>
                 ${iconHtml}
@@ -499,125 +412,67 @@
         }
 
         function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, c => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[c]));
+            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
-        // ============ МОДАЛЬНОЕ ОКНО ============
+        // ============ МОДАЛКА ПРЕДМЕТА ============
         function openModal(id) {
             const item = itemsCache.find(i => i.id === id);
             if (!item) return;
-            currentModalId = id;
-
             const hist = allData[id];
             const prices = hist.map(h => h.price);
             const last = hist[hist.length - 1];
             const cur = prices[prices.length - 1];
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
             const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
-
             const fav = isFavorite(id);
             const iconHtml = item.icon
                 ? `<img class="item-icon" src="${item.icon}" alt="" onerror="this.outerHTML='<div class=&quot;item-icon-empty&quot;>?</div>'">`
                 : `<div class="item-icon-empty">?</div>`;
-
-            let devClass = 'green';
-            if (dev > 0) devClass = 'red';
-
+            let devClass = 'green'; if (dev > 0) devClass = 'red';
             let bestLotInfo = '';
             if (last.best_lot_amount && last.best_lot_buyout) {
                 bestLotInfo = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString('ru-RU')} ₽`;
             }
-
             let lotsHtml = '';
             if (last.lots && last.lots.length) {
                 const rows = last.lots.map((lot, i) => {
                     const endTime = lot.endTime ? new Date(lot.endTime).toLocaleString('ru-RU') : '—';
-                    return `<tr>
-                        <td>${i + 1}</td>
-                        <td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td>
-                        <td>${lot.amount.toLocaleString('ru-RU')} шт</td>
-                        <td>${lot.buyout.toLocaleString('ru-RU')} ₽</td>
-                        <td class="time-cell">${endTime}</td>
-                    </tr>`;
+                    return `<tr><td>${i+1}</td><td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td><td>${lot.amount.toLocaleString('ru-RU')} шт</td><td>${lot.buyout.toLocaleString('ru-RU')} ₽</td><td class="time-cell">${endTime}</td></tr>`;
                 }).join('');
-                lotsHtml = `
-                    <h3 class="lots-title">📋 Актуальные лоты (${last.lots.length})</h3>
-                    <table>
-                        <thead><tr>
-                            <th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th>
-                        </tr></thead>
-                        <tbody>${rows}</tbody>
-                    </table>`;
+                lotsHtml = `<h3 class="lots-title">📋 Актуальные лоты (${last.lots.length})</h3><table><thead><tr><th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
-
             els.modalContent.innerHTML = `
                 <div class="item-header">
                     ${iconHtml}
                     <div style="flex:1">
-                        <div class="item-title">
-                            <span id="modalItemName">${escapeHtml(item.name)}</span>
-                            <span class="category-badge">${escapeHtml(categoryName(item.category))}</span>
-                        </div>
+                        <div class="item-title"><span>${escapeHtml(item.name)}</span><span class="category-badge">${escapeHtml(categoryName(item.category))}</span></div>
                         <div class="item-id">ID: ${item.id}</div>
                     </div>
                     <button id="modalFavBtn" class="card-star ${fav ? 'active' : ''}" style="position:static; font-size:32px; padding:0 12px;" title="В избранное">★</button>
                 </div>
-
                 <div class="stats">
-                    <div class="stat-item">
-                        <div class="stat-value">${cur.toLocaleString('ru-RU')} ₽</div>
-                        <div class="stat-label">Цена за 1 шт</div>
-                        <div class="stat-sub">${bestLotInfo}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">${Math.round(avg).toLocaleString('ru-RU')} ₽</div>
-                        <div class="stat-label">Средняя (7 дней)</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value ${devClass}">${(dev > 0 ? '+' : '') + dev.toFixed(1)}%</div>
-                        <div class="stat-label">Отклонение</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div>
-                        <div class="stat-label">Всего на аукционе</div>
-                        <div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">${prices.length}</div>
-                        <div class="stat-label">Точек истории</div>
-                    </div>
+                    <div class="stat-item"><div class="stat-value">${cur.toLocaleString('ru-RU')} ₽</div><div class="stat-label">Цена за 1 шт</div><div class="stat-sub">${bestLotInfo}</div></div>
+                    <div class="stat-item"><div class="stat-value">${Math.round(avg).toLocaleString('ru-RU')} ₽</div><div class="stat-label">Средняя (7 дней)</div></div>
+                    <div class="stat-item"><div class="stat-value ${devClass}">${(dev > 0 ? '+' : '') + dev.toFixed(1)}%</div><div class="stat-label">Отклонение</div></div>
+                    <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div></div>
+                    <div class="stat-item"><div class="stat-value">${prices.length}</div><div class="stat-label">Точек истории</div></div>
                 </div>
-
                 <div class="chart-container"><canvas id="modalChart"></canvas></div>
                 ${lotsHtml}
             `;
-
-            // Вешаем обработчик на кнопку избранного в модалке
             const modalFavBtn = document.getElementById('modalFavBtn');
             modalFavBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const nowFav = toggleFavorite(id);
                 modalFavBtn.classList.toggle('active', nowFav);
-                // Обновляем счётчик избранного в фильтре
                 const favOpt = els.categorySelect.querySelector(`option[value="${FAVORITES_KEY}"]`);
                 if (favOpt) favOpt.textContent = `⭐ Избранное (${favorites.length})`;
-                // Обновляем звёздочки во всех видимых карточках
-                document.querySelectorAll(`[data-star="${id}"]`).forEach(btn => {
-                    btn.classList.toggle('active', nowFav);
-                });
-                // Если текущий фильтр — избранное, перерисовываем
-                if (els.categorySelect.value === FAVORITES_KEY) {
-                    applyFilters();
-                }
+                document.querySelectorAll(`[data-star="${id}"]`).forEach(btn => btn.classList.toggle('active', nowFav));
+                if (els.categorySelect.value === FAVORITES_KEY) applyFilters();
             });
-
-            // Показываем модалку
             els.modalOverlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
-
-            // Рисуем график
             requestAnimationFrame(() => {
                 const ctx = document.getElementById('modalChart').getContext('2d');
                 if (currentChart) currentChart.destroy();
@@ -628,17 +483,10 @@
                         labels,
                         datasets: [
                             { label: 'Цена за 1 шт', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
-                            { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false }
+                            { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false }
                         ]
                     },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { labels: { color: '#e0e0e0' } } },
-                        scales: {
-                            x: { ticks: { color: '#aaa', maxTicksLimit: 12 }, grid: { color: '#444' } },
-                            y: { ticks: { color: '#aaa' }, grid: { color: '#444' } }
-                        }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#e0e0e0' } } }, scales: { x: { ticks: { color: '#aaa', maxTicksLimit: 12 }, grid: { color: '#444' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#444' } } } }
                 });
             });
         }
@@ -646,11 +494,126 @@
         function closeModal() {
             els.modalOverlay.style.display = 'none';
             document.body.style.overflow = '';
-            if (currentChart) {
-                currentChart.destroy();
-                currentChart = null;
+            if (currentChart) { currentChart.destroy(); currentChart = null; }
+        }
+
+        // ============ ВКЛАДКА КРАФТОВ ============
+        function renderCraftList() {
+            const query = els.craftSearchInput.value.toLowerCase().trim();
+            const container = els.craftListContainer;
+
+            const recipeIds = Object.keys(craftsData);
+            if (recipeIds.length === 0) {
+                container.innerHTML = '<div class="empty-state">🔨 Пока нет рецептов.<br>Добавьте их в файл <code>recipes.json</code> в вашем репозитории.</div>';
+                return;
             }
-            currentModalId = null;
+
+            const items = recipeIds
+                .map(id => ({ id, ...craftsData[id] }))
+                .filter(item => {
+                    if (!query) return true;
+                    return item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query);
+                })
+                .sort((a, b) => (b.profit || 0) - (a.profit || 0));
+
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-state">Ничего не найдено</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="craft-list"></div>';
+            const list = container.querySelector('.craft-list');
+
+            items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'craft-list-item';
+                row.dataset.id = item.id;
+                const profit = item.profit || 0;
+                const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
+                const profitSign = profit > 0 ? '+' : '';
+                const iconHtml = item.icon
+                    ? `<img class="craft-list-icon" src="${item.icon}" alt="">`
+                    : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
+                row.innerHTML = `
+                    ${iconHtml}
+                    <div class="craft-list-info">
+                        <div class="craft-list-name">${escapeHtml(item.name)}</div>
+                        <div style="font-size:12px;color:#888;">
+                            Себестоимость: ${item.cost.toLocaleString('ru-RU')} ₽ · Продажа: ${item.sell_price.toLocaleString('ru-RU')} ₽
+                        </div>
+                    </div>
+                    <div class="craft-list-profit ${profitClass}" style="text-align:right;">
+                        ${profitSign}${profit.toLocaleString('ru-RU')} ₽
+                        <div style="font-size:12px;font-weight:normal;color:#888;">ROI: ${(item.roi || 0).toFixed(1)}%</div>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function openCraftModal(id) {
+            const craft = craftsData[id];
+            if (!craft) return;
+
+            const modalContent = els.craftModalContent;
+
+            function renderNode(node, depth = 0) {
+                if (!node) return '';
+                const profit = node.profit || 0;
+                const nodeClass = profit > 0 ? 'profitable' : (profit < 0 ? 'unprofitable' : '');
+                const iconHtml = node.icon
+                    ? `<img class="craft-node-icon" src="${node.icon}" alt="">`
+                    : `<div class="craft-node-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
+                let ingredientsHtml = '';
+                if (node.ingredients && node.ingredients.length > 0) {
+                    ingredientsHtml = '<div class="craft-ingredients">';
+                    node.ingredients.forEach(ing => {
+                        const ingIcon = ing.icon
+                            ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="">`
+                            : `<div class="craft-ingredient-icon" style="display:flex;align-items:center;justify-content:center;color:#444;font-size:11px;">?</div>`;
+                        ingredientsHtml += `
+                            <div class="craft-ingredient">
+                                ${ingIcon}
+                                <span class="craft-ingredient-name">${escapeHtml(ing.name)}</span>
+                                <span class="craft-ingredient-amount">×${ing.amount}</span>
+                                <span class="craft-ingredient-cost">${ing.total_cost.toLocaleString('ru-RU')} ₽</span>
+                            </div>
+                        `;
+                    });
+                    ingredientsHtml += '</div>';
+                }
+                return `
+                    <div class="craft-node ${nodeClass}">
+                        <div class="craft-node-header">
+                            ${iconHtml}
+                            <div>
+                                <div class="craft-node-name">${escapeHtml(node.name)}</div>
+                                <div class="craft-node-id">ID: ${node.id}</div>
+                            </div>
+                        </div>
+                        <div class="craft-node-stats">
+                            <div class="craft-node-stat"><span class="craft-node-stat-label">Цена продажи</span><span class="craft-node-stat-value" style="color:#61dafb;">${node.sell_price.toLocaleString('ru-RU')} ₽</span></div>
+                            <div class="craft-node-stat"><span class="craft-node-stat-label">Себестоимость</span><span class="craft-node-stat-value">${node.cost.toLocaleString('ru-RU')} ₽</span></div>
+                            <div class="craft-node-stat"><span class="craft-node-stat-label">Прибыль</span><span class="craft-node-stat-value ${profit > 0 ? 'green' : 'red'}">${profit > 0 ? '+' : ''}${profit.toLocaleString('ru-RU')} ₽</span></div>
+                            <div class="craft-node-stat"><span class="craft-node-stat-label">ROI</span><span class="craft-node-stat-value ${profit > 0 ? 'green' : 'red'}">${(node.roi || 0).toFixed(1)}%</span></div>
+                        </div>
+                        ${ingredientsHtml}
+                    </div>
+                `;
+            }
+
+            modalContent.innerHTML = `
+                <h2 style="color:#61dafb; margin-top:0;">🔨 Дерево крафта</h2>
+                ${renderNode(craft)}
+            `;
+
+            els.craftModalOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCraftModal() {
+            els.craftModalOverlay.style.display = 'none';
+            document.body.style.overflow = '';
         }
 
         // ============ БЕСКОНЕЧНАЯ ПРОКРУТКА ============
@@ -670,14 +633,12 @@
         els.sortSelect.addEventListener('change', applyFilters);
         els.refreshBtn.addEventListener('click', loadData);
 
-        // Поиск с задержкой
         let searchTimer = null;
         els.searchInput.addEventListener('input', () => {
             clearTimeout(searchTimer);
             searchTimer = setTimeout(applyFilters, 200);
         });
 
-        // Клик по карточке или звёздочке — через делегирование
         els.itemsGrid.addEventListener('click', (e) => {
             const star = e.target.closest('[data-star]');
             if (star) {
@@ -688,28 +649,35 @@
                 star.title = nowFav ? 'Убрать из избранного' : 'В избранное';
                 const favOpt = els.categorySelect.querySelector(`option[value="${FAVORITES_KEY}"]`);
                 if (favOpt) favOpt.textContent = `⭐ Избранное (${favorites.length})`;
-                if (els.categorySelect.value === FAVORITES_KEY) {
-                    applyFilters();
-                }
+                if (els.categorySelect.value === FAVORITES_KEY) applyFilters();
                 return;
             }
-
             const card = e.target.closest('.item-card');
-            if (card) {
-                openModal(card.dataset.id);
+            if (card) openModal(card.dataset.id);
+        });
+
+        els.modalClose.addEventListener('click', closeModal);
+        els.modalOverlay.addEventListener('click', (e) => { if (e.target === els.modalOverlay) closeModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (els.modalOverlay.style.display !== 'none') closeModal();
+                if (els.craftModalOverlay.style.display !== 'none') closeCraftModal();
             }
         });
 
-        // Закрытие модалки
-        els.modalClose.addEventListener('click', closeModal);
-        els.modalOverlay.addEventListener('click', (e) => {
-            if (e.target === els.modalOverlay) closeModal();
+        let craftSearchTimer = null;
+        els.craftSearchInput.addEventListener('input', () => {
+            clearTimeout(craftSearchTimer);
+            craftSearchTimer = setTimeout(renderCraftList, 200);
         });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && els.modalOverlay.style.display !== 'none') {
-                closeModal();
-            }
+
+        els.craftListContainer.addEventListener('click', (e) => {
+            const row = e.target.closest('.craft-list-item');
+            if (row) openCraftModal(row.dataset.id);
         });
+
+        els.craftModalClose.addEventListener('click', closeCraftModal);
+        els.craftModalOverlay.addEventListener('click', (e) => { if (e.target === els.craftModalOverlay) closeCraftModal(); });
 
         // ============ СТАРТ ============
         favorites = loadFavorites();
