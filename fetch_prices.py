@@ -14,6 +14,7 @@ DATA_FILE = "prices.json"
 MAX_HISTORY = 500
 MAX_ITEMS = 500
 WORKERS = 8
+MAX_LOTS_PER_ITEM = 20   # сколько лотов сохраняем для отображения
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -107,7 +108,7 @@ def discover_tradable_items():
 
 
 def fetch_lots_for_item(token, item_id):
-    """Возвращает список ТОЛЬКО лотов с buyoutPrice (ставки игнорируются)."""
+    """Возвращает обработанные лоты: только с buyoutPrice, отсортированные по цене за единицу."""
     url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/lots?limit=200"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     try:
@@ -122,20 +123,22 @@ def fetch_lots_for_item(token, item_id):
         else:
             raw_lots = []
 
-        # Обрабатываем только лоты с реальной ценой выкупа
         processed = []
         for lot in raw_lots:
             buyout = lot.get("buyoutPrice") or 0
             amount = lot.get("amount") or 0
-            # Игнорируем лоты без выкупа и без количества
             if buyout <= 0 or amount <= 0:
                 continue
             price_per_unit = buyout / amount
             processed.append({
-                "price_per_unit": price_per_unit,
+                "price_per_unit": round(price_per_unit),
                 "buyout": buyout,
                 "amount": amount,
+                "endTime": lot.get("endTime", ""),
             })
+
+        # Сортируем по цене за единицу (самые дешёвые — сверху)
+        processed.sort(key=lambda l: l["price_per_unit"])
         return item_id, processed
     except Exception:
         return item_id, []
@@ -154,6 +157,8 @@ def save_history(history):
 
 
 def aggregate_history(records):
+    """Оставляем детально 24 часа, старше — по одной точке в час.
+    Сохраняем метаданные, чтобы не терять name/icon."""
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
 
@@ -168,7 +173,6 @@ def aggregate_history(records):
         else:
             old.append((ts, r))
 
-    # Сохраняем метаданные для агрегированных записей
     last_name = ""
     last_icon = ""
     for r in records:
@@ -230,19 +234,20 @@ def main():
         for n, fut in enumerate(as_completed(futures), 1):
             item_id, lots = fut.result()
             if lots:
-                # Ищем лучший лот: минимальная цена за единицу
-                best = min(lots, key=lambda l: l["price_per_unit"])
-                # Суммарное количество предметов на аукционе
+                best = lots[0]  # уже отсортированы
                 total_amount = sum(l["amount"] for l in lots)
+                # Ограничиваем количество лотов в снапшоте (файл не раздуваем)
+                top_lots = lots[:MAX_LOTS_PER_ITEM]
 
                 meta = meta_map.get(item_id, {})
                 history.setdefault(item_id, []).append({
                     "timestamp": now,
-                    "price": round(best["price_per_unit"]),       # цена за единицу
-                    "best_lot_amount": best["amount"],            # штук в лучшем лоте
-                    "best_lot_buyout": best["buyout"],            # цена лучшего лота целиком
-                    "total_amount": total_amount,                 # всего штук на аукционе
-                    "lots_count": len(lots),                      # сколько лотов
+                    "price": best["price_per_unit"],
+                    "best_lot_amount": best["amount"],
+                    "best_lot_buyout": best["buyout"],
+                    "total_amount": total_amount,
+                    "lots_count": len(lots),
+                    "lots": top_lots,                    # ← актуальные лоты
                     "name": meta.get("name", item_id),
                     "icon": meta.get("icon", ""),
                 })
