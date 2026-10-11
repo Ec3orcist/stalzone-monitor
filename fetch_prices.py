@@ -11,15 +11,14 @@ LANG = "ru"
 ICON_REALM = "ru"
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
-MAX_HISTORY = 500
-MAX_ITEMS = 500
-WORKERS = 8
-MAX_LOTS_PER_ITEM = 20
+MAX_HISTORY = 168           # 1 неделя часовых точек (защита от раздувания файла)
+MAX_ITEMS = 3000            # берём ВСЕ торгуемые предметы
+WORKERS = 6                 # безопасно для лимита API (400 запросов/мин)
+MAX_LOTS_PER_ITEM = 10      # храним топ-10 лотов (было 20)
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 
-# Глобально — множество существующих иконок (заполняется в main)
 EXISTING_ICONS = None
 
 
@@ -41,17 +40,14 @@ ITEM_DB_DIR = find_item_db_dir()
 
 
 def load_existing_icons():
-    """Собирает список всех .png иконок, которые есть в локально склонированном репо."""
     icons_root = Path("itemdb") / ICON_REALM / "icons"
     if not icons_root.exists():
         print(f"⚠️ Папка {icons_root} не найдена — проверка иконок отключена.")
         return None
-
     icons = set()
     for png in icons_root.rglob("*.png"):
         rel = png.relative_to(icons_root).as_posix()
         icons.add(rel)
-
     print(f"🖼️ Найдено иконок в базе: {len(icons)}")
     return icons
 
@@ -80,12 +76,8 @@ def get_localized_name(content):
 
 
 def build_icon_url(item_id, category):
-    """Возвращает URL иконки ТОЛЬКО если файл реально существует в базе."""
-    if not category:
+    if not category or EXISTING_ICONS is None:
         return ""
-    if EXISTING_ICONS is None:
-        return ""
-
     variants = [category, category.split("/")[0]]
     for cat in variants:
         rel = f"{cat}/{item_id}.png"
@@ -128,7 +120,6 @@ def discover_tradable_items():
         if icon:
             with_icon += 1
 
-        # Верхнеуровневая категория для группировки
         top_category = category.split("/")[0] if category else "other"
 
         items.append({
@@ -204,7 +195,6 @@ def aggregate_history(records):
         else:
             old.append((ts, r))
 
-    # Сохраняем метаданные для агрегированных записей
     last_name = ""
     last_icon = ""
     last_category = "other"
@@ -237,7 +227,7 @@ def aggregate_history(records):
     ]
 
     result = aggregated + fresh
-    return result[-720:] if len(result) > 720 else result
+    return result[-MAX_HISTORY:] if len(result) > MAX_HISTORY else result
 
 
 def main():
@@ -245,14 +235,11 @@ def main():
 
     print(f"Запуск сбора данных (регион: {REGION}, язык: {LANG})...")
 
-    # 1. Загружаем список существующих иконок (локально, без HTTP)
     EXISTING_ICONS = load_existing_icons()
 
-    # 2. Токен
     token = get_access_token()
     print("✅ Токен получен.")
 
-    # 3. Предметы
     all_items = discover_tradable_items()
     if not all_items:
         print("❌ Не найдено торгуемых предметов.")
@@ -301,7 +288,7 @@ def main():
                 })
                 history[item_id] = aggregate_history(history[item_id])
                 updated += 1
-            if n % 50 == 0:
+            if n % 200 == 0:
                 print(f"  обработано {n}/{len(items_to_process)}")
 
     save_history(history)
