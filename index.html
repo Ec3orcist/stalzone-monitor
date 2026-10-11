@@ -16,7 +16,7 @@
         .tab.active { color: #61dafb; border-bottom-color: #61dafb; }
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
         input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 15px; }
-        input { min-width: 200px; }
+        input { min-width: 180px; }
         button { cursor: pointer; }
         #refreshBtn { background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
         #refreshBtn:hover { background: #4fa8c7; }
@@ -24,8 +24,8 @@
         .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
         .item-card { background: #2b2b3c; border-radius: 10px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: all 0.15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid transparent; }
         .item-card:hover { background: #32324a; transform: translateY(-2px); border-color: #61dafb; }
-        .card-star { position: absolute; top: 4px; right: 4px; background: transparent; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 2px 7px; line-height: 1; transition: color 0.15s, transform 0.15s; border-radius: 4px; }
-        .card-star:hover { color: #888; transform: scale(1.15); }
+        .card-star { position: absolute; top: 4px; right: 4px; background: transparent; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 2px 7px; line-height: 1; border-radius: 4px; }
+        .card-star:hover { color: #888; }
         .card-star.active { color: #ffc107; }
         .card-icon { width: 64px; height: 64px; object-fit: contain; border-radius: 6px; }
         .card-icon-empty { width: 64px; height: 64px; background: #1e1e2f; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #444; font-size: 24px; }
@@ -65,27 +65,27 @@
         .lots-title { color: #61dafb; margin-top: 0; margin-bottom: 10px; }
         canvas { max-height: 350px; }
 
-        .craft-search { margin-bottom: 20px; }
-        .craft-search input { width: 100%; }
-        .craft-list { display: flex; flex-direction: column; gap: 10px; }
+        .craft-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
         .craft-list-item { background: #2b2b3c; border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.15s; border: 1px solid transparent; }
         .craft-list-item:hover { background: #32324a; border-color: #61dafb; }
-        .craft-list-icon { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #1e1e2f; }
-        .craft-list-info { flex: 1; }
-        .craft-list-name { font-weight: bold; color: #e0e0e0; }
-        .craft-list-profit { font-weight: bold; }
+        .craft-list-icon { width: 44px; height: 44px; object-fit: contain; border-radius: 4px; background: #1e1e2f; flex-shrink: 0; }
+        .craft-list-info { flex: 1; min-width: 0; }
+        .craft-list-name { font-weight: bold; color: #e0e0e0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .craft-list-profit { font-weight: bold; text-align: right; flex-shrink: 0; }
         .craft-list-profit.green { color: #4caf50; }
         .craft-list-profit.red { color: #f44336; }
-        .skill-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px; }
-        .skill-badge.skill-ammunition { background: #4a3020; color: #ffb066; }
-        .skill-badge.skill-pyrotechnics { background: #4a2020; color: #ff8080; }
-        .skill-badge.skill-armorer { background: #20304a; color: #80aaff; }
-        .skill-badge.skill-engineering { background: #30304a; color: #a0a0ff; }
-        .skill-badge.skill-cooking { background: #4a3a20; color: #ffd080; }
-        .skill-badge.skill-brewing { background: #3a2040; color: #d080ff; }
-        .skill-badge.skill-medicine { background: #204a3a; color: #80ffc0; }
-        .skill-badge.skill-materials { background: #3a3a3a; color: #c0c0c0; }
-        .skill-level-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; background: #2b2b3c; border: 1px solid #555; color: #ccc; font-weight: bold; }
+        .craft-list-stations { font-size: 11px; color: #666; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .station-mini { background: #26263a; padding: 1px 6px; border-radius: 3px; color: #888; }
+
+        .skill-header { background: linear-gradient(90deg, #2b2b3c, #32324a); padding: 15px; border-radius: 8px; margin-bottom: 12px; margin-top: 20px; display: flex; align-items: center; gap: 15px; }
+        .skill-header:first-child { margin-top: 0; }
+        .skill-header-icon { width: 48px; height: 48px; border-radius: 8px; background: #1e1e2f; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+        .skill-header-info { flex: 1; }
+        .skill-header-name { font-size: 18px; font-weight: bold; color: #61dafb; }
+        .skill-header-desc { font-size: 13px; color: #888; margin-top: 3px; }
+        .subcat-header { color: #aaa; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 8px 0; padding-left: 8px; border-left: 3px solid #61dafb; }
+
+        .skill-level-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #2b2b3c; border: 1px solid #555; color: #ccc; font-weight: bold; }
         .skill-level-badge.lvl-1 { border-color: #4caf50; color: #4caf50; }
         .skill-level-badge.lvl-2 { border-color: #8bc34a; color: #8bc34a; }
         .skill-level-badge.lvl-3 { border-color: #ffc107; color: #ffc107; }
@@ -107,7 +107,7 @@
         .craft-ingredient-cost { color: #61dafb; margin-left: auto; font-weight: bold; }
 
         details.craft-sub { margin: 4px 0; border-left: 3px solid #61dafb; background: #26263a; border-radius: 6px; overflow: hidden; }
-        details.craft-sub > summary { cursor: pointer; padding: 8px 12px; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 14px; user-select: none; }
+        details.craft-sub > summary { cursor: pointer; padding: 8px 12px; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 14px; }
         details.craft-sub > summary::-webkit-details-marker { display: none; }
         details.craft-sub > summary::before { content: "+"; display: inline-block; width: 20px; font-weight: bold; color: #61dafb; text-align: center; }
         details.craft-sub[open] > summary::before { content: "−"; }
@@ -117,7 +117,6 @@
         .shopping-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #2b2b3c; border-radius: 8px; overflow: hidden; }
         .shopping-table th { background: #32324a; padding: 12px; text-align: left; font-size: 13px; color: #61dafb; }
         .shopping-table td { padding: 10px 12px; border-top: 1px solid #3a3a4f; font-size: 14px; }
-        .shopping-table tr:hover { background: #32324a; }
         .shopping-icon { width: 32px; height: 32px; vertical-align: middle; margin-right: 10px; border-radius: 4px; background: #1e1e2f; object-fit: contain; }
         .no-price { color: #888; font-style: italic; }
         .craft-summary { background: #2b2b3c; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
@@ -136,11 +135,21 @@
         .excess-section h3 { color: #ffc107; margin: 0 0 10px 0; }
         .excess-hint { font-size: 12px; color: #888; margin-top: 8px; }
 
-        .skill-header { background: linear-gradient(90deg, #2b2b3c, #32324a); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
-        .skill-header-icon { width: 48px; height: 48px; border-radius: 8px; background: #1e1e2f; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-        .skill-header-info { flex: 1; }
-        .skill-header-name { font-size: 18px; font-weight: bold; color: #61dafb; }
-        .skill-header-desc { font-size: 13px; color: #888; margin-top: 3px; }
+        .stations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 10px; }
+        .station-card { background: #2b2b3c; padding: 12px; border-radius: 8px; border-left: 4px solid #61dafb; }
+        .station-card.craftable { border-left-color: #ffc107; }
+        .station-name { font-weight: bold; color: #e0e0e0; font-size: 14px; }
+        .station-status { font-size: 11px; margin-top: 4px; }
+        .station-status.craft { color: #ffc107; }
+        .station-status.buy { color: #888; }
+
+        .bonus-banner { background: linear-gradient(90deg, #2a3a4a, #1e2e3e); border-left: 4px solid #61dafb; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .bonus-banner-title { font-size: 14px; color: #e0e0e0; margin-bottom: 8px; }
+        .bonus-banner-value { color: #4caf50; font-weight: bold; }
+        .bonus-banner-hint { font-size: 12px; color: #888; margin-top: 6px; line-height: 1.5; }
+        .bonus-input-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #3a3a4f; flex-wrap: wrap; }
+        .bonus-input-row label { color: #aaa; font-size: 14px; }
+        .bonus-input-row select { padding: 6px 12px; font-size: 14px; min-width: 90px; }
     </style>
 </head>
 <body>
@@ -159,9 +168,9 @@
                     <option value="name">По названию (А-Я)</option>
                     <option value="price_asc">По цене ↑</option>
                     <option value="price_desc">По цене ↓</option>
-                    <option value="dev_asc">По скидке (сначала дешёвые)</option>
-                    <option value="dev_desc">По наценке (сначала дорогие)</option>
-                    <option value="amount_desc">По количеству на аукционе</option>
+                    <option value="dev_asc">По скидке</option>
+                    <option value="dev_desc">По наценке</option>
+                    <option value="amount_desc">По количеству</option>
                 </select>
                 <button id="refreshBtn">🔄 Обновить</button>
             </div>
@@ -174,19 +183,19 @@
             <div class="controls">
                 <select id="craftSkillSelect"><option value="">Все навыки</option></select>
                 <select id="craftLevelSelect">
-                    <option value="">Любой уровень</option>
-                    <option value="1">Уровень 1</option>
-                    <option value="2">Уровень 2</option>
-                    <option value="3">Уровень 3</option>
-                    <option value="4">Уровень 4</option>
-                    <option value="5">Уровень 5</option>
+                    <option value="">Любой уровень рецепта</option>
+                    <option value="1">Рецепт ур. 1</option>
+                    <option value="2">Рецепт ур. 2</option>
+                    <option value="3">Рецепт ур. 3</option>
+                    <option value="4">Рецепт ур. 4</option>
+                    <option value="5">Рецепт ур. 5</option>
                 </select>
                 <select id="craftSortSelect">
                     <option value="profit_desc">Сначала выгодные</option>
                     <option value="profit_asc">Сначала убыточные</option>
                     <option value="name">По названию (А-Я)</option>
-                    <option value="level_asc">По уровню навыка ↑</option>
-                    <option value="level_desc">По уровню навыка ↓</option>
+                    <option value="level_asc">По уровню рецепта ↑</option>
+                    <option value="level_desc">По уровню рецепта ↓</option>
                     <option value="cost_asc">По себестоимости ↑</option>
                     <option value="cost_desc">По себестоимости ↓</option>
                 </select>
@@ -223,6 +232,7 @@
         const CHUNK_SIZE = 120;
         let currentChart = null;
         const FAV_STORAGE_KEY = 'sz_favorites';
+        const SKILL_LEVELS_KEY = 'sz_skill_levels';
 
         const CATEGORY_NAMES = {
             "weapon": "Оружие", "weapon_modules": "Модули оружия", "attachment": "Обвесы",
@@ -241,7 +251,6 @@
         ];
         const FAVORITES_KEY = "__favorites__";
 
-        // ---- КЛАССИФИКАЦИЯ ПО НАВЫКАМ (как в игре) ----
         const SKILL_INFO = {
             "Боеприпасы":           { icon: "🎯", desc: "боеприпасы, заготовки",                        order: 1 },
             "Пиротехника":          { icon: "💥", desc: "взрывчатка, гранаты, порох",                   order: 2 },
@@ -253,15 +262,21 @@
             "Сырье и материалы":    { icon: "⚙️", desc: "материалы на верстаке и лабораторном столе",   order: 8 }
         };
 
-        const SKILLID_TO_NAME = {
-            "ammunition": "Боеприпасы",
-            "pyrotechnics": "Пиротехника",
-            "armorer": "Защитное снаряжение",
-            "engineering": "Инженерия",
-            "cooking": "Кулинария",
-            "brewing": "Самогоноварение",
-            "medicine": "Медицина",
-            "materials": "Сырье и материалы"
+        const SUBCAT_ORDER = {
+            "Сырье и материалы": ["Заготовки", "Сырье и компоненты", "Электронные компоненты",
+                                  "Растворы", "Смеси", "Реагенты", "Гематология", "Ферменты",
+                                  "Металлы", "Ингредиенты", "Сырье"],
+            "Медицина": ["Лечение", "Защита", "Защита от заражений", "Подвижность",
+                         "Кратковременное усиление", "Прочее"],
+            "Боеприпасы": ["9 мм", "10 мм", "5.45 мм", "5.56 мм", "7.62 мм", "9x39 мм",
+                           "12.7 мм", "12 калибр", "23x75 мм"],
+            "Пиротехника": ["Ручные гранаты", "Подствольные гранаты", "Прочее"],
+            "Кулинария": ["Усиление", "Подвижность", "Ингредиенты"],
+            "Самогоноварение": ["Усиление", "Кратковременное усиление", "Сырье", "Прочее"],
+            "Защитное снаряжение": ["Стальные", "Керамические", "Композитные"],
+            "Инженерия": ["Генераторная", "Мастерская", "Кухня", "Лаборатория", "Хранилище",
+                          "Ключницы", "Схроны", "Стулья и диваны", "Столы", "Шкафы и тумбы",
+                          "Кровати", "Другое", "Прочее"]
         };
 
         function skillOrder(name) {
@@ -276,18 +291,10 @@
             const info = SKILL_INFO[name];
             return info ? info.desc : "";
         }
-        function skillBadgeClass(skill) {
-            const map = {
-                "Боеприпасы": "skill-ammunition",
-                "Пиротехника": "skill-pyrotechnics",
-                "Защитное снаряжение": "skill-armorer",
-                "Инженерия": "skill-engineering",
-                "Кулинария": "skill-cooking",
-                "Самогоноварение": "skill-brewing",
-                "Медицина": "skill-medicine",
-                "Сырье и материалы": "skill-materials"
-            };
-            return map[skill] || "skill-materials";
+        function subcatOrder(skill, subcat) {
+            const list = SUBCAT_ORDER[skill] || [];
+            const idx = list.indexOf(subcat);
+            return idx === -1 ? 9999 : idx;
         }
 
         function categoryName(key) {
@@ -298,6 +305,37 @@
             if (key === FAVORITES_KEY) return -1;
             const idx = CATEGORY_ORDER.indexOf(key);
             return idx === -1 ? 9999 : idx;
+        }
+
+        // ---- БОНУС: 75% за каждый уровень превосходства ----
+        function computeBonus(requiredLevel, myLevel) {
+            if (!myLevel || myLevel <= requiredLevel) {
+                return { bonusLevels: 0, chance: 0, guaranteed: 0, fractional: 0, multiplier: 1 };
+            }
+            const bonusLevels = myLevel - requiredLevel;
+            const chance = bonusLevels * 75;
+            const guaranteed = Math.floor(chance / 100);
+            const fractional = (chance % 100) / 100;
+            const multiplier = 1 + guaranteed + fractional;
+            return { bonusLevels, chance, guaranteed, fractional, multiplier };
+        }
+
+        // Хранилище уровней навыков игрока
+        function loadSkillLevels() {
+            try { return JSON.parse(localStorage.getItem(SKILL_LEVELS_KEY) || '{}'); } catch { return {}; }
+        }
+        function saveSkillLevels(levels) {
+            localStorage.setItem(SKILL_LEVELS_KEY, JSON.stringify(levels));
+        }
+        function getMyLevel(skill) {
+            const levels = loadSkillLevels();
+            return levels[skill] || null;
+        }
+        function setMyLevel(skill, level) {
+            const levels = loadSkillLevels();
+            if (level) levels[skill] = level;
+            else delete levels[skill];
+            saveSkillLevels(levels);
         }
 
         function loadFavorites() {
@@ -419,7 +457,6 @@
             else els.categorySelect.value = '';
         }
 
-        // Наполняем фильтр навыков (из данных crafts.json)
         function populateCraftSkills() {
             const counts = {};
             Object.values(craftsData).forEach(craft => {
@@ -648,40 +685,52 @@
                 return;
             }
 
-            // Если фильтр по навыку — группируем по навыку, иначе — плоский список
+            const grouped = {};
+            items.forEach(item => {
+                const skill = item.skill || "Сырье и материалы";
+                const subcat = item.subcategory || "Прочее";
+                if (!grouped[skill]) grouped[skill] = {};
+                if (!grouped[skill][subcat]) grouped[skill][subcat] = [];
+                grouped[skill][subcat].push(item);
+            });
+
+            const sortedSkills = Object.keys(grouped).sort((a, b) => skillOrder(a) - skillOrder(b));
+
             let html = '';
-            if (!skillFilter) {
-                // Группируем по навыкам
-                const groups = {};
-                items.forEach(item => {
-                    const skill = item.skill || "Сырье и материалы";
-                    if (!groups[skill]) groups[skill] = [];
-                    groups[skill].push(item);
-                });
-                const sortedSkills = Object.keys(groups).sort((a, b) => skillOrder(a) - skillOrder(b));
-                sortedSkills.forEach(skill => {
-                    html += `
-                        <div class="skill-header">
-                            <div class="skill-header-icon">${skillIcon(skill)}</div>
-                            <div class="skill-header-info">
-                                <div class="skill-header-name">${escapeHtml(skill)}</div>
-                                <div class="skill-header-desc">${escapeHtml(skillDesc(skill))} · ${groups[skill].length} рецептов</div>
-                            </div>
+            sortedSkills.forEach(skill => {
+                const total = Object.values(grouped[skill]).reduce((sum, arr) => sum + arr.length, 0);
+                html += `
+                    <div class="skill-header">
+                        <div class="skill-header-icon">${skillIcon(skill)}</div>
+                        <div class="skill-header-info">
+                            <div class="skill-header-name">${escapeHtml(skill)}</div>
+                            <div class="skill-header-desc">${escapeHtml(skillDesc(skill))} · ${total} рецептов</div>
                         </div>
-                        <div class="craft-list" data-skill="${escapeHtml(skill)}"></div>
-                    `;
+                    </div>
+                `;
+                const subcats = Object.keys(grouped[skill]).sort((a, b) => {
+                    const oa = subcatOrder(skill, a), ob = subcatOrder(skill, b);
+                    if (oa !== ob) return oa - ob;
+                    return a.localeCompare(b, 'ru');
                 });
-                container.innerHTML = html;
-                sortedSkills.forEach(skill => {
-                    const listEl = container.querySelector(`.craft-list[data-skill="${CSS.escape(skill)}"]`);
-                    groups[skill].forEach(item => listEl.appendChild(buildCraftRow(item)));
+                subcats.forEach(subcat => {
+                    if (subcats.length > 1) {
+                        html += `<div class="subcat-header">${escapeHtml(subcat)} · ${grouped[skill][subcat].length}</div>`;
+                    }
+                    html += `<div class="craft-list" data-skill="${escapeHtml(skill)}" data-subcat="${escapeHtml(subcat)}"></div>`;
                 });
-            } else {
-                html = '<div class="craft-list"></div>';
-                container.innerHTML = html;
-                const listEl = container.querySelector('.craft-list');
-                items.forEach(item => listEl.appendChild(buildCraftRow(item)));
-            }
+            });
+
+            container.innerHTML = html;
+
+            sortedSkills.forEach(skill => {
+                const subcats = Object.keys(grouped[skill]);
+                subcats.forEach(subcat => {
+                    const listEl = container.querySelector(`.craft-list[data-skill="${CSS.escape(skill)}"][data-subcat="${CSS.escape(subcat)}"]`);
+                    if (!listEl) return;
+                    grouped[skill][subcat].forEach(item => listEl.appendChild(buildCraftRow(item)));
+                });
+            });
         }
 
         function buildCraftRow(item) {
@@ -694,20 +743,36 @@
             const iconHtml = item.icon
                 ? `<img class="craft-list-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
                 : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
-            const skill = item.skill || "Сырье и материалы";
-            const skillBadge = `<span class="skill-badge ${skillBadgeClass(skill)}">${escapeHtml(skill)}</span>`;
             const levelBadge = item.skillLevel
                 ? `<span class="skill-level-badge lvl-${item.skillLevel}">ур. ${item.skillLevel}</span>`
                 : '';
+
+            // Бонус: сравним требуемый уровень с уровнем игрока
+            const skill = item.skill || "Сырье и материалы";
+            const myLvl = getMyLevel(skill);
+            let bonusBadge = '';
+            if (myLvl && myLvl > (item.skillLevel || 0)) {
+                const b = computeBonus(item.skillLevel || 0, myLvl);
+                bonusBadge = `<span style="background:#1e3a1e; color:#4caf50; font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid #4caf50;">×${b.multiplier.toFixed(2)}</span>`;
+            }
+
+            const stations = item.stations || item.requiredStations || [];
+            let stationsHtml = '';
+            if (stations.length > 0) {
+                const names = stations.map(s => (typeof s === 'string' ? s : s.name)).slice(0, 4);
+                stationsHtml = `<div class="craft-list-stations">🏗️ ${names.map(n => `<span class="station-mini">${escapeHtml(n)}</span>`).join('')}</div>`;
+            }
+
             row.innerHTML = `
                 ${iconHtml}
                 <div class="craft-list-info">
-                    <div class="craft-list-name">${escapeHtml(item.name)}${skillBadge}${levelBadge}</div>
+                    <div class="craft-list-name">${escapeHtml(item.name)}${levelBadge}${bonusBadge}</div>
                     <div style="font-size:12px;color:#888;">
-                        Себестоимость: ${Math.round(item.cost || 0).toLocaleString('ru-RU')} ₽ · Продажа: ${(item.sell_price || 0).toLocaleString('ru-RU')} ₽
+                        ${Math.round(item.cost || 0).toLocaleString('ru-RU')} ₽ → ${(item.sell_price || 0).toLocaleString('ru-RU')} ₽
                     </div>
+                    ${stationsHtml}
                 </div>
-                <div class="craft-list-profit ${profitClass}" style="text-align:right;">
+                <div class="craft-list-profit ${profitClass}">
                     ${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽
                     <div style="font-size:12px;font-weight:normal;color:#888;">ROI: ${(item.roi || 0).toFixed(1)}%</div>
                 </div>
@@ -716,7 +781,9 @@
         }
 
         // ---------- Калькулятор крафта ----------
-        function flattenTree(node, quantity, flat, excess) {
+        // Использует формулу бонуса: +75% за каждый уровень превосходства.
+        // "Множитель за крафт" = 1 + гарантированные + остаточный шанс.
+        function flattenTree(node, quantity, flat, excess, userLevels) {
             if (!node) return;
             flat = flat || new Map();
             excess = excess || new Map();
@@ -739,9 +806,17 @@
                 return;
             }
 
-            const craftAmount = node.craftAmount || 1;
-            const craftsNeeded = Math.ceil(quantity / craftAmount - 1e-9);
-            const totalProduced = craftsNeeded * craftAmount;
+            const skill = node.skill || "Сырье и материалы";
+            const requiredLevel = node.skillLevel || 1;
+            const myLevel = (userLevels && userLevels[skill]) || requiredLevel;
+            const bonus = computeBonus(requiredLevel, myLevel);
+
+            const baseAmount = node.craftAmount || 1;
+            // Средний выход за один крафт с учётом бонуса
+            const avgPerCraft = baseAmount * bonus.multiplier;
+
+            const craftsNeeded = Math.ceil(quantity / avgPerCraft - 1e-9);
+            const totalProduced = craftsNeeded * avgPerCraft;
             const excessQty = totalProduced - quantity;
 
             if (excessQty > 1e-9) {
@@ -759,7 +834,7 @@
             }
 
             for (const ing of node.ingredients) {
-                flattenTree(ing, ing.amount * craftsNeeded, flat, excess);
+                flattenTree(ing, ing.amount * craftsNeeded, flat, excess, userLevels);
             }
         }
 
@@ -771,11 +846,9 @@
                 if (!aHas && bHas) return 1;
                 return b.total_cost - a.total_cost;
             });
-
             if (items.length === 0) {
                 return '<div class="empty-state" style="padding:20px;">Нет сырьевых материалов</div>';
             }
-
             let totalCost = 0;
             const rows = items.map(item => {
                 const hasPrice = item.unit_price > 0;
@@ -785,14 +858,16 @@
                 const iconHtml = item.icon
                     ? `<img class="shopping-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
                     : '';
+                const qtyText = Number.isInteger(item.quantity)
+                    ? item.quantity.toLocaleString('ru-RU')
+                    : item.quantity.toFixed(2).replace('.', ',');
                 return `<tr>
                     <td>${iconHtml}${escapeHtml(item.name)}</td>
-                    <td style="text-align:right;font-weight:bold;">${item.quantity.toLocaleString('ru-RU')}</td>
+                    <td style="text-align:right;font-weight:bold;">${qtyText}</td>
                     <td style="text-align:right;">${priceText}</td>
                     <td style="text-align:right;" class="price-cell">${costText}</td>
                 </tr>`;
             }).join('');
-
             return `
                 <table class="shopping-table">
                     <thead>
@@ -824,15 +899,18 @@
                 const valueText = item.unit_price > 0
                     ? `<span style="color:#888;font-size:12px;">≈ ${Math.round(item.total_value).toLocaleString('ru-RU')} ₽</span>`
                     : '';
+                const qtyText = Number.isInteger(item.quantity)
+                    ? item.quantity.toLocaleString('ru-RU')
+                    : item.quantity.toFixed(2).replace('.', ',');
                 return `<tr>
                     <td>${iconHtml}${escapeHtml(item.name)}</td>
-                    <td style="text-align:right;font-weight:bold;color:#ffc107;">${item.quantity.toLocaleString('ru-RU')} шт</td>
+                    <td style="text-align:right;font-weight:bold;color:#ffc107;">${qtyText} шт</td>
                     <td style="text-align:right;">${valueText}</td>
                 </tr>`;
             }).join('');
             return `
                 <div class="excess-section">
-                    <h3>📦 Останется после крафта (излишек)</h3>
+                    <h3>📦 Останется после крафта (средний излишек)</h3>
                     <table class="shopping-table" style="margin-top:0;">
                         <thead>
                             <tr>
@@ -843,8 +921,35 @@
                         </thead>
                         <tbody>${rows}</tbody>
                     </table>
-                    <div class="excess-hint">Эти предметы не пропадут — их можно использовать в следующих крафтах или продать на аукционе.</div>
+                    <div class="excess-hint">Указано среднее значение с учётом вероятности бонусных крафтов.</div>
                 </div>
+            `;
+        }
+
+        function renderStations(craft) {
+            const stations = craft.stations || [];
+            const required = craft.requiredStations || [];
+            let list = [];
+            if (stations.length > 0 && typeof stations[0] === 'object') {
+                list = stations;
+            } else if (required.length > 0) {
+                list = required.map(s => ({ id: s, name: s, craftable: false }));
+            }
+            if (list.length === 0) return '';
+            const cards = list.map(s => {
+                const craftable = s.craftable === true;
+                const statusClass = craftable ? 'craft' : 'buy';
+                const statusText = craftable ? 'Можно скрафтить' : 'Покупается / строится отдельно';
+                return `
+                    <div class="station-card ${craftable ? 'craftable' : ''}">
+                        <div class="station-name">🏗️ ${escapeHtml(s.name || s.id)}</div>
+                        <div class="station-status ${statusClass}">${statusText}</div>
+                    </div>
+                `;
+            }).join('');
+            return `
+                <h3 style="color:#61dafb; margin-top:20px;">🏗️ Что нужно построить</h3>
+                <div class="stations-grid">${cards}</div>
             `;
         }
 
@@ -874,7 +979,7 @@
                     </div>
                     <div class="craft-summary-item">
                         <div class="craft-summary-value">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</div>
-                        <div class="craft-summary-label">Продажа</div>
+                        <div class="craft-summary-label">Продажа (среднее)</div>
                         <div style="font-size:11px;color:#888;margin-top:2px;">${sellUnit.toLocaleString('ru-RU')} ₽/шт</div>
                     </div>
                     <div class="craft-summary-item">
@@ -902,7 +1007,7 @@
             `;
         }
 
-        function renderTreeIngredients(ingredients, depth) {
+        function renderTreeIngredients(ingredients, userLevels) {
             if (!ingredients || ingredients.length === 0) return '';
             let html = '<div class="craft-ingredients">';
             ingredients.forEach(ing => {
@@ -910,17 +1015,22 @@
                 if (isCraft) {
                     const extra = [];
                     if (ing.craftAmount && ing.craftAmount > 1) extra.push(`×${ing.craftAmount}`);
+                    const skill = ing.skill || "Сырье и материалы";
+                    const reqLevel = ing.skillLevel || 1;
+                    const myLvl = userLevels[skill] || reqLevel;
+                    if (myLvl > reqLevel) {
+                        const b = computeBonus(reqLevel, myLvl);
+                        extra.push(`✨ ×${b.multiplier.toFixed(2)}`);
+                    }
                     if (ing.energy) extra.push(`⚡${ing.energy}`);
                     if (ing.skill) extra.push(`${ing.skill} ур.${ing.skillLevel}`);
                     if (ing.station) extra.push(`🛠 ${ing.station}`);
                     html += `
                         <details class="craft-sub">
-                            <summary>
-                                ${renderIngredientRow(ing, true)}
-                            </summary>
+                            <summary>${renderIngredientRow(ing, true)}</summary>
                             <div class="craft-sub-body">
                                 ${extra.length ? `<div style="font-size:12px;color:#888;margin-bottom:6px;">${extra.join(' · ')}</div>` : ''}
-                                ${renderTreeIngredients(ing.ingredients, depth + 1)}
+                                ${renderTreeIngredients(ing.ingredients, userLevels)}
                             </div>
                         </details>
                     `;
@@ -932,7 +1042,7 @@
             return html;
         }
 
-        function renderTreeRoot(node) {
+        function renderTreeRoot(node, userLevels) {
             if (!node) return '';
             const profit = node.profit || 0;
             const nodeClass = profit > 0 ? 'profitable' : (profit < 0 ? 'unprofitable' : '');
@@ -944,7 +1054,6 @@
             if (node.energy) parts.push(`⚡ ${node.energy} эн.`);
             if (node.skill) parts.push(`🎓 ${node.skill} ур. ${node.skillLevel}`);
             if (node.experience) parts.push(`⭐ ${node.experience} XP`);
-            if (node.station) parts.push(`🛠 ${node.station}`);
             const extraInfo = parts.length ? `<div style="font-size:12px;color:#888;margin-top:6px;">${parts.join(' · ')}</div>` : '';
 
             return `
@@ -957,7 +1066,55 @@
                             ${extraInfo}
                         </div>
                     </div>
-                    ${renderTreeIngredients(node.ingredients, 0)}
+                    ${renderTreeIngredients(node.ingredients, userLevels)}
+                </div>
+            `;
+        }
+
+        function renderBonusBanner(craft, myLevel) {
+            const skill = craft.skill || "Сырье и материалы";
+            const reqLevel = craft.skillLevel || 1;
+            const baseAmount = craft.craftAmount || 1;
+
+            if (myLevel <= reqLevel) {
+                const extra = myLevel < reqLevel ? " (у вас ниже требуемого — бонус не применяется)" : " (уровень совпадает с требуемым)";
+                return `
+                    <div class="bonus-banner" style="border-left-color:#888;">
+                        <div class="bonus-banner-title">🎓 Требуется уровень <b>${reqLevel}</b> навыка «${escapeHtml(skill)}»${extra}</div>
+                        <div class="bonus-banner-hint">Базовый выход: <b>${baseAmount}</b> шт за крафт. Бонус за превосходство не применяется.</div>
+                        <div class="bonus-input-row">
+                            <label>Ваш уровень «${escapeHtml(skill)}»:</label>
+                            <select class="my-level-input" data-skill="${escapeHtml(skill)}">
+                                ${[1,2,3,4,5].map(lvl => `<option value="${lvl}" ${lvl === myLevel ? 'selected' : ''}>${lvl}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const b = computeBonus(reqLevel, myLevel);
+            const avgPerCraft = baseAmount * b.multiplier;
+            const guaranteedText = b.guaranteed > 0 ? `${b.guaranteed} гарантированно` : '';
+            const fracText = b.fractional > 0 ? `${Math.round(b.fractional*100)}% на ещё один` : '';
+            const combined = [guaranteedText, fracText].filter(Boolean).join(' + ') || '—';
+
+            return `
+                <div class="bonus-banner">
+                    <div class="bonus-banner-title">
+                        🎓 Ваш уровень <b>${myLevel}</b>, рецепт требует <b>${reqLevel}</b>.
+                        Превосходство: <b>+${b.bonusLevels}</b> уровн${b.bonusLevels === 1 ? 'ь' : 'я'} → шанс <b>${b.chance}%</b>.
+                    </div>
+                    <div class="bonus-banner-hint">
+                        Бонусные крафты: ${combined}<br>
+                        Множитель за крафт: <span class="bonus-banner-value">×${b.multiplier.toFixed(2)}</span><br>
+                        Средний выход: <b>${baseAmount}</b> × ${b.multiplier.toFixed(2)} = <span class="bonus-banner-value">${avgPerCraft % 1 === 0 ? avgPerCraft : avgPerCraft.toFixed(2)} шт</span> за крафт
+                    </div>
+                    <div class="bonus-input-row">
+                        <label>Ваш уровень «${escapeHtml(skill)}»:</label>
+                        <select class="my-level-input" data-skill="${escapeHtml(skill)}">
+                            ${[1,2,3,4,5].map(lvl => `<option value="${lvl}" ${lvl === myLevel ? 'selected' : ''}>${lvl}</option>`).join('')}
+                        </select>
+                    </div>
                 </div>
             `;
         }
@@ -968,11 +1125,14 @@
             let quantity = 1;
 
             const skill = craft.skill || "Сырье и материалы";
-            const skillLevel = craft.skillLevel || 0;
+            const reqLevel = craft.skillLevel || 1;
+            const savedMyLevel = getMyLevel(skill) || reqLevel;
+            const userLevels = {};
+            userLevels[skill] = savedMyLevel;
 
             const qtyRowHtml = `
                 <div class="qty-row">
-                    <label for="craftQtyInput">Сколько крафтить:</label>
+                    <label for="craftQtyInput">Сколько крафтить (штук):</label>
                     <input type="number" id="craftQtyInput" class="qty-input" value="1" min="1" max="99999">
                     <button class="qty-preset" data-qty="1">1</button>
                     <button class="qty-preset" data-qty="5">5</button>
@@ -982,46 +1142,55 @@
                 </div>
             `;
 
-            const skillHeaderHtml = `
-                <div class="skill-header">
-                    <div class="skill-header-icon">${skillIcon(skill)}</div>
-                    <div class="skill-header-info">
-                        <div class="skill-header-name">${escapeHtml(skill)} <span class="skill-level-badge lvl-${skillLevel}">требуется ур. ${skillLevel}</span></div>
-                        <div class="skill-header-desc">${escapeHtml(skillDesc(skill))}</div>
-                    </div>
-                </div>
-            `;
-
             els.craftModalContent.innerHTML = `
                 <h2 style="color:#61dafb; margin-top:0;">🔨 Калькулятор крафта</h2>
                 <div style="font-size:18px;color:#e0e0e0;margin-bottom:15px;">${escapeHtml(craft.name)}</div>
-                ${skillHeaderHtml}
+                <div id="craftBonusBox"></div>
                 ${qtyRowHtml}
                 <div class="craft-summary" id="craftSummaryBox"></div>
                 <div id="craftExcessBox"></div>
                 <h3 style="color:#61dafb; margin-top:0;">🛒 Список покупок</h3>
                 <div id="craftShoppingBox"></div>
+                <div id="craftStationsBox"></div>
                 <h3 style="color:#61dafb; margin-top:25px;">🌳 Дерево крафта</h3>
                 <div style="font-size:12px;color:#888;margin-bottom:10px;">Нажмите «+» на подкрафтах, чтобы раскрыть их содержимое.</div>
                 <div id="craftTreeBox"></div>
             `;
 
+            document.getElementById('craftStationsBox').innerHTML = renderStations(craft);
+
+            function renderBonus() {
+                document.getElementById('craftBonusBox').innerHTML = renderBonusBanner(craft, userLevels[skill]);
+                // Перепривязываем обработчик на селект уровня
+                document.querySelectorAll('.my-level-input').forEach(sel => {
+                    sel.addEventListener('change', (e) => {
+                        const newLvl = parseInt(e.target.value) || 1;
+                        userLevels[skill] = newLvl;
+                        setMyLevel(skill, newLvl);
+                        refresh();
+                        renderBonus();
+                    });
+                });
+            }
+
             function refresh() {
                 const flat = new Map();
                 const excess = new Map();
-                flattenTree(craft, quantity, flat, excess);
+                flattenTree(craft, quantity, flat, excess, userLevels);
                 document.getElementById('craftSummaryBox').innerHTML = renderSummary(flat, craft, quantity);
                 document.getElementById('craftExcessBox').innerHTML = renderExcess(excess);
                 document.getElementById('craftShoppingBox').innerHTML = renderShoppingList(flat);
-                document.getElementById('craftTreeBox').innerHTML = renderTreeRoot(craft);
+                document.getElementById('craftTreeBox').innerHTML = renderTreeRoot(craft, userLevels);
             }
+
+            renderBonus();
+            refresh();
 
             const qtyInput = document.getElementById('craftQtyInput');
             qtyInput.addEventListener('input', () => {
                 quantity = Math.max(1, parseInt(qtyInput.value) || 1);
                 refresh();
             });
-
             document.querySelectorAll('.qty-preset').forEach(btn => {
                 btn.addEventListener('click', () => {
                     quantity = parseInt(btn.dataset.qty) || 1;
@@ -1030,7 +1199,6 @@
                 });
             });
 
-            refresh();
             els.craftModalOverlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
