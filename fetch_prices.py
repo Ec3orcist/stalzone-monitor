@@ -3,32 +3,39 @@ import json
 import requests
 from datetime import datetime, timezone, timedelta
 
+# --- Настройки ---
 REGION = os.environ.get("REGION", "RU")
-TOKEN_URL = "https://eapi.stalcraft.net/token"
+# ИСПРАВЛЕНО: правильный URL для получения токена
+TOKEN_URL = "https://exbo.net/oauth/token" 
 API_URL = f"https://eapi.stalcraft.net/{REGION}/auction/lots"
 DATA_FILE = "prices.json"
 
-# Храним детально последние 24 часа, старые — по одной точке в час
-DETAILED_WINDOW_HOURS = 24
-MAX_TOTAL_POINTS = 720   # ~30 дней при часовой агрегации
+CLIENT_ID = os.environ.get("CLIENT_ID")
+CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 
 def get_access_token():
-    client_id = os.environ.get("CLIENT_ID")
-    client_secret = os.environ.get("CLIENT_SECRET")
-    if not client_id or not client_secret:
+    """Получает токен доступа, используя client_id и client_secret."""
+    if not CLIENT_ID or not CLIENT_SECRET:
         raise ValueError("CLIENT_ID и CLIENT_SECRET должны быть заданы.")
+    
     payload = {
         "grant_type": "client_credentials",
-        "client_id": client_id,
-        "client_secret": client_secret
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET
     }
+    # Отправляем POST-запрос с form-data
     resp = requests.post(TOKEN_URL, data=payload, timeout=10)
+    print(f"Статус ответа токена: {resp.status_code}")
+    print(f"Ответ: {resp.text[:300]}")
     resp.raise_for_status()
     return resp.json().get("access_token")
 
 def fetch_lots(token):
+    """Запрашивает данные аукциона."""
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     resp = requests.get(API_URL, headers=headers, timeout=15)
+    print(f"Статус ответа аукциона: {resp.status_code}")
+    print(f"Ответ: {resp.text[:300]}")
     resp.raise_for_status()
     data = resp.json()
     if isinstance(data, list):
@@ -48,13 +55,9 @@ def save_history(history):
         json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
 
 def aggregate_history(records):
-    """
-    Оставляем детально последние DETAILED_WINDOW_HOURS часов.
-    Всё, что старше — агрегируем по часам (берём минимальную цену за час).
-    """
+    """Агрегирует старые записи по часам."""
     now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(hours=DETAILED_WINDOW_HOURS)
-
+    cutoff = now - timedelta(hours=24)
     fresh = []
     old = []
     for r in records:
@@ -66,8 +69,6 @@ def aggregate_history(records):
             fresh.append(r)
         else:
             old.append((ts, r))
-
-    # Агрегация старых записей по часам
     buckets = {}
     for ts, r in old:
         key = ts.strftime("%Y-%m-%dT%H")
@@ -77,7 +78,6 @@ def aggregate_history(records):
         else:
             buckets[key]["prices"].append(price)
             buckets[key]["min_price"] = min(buckets[key]["min_price"], price)
-
     aggregated = []
     for key in sorted(buckets.keys()):
         aggregated.append({
@@ -85,19 +85,23 @@ def aggregate_history(records):
             "price": buckets[key]["min_price"],
             "aggregated": True
         })
-
     result = aggregated + fresh
-    # Жёсткий лимит по количеству точек
-    if len(result) > MAX_TOTAL_POINTS:
-        result = result[-MAX_TOTAL_POINTS:]
+    if len(result) > 720:
+        result = result[-720:]
     return result
 
 def main():
     print("Запуск сбора данных...")
     token = get_access_token()
+    if not token:
+        print("Не удалось получить токен.")
+        return
+    print(f"Токен получен: {token[:20]}...")
+    
     lots = fetch_lots(token)
     print(f"Получено лотов: {len(lots)}")
     if not lots:
+        print("Нет данных. Выход.")
         return
 
     history = load_history()
