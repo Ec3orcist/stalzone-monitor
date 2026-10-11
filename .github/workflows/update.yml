@@ -4,15 +4,6 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
-    inputs:
-      parse_recipes:
-        description: 'Парсить рецепты с StalzoneHQ (долго, ~15 мин)'
-        required: false
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
 
 jobs:
   update:
@@ -26,18 +17,10 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: |
-          pip install requests
-          pip install cloudscraper
+        run: pip install requests
 
       - name: Clone item database
         run: git clone --depth 1 https://github.com/EXBO-Studio/stalzone-database.git itemdb
-
-      - name: Parse recipes (только при ручном запуске)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.parse_recipes == 'true'
-        env:
-          REGION: EU
-        run: python parse_recipes.py
 
       - name: Fetch data
         env:
@@ -49,5 +32,5 @@ jobs:
       - name: Commit and push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto-update auction prices"
-          file_pattern: "prices.json crafts.json recipes.json"
+          commit_message: "Auto-update prices & crafts"
+          file_pattern: "prices.json crafts.json"
