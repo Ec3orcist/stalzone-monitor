@@ -1,0 +1,20 @@
+{
+  "wogp": {
+    "name": "Boards",
+    "energy": 10,
+    "ingredients": []
+  },
+  "jl77": {
+    "name": "Iron",
+    "energy": 300,
+    "ingredients": []
+  },
+  "example_1": {
+    "name": "Example Craft",
+    "energy": 7000,
+    "ingredients": [
+      { "id": "jl77", "amount": 10 },
+      { "id": "wogp", "amount": 30 }
+    ]
+  }
+}
