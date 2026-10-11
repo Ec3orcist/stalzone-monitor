@@ -14,8 +14,8 @@ RECIPES_FILE = "recipes.json"
 ACTIVE_ITEMS_FILE = "active_items.json"
 SALES_FILE = "sales_history.json"
 
-SALES_REFRESH_HOURS = 6       # как часто обновлять историю продаж
-SALES_MAX_PERIODS = 200       # максимум периодов на предмет (обрезка)
+SALES_REFRESH_HOURS = 6
+SALES_MAX_DAYS = 60
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
 WORKERS = 10
@@ -190,10 +190,9 @@ def fetch_lots_for_item(token, item_id):
 
 
 def parse_sales_response(item_id, data):
-    """Гибкий парсинг ответа от /auction/{item}/history."""
+    """Агрегирует сделки по дням."""
     global DEBUG_SHOWN
 
-    # Первый успешный ответ печатаем в лог — чтобы понять формат
     if not DEBUG_SHOWN and data:
         print("\n" + "=" * 60)
         print(f"🔍 ПРИМЕР ОТВЕТА /history для {item_id}:")
@@ -201,63 +200,51 @@ def parse_sales_response(item_id, data):
         print("=" * 60 + "\n")
         DEBUG_SHOWN = True
 
-    # API может вернуть список или словарь
+    # API возвращает {"total": N, "prices": [...]}
     if isinstance(data, list):
         raw = data
     elif isinstance(data, dict):
-        raw = (data.get("history") or data.get("prices")
-               or data.get("sales") or data.get("items") or [])
+        raw = data.get("prices") or data.get("history") or []
     else:
         raw = []
 
-    result = []
+    # Агрегируем по дням
+    days = {}
     for entry in raw:
         if not isinstance(entry, dict):
             continue
-
-        # Время
-        t = (entry.get("time") or entry.get("timestamp")
-             or entry.get("date") or entry.get("t") or "")
-
-        # Цены
-        prices = entry.get("prices") or entry.get("buyoutPrices") or []
-        if not isinstance(prices, list):
-            prices = [prices] if prices else []
-        single = (entry.get("price") or entry.get("buyoutPrice")
-                  or entry.get("avg_price") or entry.get("p"))
-        if not prices and single:
-            prices = [single]
-        if not prices:
+        t = entry.get("time") or entry.get("timestamp") or ""
+        price = entry.get("price") or entry.get("buyoutPrice")
+        amount = entry.get("amount") or 1
+        if not t or not price:
             continue
-
-        # Количество
-        amount = entry.get("amount") or entry.get("quantity") or entry.get("count")
-        if amount is None:
-            amount = len(prices)
         try:
+            day = t[:10]  # "2026-10-09"
+            price = int(price)
             amount = int(amount)
         except Exception:
-            amount = 1
-
-        try:
-            min_p = int(min(prices))
-            max_p = int(max(prices))
-            avg_p = int(round(sum(prices) / len(prices)))
-        except Exception:
             continue
+        if day not in days:
+            days[day] = {"prices": [], "amount": 0}
+        days[day]["prices"].append(price)
+        days[day]["amount"] += amount
 
+    # Собираем результат
+    result = []
+    for day in sorted(days.keys()):
+        d = days[day]
+        prices = d["prices"]
         result.append({
-            "t": t,
-            "a": amount,
-            "min": min_p,
-            "max": max_p,
-            "avg": avg_p,
+            "t": day + "T00:00:00Z",
+            "a": d["amount"],
+            "min": min(prices),
+            "max": max(prices),
+            "avg": round(sum(prices) / len(prices)),
         })
 
-    # Сортируем и обрезаем
-    result.sort(key=lambda x: x["t"])
-    if len(result) > SALES_MAX_PERIODS:
-        result = result[-SALES_MAX_PERIODS:]
+    # Обрезаем до последних N дней
+    if len(result) > SALES_MAX_DAYS:
+        result = result[-SALES_MAX_DAYS:]
     return result
 
 
@@ -482,7 +469,7 @@ def main():
 
     meta_map = {item["id"]: item for item in items_to_process}
 
-    # --- ЦЕНЫ (лоты) ---
+    # --- ЦЕНЫ ---
     history = load_history()
     now = datetime.now(timezone.utc).isoformat()
     updated = 0
@@ -518,7 +505,7 @@ def main():
     save_active_items(active_now)
     print(f"💾 Активных предметов: {len(active_now)}")
 
-    # --- ИСТОРИЯ ПРОДАЖ (раз в N часов, отдельный файл) ---
+    # --- ИСТОРИЯ ПРОДАЖ ---
     if not sales_needs_refresh():
         print(f"💤 История продаж свежая (< {SALES_REFRESH_HOURS} ч), пропускаем.")
     else:
