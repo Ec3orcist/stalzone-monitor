@@ -36,6 +36,7 @@
         tr:hover { background: #32324a; }
         .price-cell { color: #61dafb; font-weight: bold; }
         .time-cell { color: #aaa; font-size: 13px; }
+        .counter { color: #888; font-size: 13px; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -111,31 +112,53 @@
 
         // Русские названия категорий (как в игре)
         const CATEGORY_NAMES = {
-            "armor":          "Костюмы",
-            "artefact":       "Артефакты",
-            "containers":     "Контейнеры",
-            "backpacks":      "Рюкзаки и сумки",
-            "medicine":       "Медикаменты и еда",
-            "bullet":         "Патроны",
-            "grenade":        "Гранаты",
-            "attachment":     "Обвесы",
             "weapon":         "Оружие",
-            "weapon_modules": "Оружейные модули",
-            "misc":           "Прочее",
+            "weapon_modules": "Модули оружия",
+            "ammo":           "Патроны",
+            "bullet":         "Патроны",
+            "armor":          "Костюмы",
+            "armour":         "Костюмы",
+            "artefact":       "Артефакты",
+            "artifact":       "Артефакты",
+            "attachment":     "Обвесы",
+            "backpacks":      "Рюкзаки и сумки",
+            "backpack":       "Рюкзаки и сумки",
+            "containers":     "Контейнеры",
+            "container":      "Контейнеры",
+            "medicine":       "Медикаменты и еда",
+            "meds":           "Медикаменты и еда",
+            "grenade":        "Гранаты",
+            "grenades":       "Гранаты",
+            "misc":           "Разное",
             "other":          "Прочее",
-            "device":         "Прочее",
-            "supply":         "Прочее"
+            "device":         "Устройства",
+            "devices":        "Устройства",
+            "supply":         "Расходники",
+            "supplies":       "Расходники"
         };
 
-        // Порядок категорий в списке (как в игре)
+        // Порядок категорий (как в игре)
         const CATEGORY_ORDER = [
-            "armor", "artefact", "containers", "backpacks", "medicine",
-            "bullet", "grenade", "attachment", "weapon", "weapon_modules",
-            "misc", "other", "device", "supply"
+            "weapon", "weapon_modules", "attachment",
+            "ammo", "bullet",
+            "armor", "armour",
+            "backpacks", "backpack",
+            "artefact", "artifact",
+            "containers", "container",
+            "medicine", "meds",
+            "grenade", "grenades",
+            "device", "devices",
+            "supply", "supplies",
+            "misc", "other"
         ];
 
         function categoryName(key) {
             return CATEGORY_NAMES[key] || key;
+        }
+
+        function categoryOrder(key) {
+            const idx = CATEGORY_ORDER.indexOf(key);
+            return idx === -1 ? 9999 : idx;
         }
 
         async function loadData() {
@@ -172,21 +195,25 @@
             const current = sel.value;
             sel.innerHTML = '<option value="">Все категории</option>';
 
-            // Собираем все уникальные категории из данных
-            const found = new Set();
+            // Считаем количество предметов в каждой категории
+            const counts = {};
             Object.keys(allData).forEach(id => {
-                found.add(getItemMeta(id).category);
+                const cat = getItemMeta(id).category;
+                counts[cat] = (counts[cat] || 0) + 1;
             });
 
-            // Сортируем по порядку как в игре
-            const ordered = CATEGORY_ORDER.filter(c => found.has(c));
-            // Добавляем те, которые не попали в CATEGORY_ORDER
-            found.forEach(c => { if (!ordered.includes(c)) ordered.push(c); });
+            // Сортируем категории по порядку из CATEGORY_ORDER
+            const sortedCats = Object.keys(counts).sort((a, b) => {
+                const oa = categoryOrder(a);
+                const ob = categoryOrder(b);
+                if (oa !== ob) return oa - ob;
+                return categoryName(a).localeCompare(categoryName(b), 'ru');
+            });
 
-            ordered.forEach(cat => {
+            sortedCats.forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat;
-                opt.textContent = categoryName(cat);
+                opt.textContent = `${categoryName(cat)} (${counts[cat]})`;
                 sel.appendChild(opt);
             });
 
@@ -199,7 +226,7 @@
             const categoryFilter = document.getElementById('categorySelect').value;
             sel.innerHTML = '';
 
-            const f = filter.toLowerCase();
+            const f = filter.toLowerCase().trim();
 
             // Фильтруем предметы
             const items = Object.keys(allData).filter(id => {
@@ -217,19 +244,23 @@
                 groups[cat].push(id);
             });
 
-            // Сортируем категории по порядку
-            const orderedCats = CATEGORY_ORDER.filter(c => groups[c]);
-            Object.keys(groups).forEach(c => {
-                if (!orderedCats.includes(c)) orderedCats.push(c);
+            // Сортируем категории
+            const sortedCats = Object.keys(groups).sort((a, b) => {
+                const oa = categoryOrder(a);
+                const ob = categoryOrder(b);
+                if (oa !== ob) return oa - ob;
+                return categoryName(a).localeCompare(categoryName(b), 'ru');
             });
 
             // Строим optgroup'ы
-            orderedCats.forEach(cat => {
+            sortedCats.forEach(cat => {
                 const optgroup = document.createElement('optgroup');
-                optgroup.label = categoryName(cat);
+                optgroup.label = `${categoryName(cat)} (${groups[cat].length})`;
 
                 groups[cat]
-                    .sort((a, b) => getItemMeta(a).name.localeCompare(getItemMeta(b).name))
+                    .sort((a, b) =>
+                        getItemMeta(a).name.localeCompare(getItemMeta(b).name, 'ru')
+                    )
                     .forEach(id => {
                         const opt = document.createElement('option');
                         opt.value = id;
@@ -241,13 +272,13 @@
             });
 
             // Восстанавливаем выбор
-            const firstOption = sel.querySelector('option');
             if (current && sel.querySelector(`option[value="${current}"]`)) {
                 sel.value = current;
-            } else if (firstOption) {
-                sel.value = firstOption.value;
-                renderChart();
             } else {
+                const firstOption = sel.querySelector('option');
+                if (firstOption) {
+                    sel.value = firstOption.value;
+                }
                 renderChart();
             }
         }
@@ -265,12 +296,14 @@
 
             lots.forEach((lot, i) => {
                 const tr = document.createElement('tr');
-                const endTime = lot.endTime ? new Date(lot.endTime).toLocaleString('ru-RU') : '—';
+                const endTime = lot.endTime
+                    ? new Date(lot.endTime).toLocaleString('ru-RU')
+                    : '—';
                 tr.innerHTML = `
                     <td>${i + 1}</td>
-                    <td class="price-cell">${lot.price_per_unit.toLocaleString()} ₽</td>
-                    <td>${lot.amount.toLocaleString()} шт</td>
-                    <td>${lot.buyout.toLocaleString()} ₽</td>
+                    <td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td>
+                    <td>${lot.amount.toLocaleString('ru-RU')} шт</td>
+                    <td>${lot.buyout.toLocaleString('ru-RU')} ₽</td>
                     <td class="time-cell">${endTime}</td>
                 `;
                 tbody.appendChild(tr);
@@ -286,7 +319,7 @@
             }
             const hist = allData[id];
             const meta = getItemMeta(id);
-            const labels = hist.map(h => new Date(h.timestamp).toLocaleString());
+            const labels = hist.map(h => new Date(h.timestamp).toLocaleString('ru-RU'));
             const prices = hist.map(h => h.price);
 
             const last = hist[hist.length - 1];
@@ -308,16 +341,18 @@
                 img.removeAttribute('src');
             }
 
-            document.getElementById('currentPrice').textContent = cur.toLocaleString() + ' ₽';
+            document.getElementById('currentPrice').textContent =
+                cur.toLocaleString('ru-RU') + ' ₽';
 
             const bestInfo = document.getElementById('bestLotInfo');
             if (last.best_lot_amount && last.best_lot_buyout) {
-                bestInfo.textContent = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString()} ₽`;
+                bestInfo.textContent = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString('ru-RU')} ₽`;
             } else {
                 bestInfo.textContent = '';
             }
 
-            document.getElementById('avgPrice').textContent = Math.round(avg).toLocaleString() + ' ₽';
+            document.getElementById('avgPrice').textContent =
+                Math.round(avg).toLocaleString('ru-RU') + ' ₽';
 
             const devEl = document.getElementById('deviation');
             devEl.textContent = (dev > 0 ? '+' : '') + dev.toFixed(1) + '%';
@@ -325,11 +360,13 @@
 
             const totalEl = document.getElementById('totalAmount');
             totalEl.textContent = (last.total_amount !== undefined)
-                ? last.total_amount.toLocaleString() + ' шт'
+                ? last.total_amount.toLocaleString('ru-RU') + ' шт'
                 : '—';
 
             const lotsInfo = document.getElementById('lotsCountInfo');
-            lotsInfo.textContent = (last.lots_count !== undefined) ? `${last.lots_count} лотов` : '';
+            lotsInfo.textContent = (last.lots_count !== undefined)
+                ? `${last.lots_count} лотов`
+                : '';
 
             document.getElementById('pointsCount').textContent = prices.length;
 
@@ -359,8 +396,10 @@
         }
 
         document.getElementById('itemSelect').addEventListener('change', renderChart);
-        document.getElementById('categorySelect').addEventListener('change', () => populateSelect(document.getElementById('searchInput').value));
-        document.getElementById('searchInput').addEventListener('input', e => populateSelect(e.target.value));
+        document.getElementById('categorySelect').addEventListener('change',
+            () => populateSelect(document.getElementById('searchInput').value));
+        document.getElementById('searchInput').addEventListener('input',
+            e => populateSelect(e.target.value));
         loadData();
     </script>
 </body>
