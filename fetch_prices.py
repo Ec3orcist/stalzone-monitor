@@ -172,7 +172,7 @@ def icon_url(item_id, category, existing_icons):
         rel = f"{cat}/{item_id}.png"
         if rel in existing_icons:
             return (
-                "https://github.com/EXBO-Studio/stalzone-database/raw/main/"
+                "https://cdn.jsdelivr.net/gh/EXBO-Studio/stalzone-database@main/"
                 f"{ICON_REALM}/icons/{rel}"
             )
     return ""

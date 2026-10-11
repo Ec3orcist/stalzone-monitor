@@ -39,11 +39,11 @@
         .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
         .item-card { background: var(--panel); border-radius: 14px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: .15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid var(--line); }
         .item-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
-        .card-star { position: absolute; top: 4px; right: 4px; background: transparent; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 2px 7px; line-height: 1; border-radius: 4px; }
+        .card-star { position: absolute; top: 4px; right: 4px; z-index: 2; background: transparent; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 2px 7px; line-height: 1; border-radius: 4px; }
         .card-star:hover { color: var(--muted); }
         .card-star.active { color: var(--accent); }
-        .card-icon { width: 64px; height: 64px; object-fit: contain; border-radius: 6px; }
-        .card-icon-empty { width: 64px; height: 64px; background: var(--bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 24px; }
+        .card-icon { width: 64px; height: 64px; object-fit: contain; border-radius: 6px; pointer-events: none; -webkit-user-drag: none; user-select: none; }
+        .card-icon-empty { width: 64px; height: 64px; background: var(--bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 24px; pointer-events: none; }
         .card-name { font-size: 13px; color: var(--text); line-height: 1.3; min-height: 34px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; }
         .card-price { font-size: 16px; font-weight: 700; color: var(--accent); }
         .card-meta { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
@@ -57,7 +57,7 @@
         .modal-close { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--muted); font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1; }
         .modal-close:hover { color: var(--text); }
         .item-header { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; padding-right: 40px; }
-        .item-icon { width: 96px; height: 96px; border-radius: 10px; background: var(--panel); object-fit: contain; flex-shrink: 0; }
+        .item-icon { width: 96px; height: 96px; border-radius: 10px; background: var(--panel); object-fit: contain; flex-shrink: 0; pointer-events: none; -webkit-user-drag: none; }
         .item-icon-empty { width: 96px; height: 96px; border-radius: 10px; background: var(--panel); display: flex; align-items: center; justify-content: center; color: #555; font-size: 36px; flex-shrink: 0; }
         .item-title { font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
         .item-id { font-size: 13px; color: var(--muted); }
@@ -83,7 +83,7 @@
         .craft-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
         .craft-list-item { background: var(--panel); border-radius: 10px; padding: 12px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: .15s; border: 1px solid var(--line); }
         .craft-list-item:hover { border-color: var(--accent); }
-        .craft-list-icon { width: 44px; height: 44px; object-fit: contain; border-radius: 4px; background: var(--bg); flex-shrink: 0; }
+        .craft-list-icon { width: 44px; height: 44px; object-fit: contain; border-radius: 4px; background: var(--bg); flex-shrink: 0; pointer-events: none; -webkit-user-drag: none; }
         .craft-list-info { flex: 1; min-width: 0; }
         .craft-list-name { font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .craft-list-profit { font-weight: 700; text-align: right; flex-shrink: 0; }
@@ -111,12 +111,12 @@
         .craft-node.profitable { border-left-color: #4caf50; }
         .craft-node.unprofitable { border-left-color: #f44336; }
         .craft-node-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-        .craft-node-icon { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #1e1e2f; }
+        .craft-node-icon { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #1e1e2f; pointer-events: none; -webkit-user-drag: none; }
         .craft-node-name { font-size: 16px; font-weight: bold; color: #61dafb; }
         .craft-node-id { font-size: 12px; color: #888; }
         .craft-ingredients { margin-left: 20px; margin-top: 10px; padding-left: 15px; border-left: 2px dashed #3a3a4f; }
         .craft-ingredient { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
-        .craft-ingredient-icon { width: 28px; height: 28px; object-fit: contain; border-radius: 3px; background: #1e1e2f; }
+        .craft-ingredient-icon { width: 28px; height: 28px; object-fit: contain; border-radius: 3px; background: #1e1e2f; pointer-events: none; -webkit-user-drag: none; }
         .craft-ingredient-name { color: #ccc; }
         .craft-ingredient-amount { color: #888; font-size: 12px; }
         .craft-ingredient-cost { color: #61dafb; margin-left: auto; font-weight: bold; }
@@ -132,7 +132,7 @@
         .shopping-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #2b2b3c; border-radius: 8px; overflow: hidden; }
         .shopping-table th { background: #32324a; padding: 12px; text-align: left; font-size: 13px; color: #61dafb; }
         .shopping-table td { padding: 10px 12px; border-top: 1px solid #3a3a4f; font-size: 14px; }
-        .shopping-icon { width: 32px; height: 32px; vertical-align: middle; margin-right: 10px; border-radius: 4px; background: #1e1e2f; object-fit: contain; }
+        .shopping-icon { width: 32px; height: 32px; vertical-align: middle; margin-right: 10px; border-radius: 4px; background: #1e1e2f; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
         .no-price { color: #888; font-style: italic; }
         .craft-summary { background: #2b2b3c; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
         .craft-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
@@ -246,7 +246,7 @@
         let favorites = [];
         let filteredItems = [];
         let currentChunk = 0;
-        const CHUNK_SIZE = 120;
+        const CHUNK_SIZE = 48;
         let currentChart = null;
         const FAV_STORAGE_KEY = 'sz_favorites';
         const SKILL_LEVELS_KEY = 'sz_skill_levels';
@@ -346,7 +346,20 @@
             if (!hist || !hist.length) return null;
             return hist[hist.length - 1];
         }
+        function resolveIcon(src) {
+            if (!src) return '';
+            const db = 'https://cdn.jsdelivr.net/gh/EXBO-Studio/stalzone-database@main/';
+            if (src.includes('stalzone-database')) {
+                const path = src.split('stalzone-database/')[1]
+                    .replace(/^raw\/main\//, '')
+                    .replace(/^main\//, '');
+                return db + path;
+            }
+            if (src.startsWith('http')) return src;
+            return db + 'ru/' + src.replace(/^\/+/, '');
+        }
         function resolveNode(nodeOrId) {
+            if (!nodeOrId) return { id: '', name: '', icon: '', ingredients: [], sell_price: 0, craftable: false };
             const id = typeof nodeOrId === 'string' ? nodeOrId : nodeOrId.id;
             const craft = craftsData[id] || {};
             const last = lastListing(id) || {};
@@ -355,7 +368,7 @@
                 ...craft,
                 id,
                 name: last.name || craft.name || id,
-                icon: last.icon || craft.icon || '',
+                icon: resolveIcon(last.icon || craft.icon || ''),
                 sell_price: last.price || craft.sell_price || typicalSale(id) || 0,
                 craftable: Boolean(craft.ingredients && craft.ingredients.length),
                 ingredients: craft.ingredients || [],
@@ -437,28 +450,44 @@
             });
         });
 
-        async function loadData() {
+        async function fetchJson(url, bust) {
+            const resp = await fetch(bust ? url + '?t=' + Date.now() : url);
+            if (!resp.ok) throw new Error(url + ' HTTP ' + resp.status);
+            return resp.json();
+        }
+
+        async function loadData(force) {
             els.resultCount.textContent = 'Загрузка данных...';
             els.craftResultCount.textContent = 'Загрузка данных...';
             try {
-                const bust = Date.now();
-                const [pricesResp, craftsResp, salesResp] = await Promise.all([
-                    fetch('prices.json?t=' + bust),
-                    fetch('crafts.json?t=' + bust),
-                    fetch('sales_history.json?t=' + bust)
-                ]);
-                if (!pricesResp.ok) throw new Error('prices.json HTTP ' + pricesResp.status);
-                allData = await pricesResp.json();
-                craftsData = craftsResp.ok ? await craftsResp.json() : {};
-                salesData = salesResp.ok ? await salesResp.json() : {};
+                allData = await fetchJson('prices.json', force);
                 buildItemsCache();
                 populateCategories();
-                populateCraftSkills();
                 applyFilters();
                 els.resultCount.textContent = `Загружено: ${itemsCache.length} предметов`;
             } catch (e) {
                 console.error(e);
-                els.resultCount.textContent = '❌ Не удалось загрузить prices.json';
+                els.resultCount.textContent = 'Не удалось загрузить prices.json';
+                return;
+            }
+            loadSecondary(force);
+        }
+
+        async function loadSecondary(force) {
+            try {
+                const [crafts, sales] = await Promise.all([
+                    fetchJson('crafts.json', force).catch(() => ({})),
+                    fetchJson('sales_history.json', force).catch(() => ({}))
+                ]);
+                craftsData = crafts;
+                salesData = sales;
+                buildItemsCache();
+                populateCategories();
+                populateCraftSkills();
+                applyFilters();
+                els.craftResultCount.textContent = `Рецептов: ${Object.keys(craftsData).length}`;
+            } catch (e) {
+                console.error(e);
             }
         }
 
@@ -471,7 +500,7 @@
                 const avg = typicalSale(id) || (hist.reduce((sum, h) => sum + h.price, 0) / hist.length);
                 const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
                 return {
-                    id, name: last.name || id, icon: last.icon || '',
+                    id, name: last.name || id, icon: resolveIcon(last.icon || ''),
                     category: last.category || 'other',
                     price: cur, avg, deviation: dev,
                     total_amount: last.total_amount || 0,
@@ -585,7 +614,7 @@
             card.className = 'item-card';
             card.dataset.id = item.id;
             const iconHtml = item.icon
-                ? `<img class="card-icon" src="${item.icon}" alt="" onerror="this.outerHTML='<div class=&quot;card-icon-empty&quot;>?</div>'">`
+                ? `<img class="card-icon" src="${item.icon}" alt="" loading="lazy" decoding="async" draggable="false" onerror="this.outerHTML='<div class=&quot;card-icon-empty&quot;>?</div>'">`
                 : `<div class="card-icon-empty">?</div>`;
             let devClass = 'neutral', devText = '—';
             if (item.deviation > 0.5) { devClass = 'red'; devText = '+' + item.deviation.toFixed(1) + '%'; }
@@ -683,7 +712,7 @@
                     <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя сделок (14 дней)</div></div>
                     <div class="stat-item"><div class="stat-value ${devClass}">${(dev > 0 ? '+' : '') + dev.toFixed(1)}%</div><div class="stat-label">Отклонение</div></div>
                     <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div></div>
-                    <div class="stat-item"><div class="stat-value">${prices.length}</div><div class="stat-label">Точек истории</div></div>
+                    <div class="stat-item"><div class="stat-value">${hist.length}</div><div class="stat-label">Точек истории</div></div>
                 </div>
                 <div class="chart-container"><canvas id="modalChart"></canvas></div>
                 ${lotsHtml}
@@ -739,8 +768,8 @@
 
             const recipeIds = Object.keys(craftsData);
             if (recipeIds.length === 0) {
-                container.innerHTML = '<div class="empty-state">🔨 Пока нет рецептов.</div>';
-                els.craftResultCount.textContent = 'Найдено: 0';
+                container.innerHTML = '<div class="empty-state">Рецепты ещё грузятся…</div>';
+                els.craftResultCount.textContent = 'Загрузка...';
                 return;
             }
 
@@ -833,7 +862,7 @@
             const profitClass = !hasProfit ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
             const profitSign = hasProfit && profit > 0 ? '+' : '';
             const iconHtml = item.icon
-                ? `<img class="craft-list-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
+                ? `<img class="craft-list-icon" src="${resolveIcon(item.icon)}" alt="" loading="lazy" decoding="async" draggable="false" onerror="this.style.display='none'">`
                 : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
             const levelBadge = item.skillLevel
                 ? `<span class="skill-level-badge lvl-${item.skillLevel}">ур. ${item.skillLevel}</span>`
@@ -871,11 +900,12 @@
             return row;
         }
 
-        function flattenTree(node, quantity, flat, excess, userLevels) {
+        function flattenTree(node, quantity, flat, excess, userLevels, seen) {
             if (!node) return;
             const resolved = resolveNode(node);
+            seen = seen || new Set();
             const ings = resolved.ingredients || [];
-            const canCraft = resolved.craftable && ings.length > 0;
+            const canCraft = resolved.craftable && ings.length > 0 && resolved.id && !seen.has(resolved.id);
 
             if (!canCraft) {
                 if (!flat.has(resolved.id)) {
@@ -912,8 +942,10 @@
                 ex.quantity += excessQty;
                 ex.total_value = ex.quantity * ex.unit_price;
             }
+            const nextSeen = new Set(seen);
+            nextSeen.add(resolved.id);
             ings.forEach(ing => {
-                flattenTree(ing, (ing.amount || 0) * craftsNeeded, flat, excess, userLevels);
+                flattenTree(ing, (ing.amount || 0) * craftsNeeded, flat, excess, userLevels, nextSeen);
             });
         }
 
@@ -1133,12 +1165,13 @@
             `;
         }
 
-        function renderTreeIngredients(ingredients, userLevels) {
+        function renderTreeIngredients(ingredients, userLevels, seen) {
             if (!ingredients || ingredients.length === 0) return '';
+            seen = seen || new Set();
             let html = '<div class="craft-ingredients">';
             ingredients.forEach(ing => {
                 ing = resolveNode(ing);
-                const isCraft = ing.craftable && ing.ingredients && ing.ingredients.length > 0;
+                const isCraft = ing.craftable && ing.ingredients && ing.ingredients.length > 0 && ing.id && !seen.has(ing.id);
                 if (isCraft) {
                     const extra = [];
                     if (ing.craftAmount && ing.craftAmount > 1) extra.push(`×${ing.craftAmount}`);
@@ -1157,7 +1190,7 @@
                             <summary>${renderIngredientRow(ing, true)}</summary>
                             <div class="craft-sub-body">
                                 ${extra.length ? `<div style="font-size:12px;color:#888;margin-bottom:6px;">${extra.join(' · ')}</div>` : ''}
-                                ${renderTreeIngredients(ing.ingredients, userLevels)}
+                                ${renderTreeIngredients(ing.ingredients, userLevels, new Set([...seen, ing.id]))}
                             </div>
                         </details>
                     `;
@@ -1353,7 +1386,7 @@
 
         els.categorySelect.addEventListener('change', applyFilters);
         els.sortSelect.addEventListener('change', applyFilters);
-        els.refreshBtn.addEventListener('click', loadData);
+        els.refreshBtn.addEventListener('click', () => loadData(true));
 
         let searchTimer = null;
         els.searchInput.addEventListener('input', () => {
@@ -1364,6 +1397,7 @@
         els.itemsGrid.addEventListener('click', (e) => {
             const star = e.target.closest('[data-star]');
             if (star) {
+                e.preventDefault();
                 e.stopPropagation();
                 const id = star.dataset.star;
                 const nowFav = toggleFavorite(id);
@@ -1375,7 +1409,7 @@
                 return;
             }
             const card = e.target.closest('.item-card');
-            if (card) openModal(card.dataset.id);
+            if (card && card.dataset.id) openModal(card.dataset.id);
         });
 
         els.modalClose.addEventListener('click', closeModal);
@@ -1398,7 +1432,7 @@
 
         els.craftListContainer.addEventListener('click', (e) => {
             const row = e.target.closest('.craft-list-item');
-            if (row) openCraftModal(row.dataset.id);
+            if (row && row.dataset.id) openCraftModal(row.dataset.id);
         });
 
         els.craftModalClose.addEventListener('click', closeCraftModal);
