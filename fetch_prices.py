@@ -161,7 +161,6 @@ def save_history(history):
 
 
 def load_recipes():
-    """Читает recipes.json в формате lunar-zone."""
     if not os.path.exists(RECIPES_FILE):
         print("ℹ️ recipes.json не найден — крафты не будут построены.")
         return {}
@@ -221,7 +220,7 @@ def aggregate_history(records):
             fresh.append(r)
         else:
             old.append((ts, r))
-    last_name = last_icon = last_category = ""
+    last_name = last_icon = ""
     last_category = "other"
     for r in records:
         if r.get("name"): last_name = r["name"]
@@ -342,7 +341,6 @@ def main():
     save_history(history)
     print(f"✅ Цены обновлены. Предметов: {updated}")
 
-    # --- Построение дерева крафтов ---
     recipes = load_recipes()
     if recipes:
         current_prices = {}
