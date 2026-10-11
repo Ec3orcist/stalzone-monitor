@@ -11,7 +11,7 @@
         .container { max-width: 1200px; margin: 0 auto; }
         .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
         input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 16px; }
-        input { min-width: 280px; }
+        input { min-width: 240px; }
         button { cursor: pointer; background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
         button:hover { background: #4fa8c7; }
         .card { background: #2b2b3c; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
@@ -28,6 +28,7 @@
         .item-icon { width: 72px; height: 72px; border-radius: 8px; background: #1e1e2f; object-fit: contain; }
         .item-title { font-size: 22px; font-weight: bold; color: #61dafb; }
         .item-id { font-size: 14px; color: #888; margin-top: 4px; }
+        .category-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #3a3a4f; font-size: 12px; color: #61dafb; margin-left: 8px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #3a3a4f; }
         th { color: #61dafb; font-weight: bold; font-size: 14px; }
@@ -41,6 +42,7 @@
     <div class="container">
         <h1>📊 Stalzone Auction Monitor</h1>
         <div class="controls">
+            <select id="categorySelect"><option value="">Все категории</option></select>
             <input type="text" id="searchInput" placeholder="Поиск по названию или ID...">
             <select id="itemSelect"><option value="">Загрузка...</option></select>
             <button onclick="loadData()">Обновить</button>
@@ -50,7 +52,10 @@
             <div class="item-header">
                 <img id="itemIcon" class="item-icon" src="" alt="" onerror="this.style.display='none'">
                 <div>
-                    <div class="item-title" id="itemName">Предмет</div>
+                    <div class="item-title">
+                        <span id="itemName">Предмет</span>
+                        <span class="category-badge" id="itemCategory"></span>
+                    </div>
                     <div class="item-id" id="itemIdDisplay"></div>
                 </div>
             </div>
@@ -104,6 +109,35 @@
     <script>
         let allData = {}, chartInstance = null;
 
+        // Русские названия категорий (как в игре)
+        const CATEGORY_NAMES = {
+            "armor":          "Костюмы",
+            "artefact":       "Артефакты",
+            "containers":     "Контейнеры",
+            "backpacks":      "Рюкзаки и сумки",
+            "medicine":       "Медикаменты и еда",
+            "bullet":         "Патроны",
+            "grenade":        "Гранаты",
+            "attachment":     "Обвесы",
+            "weapon":         "Оружие",
+            "weapon_modules": "Оружейные модули",
+            "misc":           "Прочее",
+            "other":          "Прочее",
+            "device":         "Прочее",
+            "supply":         "Прочее"
+        };
+
+        // Порядок категорий в списке (как в игре)
+        const CATEGORY_ORDER = [
+            "armor", "artefact", "containers", "backpacks", "medicine",
+            "bullet", "grenade", "attachment", "weapon", "weapon_modules",
+            "misc", "other", "device", "supply"
+        ];
+
+        function categoryName(key) {
+            return CATEGORY_NAMES[key] || key;
+        }
+
         async function loadData() {
             const msg = document.getElementById('loadingMsg');
             msg.style.display = 'block';
@@ -111,6 +145,7 @@
             try {
                 const resp = await fetch('prices.json?t=' + Date.now());
                 allData = await resp.json();
+                populateCategories();
                 populateSelect();
                 msg.style.display = 'none';
             } catch (e) {
@@ -123,36 +158,97 @@
             const hist = allData[id];
             if (hist && hist.length) {
                 const last = hist[hist.length - 1];
-                return { name: last.name || id, icon: last.icon || '' };
+                return {
+                    name: last.name || id,
+                    icon: last.icon || '',
+                    category: last.category || 'other'
+                };
             }
-            return { name: id, icon: '' };
+            return { name: id, icon: '', category: 'other' };
+        }
+
+        function populateCategories() {
+            const sel = document.getElementById('categorySelect');
+            const current = sel.value;
+            sel.innerHTML = '<option value="">Все категории</option>';
+
+            // Собираем все уникальные категории из данных
+            const found = new Set();
+            Object.keys(allData).forEach(id => {
+                found.add(getItemMeta(id).category);
+            });
+
+            // Сортируем по порядку как в игре
+            const ordered = CATEGORY_ORDER.filter(c => found.has(c));
+            // Добавляем те, которые не попали в CATEGORY_ORDER
+            found.forEach(c => { if (!ordered.includes(c)) ordered.push(c); });
+
+            ordered.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = categoryName(cat);
+                sel.appendChild(opt);
+            });
+
+            if (current) sel.value = current;
         }
 
         function populateSelect(filter = '') {
             const sel = document.getElementById('itemSelect');
             const current = sel.value;
-            sel.innerHTML = '<option value="">Выберите предмет...</option>';
+            const categoryFilter = document.getElementById('categorySelect').value;
+            sel.innerHTML = '';
 
             const f = filter.toLowerCase();
-            const items = Object.keys(allData).filter(id => {
-                if (!f) return true;
-                const meta = getItemMeta(id);
-                return id.toLowerCase().includes(f) || meta.name.toLowerCase().includes(f);
-            }).sort((a, b) => getItemMeta(a).name.localeCompare(getItemMeta(b).name));
 
-            items.forEach(id => {
+            // Фильтруем предметы
+            const items = Object.keys(allData).filter(id => {
                 const meta = getItemMeta(id);
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = meta.name;
-                sel.appendChild(opt);
+                if (categoryFilter && meta.category !== categoryFilter) return false;
+                if (!f) return true;
+                return id.toLowerCase().includes(f) || meta.name.toLowerCase().includes(f);
             });
 
-            if (items.length && !current) {
-                sel.value = items[0];
-                renderChart();
-            } else if (current) {
+            // Группируем по категориям
+            const groups = {};
+            items.forEach(id => {
+                const cat = getItemMeta(id).category;
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(id);
+            });
+
+            // Сортируем категории по порядку
+            const orderedCats = CATEGORY_ORDER.filter(c => groups[c]);
+            Object.keys(groups).forEach(c => {
+                if (!orderedCats.includes(c)) orderedCats.push(c);
+            });
+
+            // Строим optgroup'ы
+            orderedCats.forEach(cat => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = categoryName(cat);
+
+                groups[cat]
+                    .sort((a, b) => getItemMeta(a).name.localeCompare(getItemMeta(b).name))
+                    .forEach(id => {
+                        const opt = document.createElement('option');
+                        opt.value = id;
+                        opt.textContent = getItemMeta(id).name;
+                        optgroup.appendChild(opt);
+                    });
+
+                sel.appendChild(optgroup);
+            });
+
+            // Восстанавливаем выбор
+            const firstOption = sel.querySelector('option');
+            if (current && sel.querySelector(`option[value="${current}"]`)) {
                 sel.value = current;
+            } else if (firstOption) {
+                sel.value = firstOption.value;
+                renderChart();
+            } else {
+                renderChart();
             }
         }
 
@@ -201,8 +297,8 @@
             document.getElementById('statsCard').style.display = 'block';
             document.getElementById('itemName').textContent = meta.name;
             document.getElementById('itemIdDisplay').textContent = `ID: ${id}`;
+            document.getElementById('itemCategory').textContent = categoryName(meta.category);
 
-            // Иконка: если URL пустой — просто скрываем <img>
             const img = document.getElementById('itemIcon');
             if (meta.icon) {
                 img.style.display = 'block';
@@ -263,6 +359,7 @@
         }
 
         document.getElementById('itemSelect').addEventListener('change', renderChart);
+        document.getElementById('categorySelect').addEventListener('change', () => populateSelect(document.getElementById('searchInput').value));
         document.getElementById('searchInput').addEventListener('input', e => populateSelect(e.target.value));
         loadData();
     </script>
