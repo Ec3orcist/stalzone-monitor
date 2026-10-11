@@ -9,95 +9,175 @@
         body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #e0e0e0; margin: 0; padding: 20px; }
         h1 { color: #61dafb; text-align: center; }
         .container { max-width: 1200px; margin: 0 auto; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
-        select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 16px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
+        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 16px; }
+        input { min-width: 280px; }
         button { cursor: pointer; background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
         button:hover { background: #4fa8c7; }
         .card { background: #2b2b3c; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .stats { display: flex; justify-content: space-around; text-align: center; margin-top: 10px; }
-        .stat-item { flex: 1; }
+        .stats { display: flex; justify-content: space-around; text-align: center; margin-top: 10px; flex-wrap: wrap; }
+        .stat-item { flex: 1; min-width: 150px; }
         .stat-value { font-size: 24px; font-weight: bold; color: #61dafb; }
         .stat-label { font-size: 14px; color: #aaa; }
         canvas { max-height: 400px; }
-        .green { color: #4caf50; }
-        .red { color: #f44336; }
+        .green { color: #4caf50 !important; }
+        .red { color: #f44336 !important; }
+        .loading { text-align: center; color: #aaa; padding: 20px; }
+        .item-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        .item-icon { width: 64px; height: 64px; border-radius: 8px; background: #1e1e2f; object-fit: contain; }
+        .item-title { font-size: 22px; font-weight: bold; color: #61dafb; }
+        .item-id { font-size: 14px; color: #888; margin-top: 4px; }
+        /* Стилизация выпадающего списка с иконками */
+        select option { padding: 8px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Stalzone Auction Monitor</h1>
         <div class="controls">
+            <input type="text" id="searchInput" placeholder="Поиск по названию или ID...">
             <select id="itemSelect"><option value="">Загрузка...</option></select>
             <button onclick="loadData()">Обновить</button>
         </div>
+
         <div class="card" id="statsCard" style="display:none;">
-            <h2 id="itemName">Предмет</h2>
+            <div class="item-header">
+                <img id="itemIcon" class="item-icon" src="" alt="icon" onerror="this.style.display='none'">
+                <div>
+                    <div class="item-title" id="itemName">Предмет</div>
+                    <div class="item-id" id="itemIdDisplay"></div>
+                </div>
+            </div>
             <div class="stats">
                 <div class="stat-item"><div class="stat-value" id="currentPrice">-</div><div class="stat-label">Текущая цена</div></div>
                 <div class="stat-item"><div class="stat-value" id="avgPrice">-</div><div class="stat-label">Средняя (7 дней)</div></div>
-                <div class="stat-item"><div class="stat-value" id="deviation">-</div><div class="stat-label">Отклонение</div></div>
+                <div class="stat-item"><div class="stat-value" id="deviation">-</div><div class="stat-label">Отклонение от средней</div></div>
+                <div class="stat-item"><div class="stat-value" id="pointsCount">-</div><div class="stat-label">Точек истории</div></div>
             </div>
         </div>
+
         <div class="card"><canvas id="priceChart"></canvas></div>
+        <div class="loading" id="loadingMsg" style="display:none;">Загрузка данных...</div>
     </div>
+
     <script>
         let allData = {}, chartInstance = null;
+
         async function loadData() {
+            const msg = document.getElementById('loadingMsg');
+            msg.style.display = 'block';
+            msg.textContent = 'Загрузка данных...';
             try {
                 const resp = await fetch('prices.json?t=' + Date.now());
                 allData = await resp.json();
                 populateSelect();
+                msg.style.display = 'none';
             } catch (e) {
                 console.error(e);
-                alert("Не удалось загрузить данные. Запустите GitHub Action вручную.");
+                msg.textContent = '❌ Не удалось загрузить prices.json';
             }
         }
-        function populateSelect() {
+
+        function getItemMeta(id) {
+            const hist = allData[id];
+            if (hist && hist.length) {
+                return {
+                    name: hist[0].name || id,
+                    icon: hist[0].icon || ''
+                };
+            }
+            return { name: id, icon: '' };
+        }
+
+        function populateSelect(filter = '') {
             const sel = document.getElementById('itemSelect');
+            const current = sel.value;
             sel.innerHTML = '<option value="">Выберите предмет...</option>';
-            const items = Object.keys(allData).sort();
+
+            const f = filter.toLowerCase();
+            const items = Object.keys(allData).filter(id => {
+                if (!f) return true;
+                const meta = getItemMeta(id);
+                return id.toLowerCase().includes(f) || meta.name.toLowerCase().includes(f);
+            }).sort((a, b) => getItemMeta(a).name.localeCompare(getItemMeta(b).name));
+
             items.forEach(id => {
+                const meta = getItemMeta(id);
                 const opt = document.createElement('option');
-                opt.value = id; opt.textContent = id;
+                opt.value = id;
+                opt.textContent = meta.name;
                 sel.appendChild(opt);
             });
-            if (items.length) { sel.value = items[0]; renderChart(); }
+
+            if (items.length && !current) {
+                sel.value = items[0];
+                renderChart();
+            } else if (current) {
+                sel.value = current;
+            }
         }
+
         function renderChart() {
             const id = document.getElementById('itemSelect').value;
-            if (!id || !allData[id] || !allData[id].length) { document.getElementById('statsCard').style.display = 'none'; return; }
+            if (!id || !allData[id] || !allData[id].length) {
+                document.getElementById('statsCard').style.display = 'none';
+                return;
+            }
             const hist = allData[id];
+            const meta = getItemMeta(id);
             const labels = hist.map(h => new Date(h.timestamp).toLocaleString());
             const prices = hist.map(h => h.price);
             const cur = prices[prices.length - 1];
-            const avg = prices.reduce((a,b)=>a+b,0) / prices.length;
-            const dev = ((cur - avg) / avg) * 100;
+            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
+
+            // Обновляем карточку
             document.getElementById('statsCard').style.display = 'block';
-            document.getElementById('itemName').textContent = `Предмет: ${id}`;
+            document.getElementById('itemName').textContent = meta.name;
+            document.getElementById('itemIdDisplay').textContent = `ID: ${id}`;
+
+            const iconEl = document.getElementById('itemIcon');
+            if (meta.icon) {
+                iconEl.src = meta.icon;
+                iconEl.style.display = 'block';
+            } else {
+                iconEl.style.display = 'none';
+            }
+
             document.getElementById('currentPrice').textContent = cur.toLocaleString() + ' ₽';
             document.getElementById('avgPrice').textContent = Math.round(avg).toLocaleString() + ' ₽';
+
             const devEl = document.getElementById('deviation');
-            devEl.textContent = (dev>0?'+':'') + dev.toFixed(1) + '%';
-            devEl.className = 'stat-value ' + (dev>0?'red':'green');
+            devEl.textContent = (dev > 0 ? '+' : '') + dev.toFixed(1) + '%';
+            devEl.className = 'stat-value ' + (dev > 0 ? 'red' : 'green');
+
+            document.getElementById('pointsCount').textContent = prices.length;
+
             const ctx = document.getElementById('priceChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
+
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Цена', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
-                        { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false }
+                        { label: 'Цена выкупа', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
+                        { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false }
                     ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { labels: { color: '#e0e0e0' } } },
-                    scales: { x: { ticks: { color: '#aaa' }, grid: { color: '#444' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#444' } } }
+                    scales: {
+                        x: { ticks: { color: '#aaa' }, grid: { color: '#444' } },
+                        y: { ticks: { color: '#aaa' }, grid: { color: '#444' } }
+                    }
                 }
             });
         }
+
         document.getElementById('itemSelect').addEventListener('change', renderChart);
+        document.getElementById('searchInput').addEventListener('input', e => populateSelect(e.target.value));
         loadData();
     </script>
 </body>
