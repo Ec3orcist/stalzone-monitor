@@ -225,6 +225,7 @@
     <script>
         let allData = {};
         let craftsData = {};
+        let salesData = {};
         let itemsCache = [];
         let favorites = [];
         let filteredItems = [];
@@ -307,7 +308,6 @@
             return idx === -1 ? 9999 : idx;
         }
 
-        // ---- БОНУС: 75% за каждый уровень превосходства ----
         function computeBonus(requiredLevel, myLevel) {
             if (!myLevel || myLevel <= requiredLevel) {
                 return { bonusLevels: 0, chance: 0, guaranteed: 0, fractional: 0, multiplier: 1 };
@@ -320,7 +320,6 @@
             return { bonusLevels, chance, guaranteed, fractional, multiplier };
         }
 
-        // Хранилище уровней навыков игрока
         function loadSkillLevels() {
             try { return JSON.parse(localStorage.getItem(SKILL_LEVELS_KEY) || '{}'); } catch { return {}; }
         }
@@ -388,16 +387,14 @@
             els.resultCount.textContent = 'Загрузка данных...';
             els.craftResultCount.textContent = 'Загрузка данных...';
             try {
-                const [pricesResp, craftsResp] = await Promise.all([
+                const [pricesResp, craftsResp, salesResp] = await Promise.all([
                     fetch('prices.json?t=' + Date.now()),
-                    fetch('crafts.json?t=' + Date.now()).catch(() => null)
+                    fetch('crafts.json?t=' + Date.now()).catch(() => null),
+                    fetch('sales_history.json?t=' + Date.now()).catch(() => null)
                 ]);
                 allData = await pricesResp.json();
-                if (craftsResp && craftsResp.ok) {
-                    craftsData = await craftsResp.json();
-                } else {
-                    craftsData = {};
-                }
+                craftsData = (craftsResp && craftsResp.ok) ? await craftsResp.json() : {};
+                salesData = (salesResp && salesResp.ok) ? await salesResp.json() : {};
                 buildItemsCache();
                 populateCategories();
                 populateCraftSkills();
@@ -561,6 +558,7 @@
             const item = itemsCache.find(i => i.id === id);
             if (!item) return;
             const hist = allData[id];
+            const sales = (salesData[id] || []).slice();
             const prices = hist.map(h => h.price);
             const last = hist[hist.length - 1];
             const cur = prices[prices.length - 1];
@@ -583,6 +581,40 @@
                 }).join('');
                 lotsHtml = `<h3 class="lots-title">📋 Актуальные лоты (${last.lots.length})</h3><table><thead><tr><th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
+
+            let salesHtml = '';
+            if (sales.length > 0) {
+                const totalAmount = sales.reduce((s, e) => s + (e.a || 0), 0);
+                const totalSum = sales.reduce((s, e) => s + (e.avg || 0) * (e.a || 0), 0);
+                const avgDeal = totalAmount > 0 ? Math.round(totalSum / totalAmount) : 0;
+                const lastSales = sales.slice(-30).reverse();
+                const rows = lastSales.map(s => {
+                    const dt = s.t ? new Date(s.t).toLocaleString('ru-RU') : '—';
+                    return `<tr>
+                        <td class="time-cell">${dt}</td>
+                        <td>${(s.a || 0).toLocaleString('ru-RU')} шт</td>
+                        <td class="price-cell">${(s.avg || 0).toLocaleString('ru-RU')} ₽</td>
+                        <td style="color:#aaa;font-size:12px;">${(s.min || 0).toLocaleString('ru-RU')} – ${(s.max || 0).toLocaleString('ru-RU')} ₽</td>
+                    </tr>`;
+                }).join('');
+                salesHtml = `
+                    <h3 class="lots-title" style="margin-top:25px;">📈 История продаж</h3>
+                    <div style="color:#888;font-size:13px;margin-bottom:10px;">
+                        Продано за период: <b style="color:#4caf50;">${totalAmount.toLocaleString('ru-RU')} шт</b>
+                        · Средняя цена сделки: <b style="color:#4caf50;">${avgDeal.toLocaleString('ru-RU')} ₽</b>
+                        · Периодов: ${sales.length}
+                    </div>
+                    <table>
+                        <thead><tr>
+                            <th>Время</th><th>Продано</th><th>Средняя цена</th><th>Диапазон</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+            } else {
+                salesHtml = '<div style="margin-top:20px;padding:12px;color:#888;font-size:13px;">История продаж пока недоступна.</div>';
+            }
+
             els.modalContent.innerHTML = `
                 <div class="item-header">
                     ${iconHtml}
@@ -601,6 +633,7 @@
                 </div>
                 <div class="chart-container"><canvas id="modalChart"></canvas></div>
                 ${lotsHtml}
+                ${salesHtml}
             `;
             const modalFavBtn = document.getElementById('modalFavBtn');
             modalFavBtn.addEventListener('click', (e) => {
@@ -624,7 +657,32 @@
                         labels,
                         datasets: [
                             { label: 'Цена за 1 шт', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
-                            { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false }
+                            { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false },
+                            {
+                                label: 'Продажи',
+                                data: (() => {
+                                    const result = new Array(hist.length).fill(null);
+                                    for (const s of sales) {
+                                        if (!s.t) continue;
+                                        const saleTs = new Date(s.t).getTime();
+                                        let closestIdx = -1, minDiff = Infinity;
+                                        hist.forEach((h, i) => {
+                                            const d = Math.abs(new Date(h.timestamp).getTime() - saleTs);
+                                            if (d < minDiff) { minDiff = d; closestIdx = i; }
+                                        });
+                                        if (closestIdx >= 0 && minDiff < 3600000) {
+                                            result[closestIdx] = s.avg;
+                                        }
+                                    }
+                                    return result;
+                                })(),
+                                borderColor: '#4caf50',
+                                backgroundColor: '#4caf50',
+                                pointRadius: 5,
+                                pointStyle: 'rectRot',
+                                showLine: false,
+                                fill: false
+                            }
                         ]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#e0e0e0' } } }, scales: { x: { ticks: { color: '#aaa', maxTicksLimit: 12 }, grid: { color: '#444' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#444' } } } }
@@ -638,7 +696,6 @@
             if (currentChart) { currentChart.destroy(); currentChart = null; }
         }
 
-        // ---- СПИСОК КРАФТОВ ----
         function renderCraftList() {
             const query = els.craftSearchInput.value.toLowerCase().trim();
             const skillFilter = els.craftSkillSelect.value;
@@ -747,7 +804,6 @@
                 ? `<span class="skill-level-badge lvl-${item.skillLevel}">ур. ${item.skillLevel}</span>`
                 : '';
 
-            // Бонус: сравним требуемый уровень с уровнем игрока
             const skill = item.skill || "Сырье и материалы";
             const myLvl = getMyLevel(skill);
             let bonusBadge = '';
@@ -780,9 +836,6 @@
             return row;
         }
 
-        // ---------- Калькулятор крафта ----------
-        // Использует формулу бонуса: +75% за каждый уровень превосходства.
-        // "Множитель за крафт" = 1 + гарантированные + остаточный шанс.
         function flattenTree(node, quantity, flat, excess, userLevels) {
             if (!node) return;
             flat = flat || new Map();
@@ -812,7 +865,6 @@
             const bonus = computeBonus(requiredLevel, myLevel);
 
             const baseAmount = node.craftAmount || 1;
-            // Средний выход за один крафт с учётом бонуса
             const avgPerCraft = baseAmount * bonus.multiplier;
 
             const craftsNeeded = Math.ceil(quantity / avgPerCraft - 1e-9);
@@ -1161,7 +1213,6 @@
 
             function renderBonus() {
                 document.getElementById('craftBonusBox').innerHTML = renderBonusBanner(craft, userLevels[skill]);
-                // Перепривязываем обработчик на селект уровня
                 document.querySelectorAll('.my-level-input').forEach(sel => {
                     sel.addEventListener('change', (e) => {
                         const newLvl = parseInt(e.target.value) || 1;
