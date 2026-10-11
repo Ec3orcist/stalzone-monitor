@@ -23,33 +23,36 @@
         ::selection { background: #6d28d9; color: #fff; }
         body { font-family: "Segoe UI", "Trebuchet MS", sans-serif; background:
             radial-gradient(900px 420px at 50% -8%, #2a1848 0%, var(--bg) 58%);
-            color: var(--text); margin: 0; padding: 28px 20px; min-height: 100vh; }
-        h1 { color: var(--accent); text-align: center; margin: 8px 0 6px; font-weight: 650; letter-spacing: .06em; }
-        .subtitle { text-align: center; color: var(--muted); margin: 0 0 22px; font-size: 13px; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 22px; }
-        .tab { padding: 10px 22px; background: rgba(22, 18, 33, .8); border: 1px solid var(--line); color: var(--muted); font-size: 15px; cursor: pointer; border-radius: 999px; transition: .15s; }
+            color: var(--text); margin: 0; padding: 16px 20px 40px; min-height: 100vh; }
+        h1 { color: var(--text); text-align: left; margin: 0; font-weight: 700; letter-spacing: .02em; font-size: 22px; }
+        .subtitle { text-align: left; color: var(--muted); margin: 2px 0 0; font-size: 12px; }
+        .container { max-width: 1280px; margin: 0 auto; }
+        .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0 14px; background: linear-gradient(180deg, rgba(7,6,11,.96), rgba(7,6,11,.88) 70%, rgba(7,6,11,0)); }
+        .tabs { display: flex; gap: 8px; }
+        .tab { padding: 9px 18px; background: rgba(22, 18, 33, .8); border: 1px solid var(--line); color: var(--muted); font-size: 14px; cursor: pointer; border-radius: 999px; transition: .15s; }
         .tab:hover { color: var(--text); border-color: #7c5cbf; }
         .tab.active { color: #f8f4ff; background: linear-gradient(180deg, #6d4ad4, #4c2f96); border-color: #8b6cf0; font-weight: 650; box-shadow: 0 6px 18px rgba(76, 47, 150, .45); }
-        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
-        input, select, button { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 15px; }
+        .controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; padding: 10px; background: rgba(22,18,33,.72); border: 1px solid var(--line); border-radius: 14px; }
+        .controls input { flex: 1 1 220px; }
+        input, select, button { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #120e1b; color: var(--text); font-size: 14px; }
         input:focus, select:focus { outline: none; border-color: #8b6cf0; }
-        input { min-width: 180px; }
+        input { min-width: 0; }
         button { cursor: pointer; }
         #refreshBtn { background: linear-gradient(180deg, #7c5cbf, #5b3d9a); color: #f8f4ff; font-weight: 700; border: none; }
         #refreshBtn:hover { filter: brightness(1.1); }
-        .stats-bar { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 15px; }
-        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-        .item-card { background: linear-gradient(180deg, #1b1628, var(--panel)); border-radius: 16px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: .15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid var(--line); }
-        .item-card:hover { transform: translateY(-3px); border-color: #8b6cf0; box-shadow: 0 10px 28px rgba(40, 16, 80, .45); }
-        .card-star { position: absolute; top: 4px; right: 4px; z-index: 2; background: transparent; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 2px 7px; line-height: 1; border-radius: 4px; }
+        .stats-bar { text-align: left; color: var(--muted); font-size: 13px; margin: 0 4px 12px; }
+        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+        .item-card { background: var(--panel); border-radius: 14px; padding: 12px 40px 12px 12px; cursor: pointer; position: relative; transition: .15s; text-align: left; display: flex; flex-direction: row; align-items: center; gap: 12px; border: 1px solid var(--line); }
+        .item-card:hover { border-color: #8b6cf0; background: #1c1729; }
+        .card-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .card-star { position: absolute; top: 8px; right: 6px; z-index: 2; background: transparent; border: none; color: #5c516e; font-size: 20px; cursor: pointer; padding: 2px 7px; line-height: 1; border-radius: 4px; }
         .card-star:hover { color: var(--muted); }
         .card-star.active { color: var(--accent); }
-        .card-icon { width: 64px; height: 64px; object-fit: contain; border-radius: 6px; pointer-events: none; -webkit-user-drag: none; user-select: none; }
-        .card-icon-empty { width: 64px; height: 64px; background: var(--bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 24px; pointer-events: none; }
-        .card-name { font-size: 13px; color: var(--text); line-height: 1.3; min-height: 34px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; }
+        .card-icon { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--bg); pointer-events: none; -webkit-user-drag: none; user-select: none; flex-shrink: 0; }
+        .card-icon-empty { width: 52px; height: 52px; background: var(--bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 20px; pointer-events: none; flex-shrink: 0; }
+        .card-name { font-size: 14px; color: var(--text); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .card-price { font-size: 16px; font-weight: 700; color: var(--accent); }
-        .card-meta { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+        .card-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
         .card-dev { font-weight: 700; }
         .card-dev.green { color: var(--accent-2); }
         .card-dev.red { color: var(--danger); }
@@ -84,12 +87,12 @@
         canvas { max-height: 350px; }
 
         .craft-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-        .craft-list-item { background: var(--panel); border-radius: 10px; padding: 12px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: .15s; border: 1px solid var(--line); }
-        .craft-list-item:hover { border-color: var(--accent); }
+        .craft-list-item { background: var(--panel); border-radius: 12px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: .15s; border: 1px solid var(--line); }
+        .craft-list-item:hover { border-color: #8b6cf0; background: #1c1729; }
         .craft-list-icon { width: 44px; height: 44px; object-fit: contain; border-radius: 4px; background: var(--bg); flex-shrink: 0; pointer-events: none; -webkit-user-drag: none; }
         .craft-list-info { flex: 1; min-width: 0; }
         .craft-list-name { font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .craft-list-profit { font-weight: 700; text-align: right; flex-shrink: 0; }
+        .craft-list-profit { font-weight: 700; text-align: right; flex-shrink: 0; min-width: 108px; padding: 6px 10px; border-radius: 10px; background: #120e1b; }
         .craft-list-profit.green { color: var(--accent-2); }
         .craft-list-profit.red { color: var(--danger); }
         .craft-list-stations { font-size: 11px; color: #8b7da3; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
@@ -168,16 +171,30 @@
         .bonus-input-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
         .bonus-input-row label { color: var(--muted); font-size: 14px; }
         .bonus-input-row select { padding: 6px 12px; font-size: 14px; min-width: 90px; }
+        @media (max-width: 760px) {
+            body { padding: 10px; }
+            .topbar { flex-direction: column; align-items: stretch; }
+            .tabs { width: 100%; }
+            .tab { flex: 1; }
+            .items-grid { grid-template-columns: 1fr; }
+            .controls select, #refreshBtn { flex: 1 1 140px; }
+            .modal { padding: 16px; }
+            .craft-list-profit { min-width: 0; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Stalzone Auction</h1>
-        <p class="subtitle">Лоты, сделки и себестоимость крафта</p>
-        <div class="tabs">
-            <button class="tab active" data-tab="market">🏪 Аукцион</button>
-            <button class="tab" data-tab="crafts">🔨 Крафты</button>
-        </div>
+        <header class="topbar">
+            <div>
+                <h1>Stalzone</h1>
+                <p class="subtitle">Аукцион и крафт</p>
+            </div>
+            <div class="tabs">
+                <button class="tab active" data-tab="market">Аукцион</button>
+                <button class="tab" data-tab="crafts">Крафты</button>
+            </div>
+        </header>
 
         <div id="tab-market">
             <div class="controls">
@@ -191,7 +208,7 @@
                     <option value="dev_desc">По наценке</option>
                     <option value="amount_desc">По количеству</option>
                 </select>
-                <button id="refreshBtn">🔄 Обновить</button>
+                <button id="refreshBtn">Обновить</button>
             </div>
             <div class="stats-bar"><span id="resultCount">Загрузка...</span></div>
             <div class="items-grid" id="itemsGrid"></div>
@@ -700,11 +717,13 @@
             card.innerHTML = `
                 <button class="card-star ${fav ? 'active' : ''}" data-star="${item.id}" title="${fav ? 'Убрать из избранного' : 'В избранное'}">★</button>
                 ${iconHtml}
-                <div class="card-name">${escapeHtml(item.name)}</div>
-                <div class="card-price">${item.price.toLocaleString('ru-RU')} ₽</div>
-                <div class="card-meta">
-                    <span class="card-dev ${devClass}">${devText}</span>
-                    <span>· ${item.total_amount.toLocaleString('ru-RU')} шт</span>
+                <div class="card-body">
+                    <div class="card-name">${escapeHtml(item.name)}</div>
+                    <div class="card-price">${item.price.toLocaleString('ru-RU')} ₽</div>
+                    <div class="card-meta">
+                        <span class="card-dev ${devClass}">${devText}</span>
+                        <span>· ${item.total_amount.toLocaleString('ru-RU')} шт</span>
+                    </div>
                 </div>
             `;
             return card;
