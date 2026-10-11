@@ -2,8 +2,8 @@ name: Update Auction Data
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # каждые 15 минут
-  workflow_dispatch:          # ручной запуск
+    - cron: '*/30 * * * *'   # каждые 30 минут
+  workflow_dispatch:
 
 jobs:
   update:
@@ -19,11 +19,14 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Clone item database
+        run: git clone --depth 1 https://github.com/EXBO-Studio/stalzone-database.git itemdb
+
       - name: Fetch data
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          REGION: EU          # при необходимости замените на EU, NA, SEA
+          REGION: RU
         run: python fetch_prices.py
 
       - name: Commit and push
