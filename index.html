@@ -387,14 +387,16 @@
             els.resultCount.textContent = 'Загрузка данных...';
             els.craftResultCount.textContent = 'Загрузка данных...';
             try {
+                const bust = Date.now();
                 const [pricesResp, craftsResp, salesResp] = await Promise.all([
-                    fetch('prices.json?t=' + Date.now()),
-                    fetch('crafts.json?t=' + Date.now()).catch(() => null),
-                    fetch('sales_history.json?t=' + Date.now()).catch(() => null)
+                    fetch('prices.json?t=' + bust),
+                    fetch('crafts.json?t=' + bust),
+                    fetch('sales_history.json?t=' + bust)
                 ]);
+                if (!pricesResp.ok) throw new Error('prices.json HTTP ' + pricesResp.status);
                 allData = await pricesResp.json();
-                craftsData = (craftsResp && craftsResp.ok) ? await craftsResp.json() : {};
-                salesData = (salesResp && salesResp.ok) ? await salesResp.json() : {};
+                craftsData = craftsResp.ok ? await craftsResp.json() : {};
+                salesData = salesResp.ok ? await salesResp.json() : {};
                 buildItemsCache();
                 populateCategories();
                 populateCraftSkills();

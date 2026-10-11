@@ -1,450 +1,415 @@
-import os
 import json
-import requests
-from datetime import datetime, timezone, timedelta
+import os
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import requests
 
 REGION = os.environ.get("REGION", "EU")
 LANG = "ru"
 ICON_REALM = "ru"
+
 TOKEN_URL = "https://exbo.net/oauth/token"
-DATA_FILE = "prices.json"
-RECIPES_FILE = "recipes.json"
-ACTIVE_ITEMS_FILE = "active_items.json"
-SALES_FILE = "sales_history.json"
+API_BASE = "https://eapi.stalcraft.net"
+DATA_FILE = Path("prices.json")
+RECIPES_FILE = Path("recipes.json")
+ACTIVE_ITEMS_FILE = Path("active_items.json")
+SALES_FILE = Path("sales_history.json")
+CRAFTS_FILE = Path("crafts.json")
 
 SALES_REFRESH_HOURS = 6
 SALES_MAX_DAYS = 60
+SALES_MAX_PAGES = 8
+SALES_PAGE_SIZE = 200
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
-WORKERS = 10
+RESCAN_BATCH = 80
+WORKERS = 4
 MAX_LOTS_PER_ITEM = 10
+MIN_REQUEST_INTERVAL = 1.05
+REQUEST_TIMEOUT = 15
+RETRIES = 3
 
-CLIENT_ID = os.environ.get("CLIENT_ID")
-CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
-EXISTING_ICONS = None
-SESSION = None
-DEBUG_SHOWN = False
+PERSONAL_STATES = frozenset({"PERSONAL_ON_USE", "PERSONAL"})
 
 
-def get_session(token):
-    global SESSION
-    if SESSION is None:
-        SESSION = requests.Session()
-        SESSION.headers.update({
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def load_json(path, default):
+    if not path.exists():
+        return default
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_json(path, data, compact=True):
+    kwargs = {"ensure_ascii": False}
+    kwargs.update({"separators": (",", ":")} if compact else {"indent": 2})
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, **kwargs)
+
+
+def parse_item_state(content):
+    status = content.get("status", {})
+    return status.get("state", "") if isinstance(status, dict) else str(status)
+
+
+def localized_name(content):
+    name = content.get("name", {})
+    if isinstance(name, dict):
+        lines = name.get("lines", {})
+        return lines.get(LANG) or lines.get("en") or lines.get("ru") or ""
+    return str(name) if name else ""
+
+
+class RateLimiter:
+    def __init__(self, interval):
+        self.interval = interval
+        self._lock = threading.Lock()
+        self._next = 0.0
+
+    def wait(self):
+        with self._lock:
+            now = time.monotonic()
+            delay = self._next - now
+            self._next = max(now, self._next) + self.interval
+        if delay > 0:
+            time.sleep(delay)
+
+
+class StalcraftApi:
+    def __init__(self, token):
+        self.session = requests.Session()
+        self.session.headers.update({
             "Authorization": f"Bearer {token}",
-            "Accept": "application/json"
+            "Accept": "application/json",
         })
-    return SESSION
+        self.limiter = RateLimiter(MIN_REQUEST_INTERVAL)
+
+    def get(self, url):
+        last_error = None
+        for attempt in range(RETRIES):
+            self.limiter.wait()
+            try:
+                resp = self.session.get(url, timeout=REQUEST_TIMEOUT)
+            except requests.RequestException as exc:
+                last_error = exc
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            if resp.status_code == 429:
+                retry_after = float(resp.headers.get("Retry-After", 2 + attempt))
+                time.sleep(retry_after)
+                continue
+            if resp.status_code >= 500:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            if resp.status_code != 200:
+                return None
+            try:
+                return resp.json()
+            except ValueError:
+                return None
+        if last_error:
+            print(f"  сеть: {last_error}")
+        return None
+
+
+def get_access_token(client_id, client_secret):
+    if not client_id or not client_secret:
+        raise SystemExit("Нет CLIENT_ID / CLIENT_SECRET")
+    resp = requests.post(
+        TOKEN_URL,
+        data={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "scope": "",
+        },
+        timeout=10,
+    )
+    resp.raise_for_status()
+    token = resp.json().get("access_token")
+    if not token:
+        raise SystemExit("OAuth не вернул access_token")
+    return token
 
 
 def find_item_db_dir():
     base = Path("itemdb")
     if not base.exists():
         return None
-    for candidate in [LANG, REGION.lower(), "en", "ru"]:
+    for candidate in (LANG, REGION.lower(), "en", "ru"):
         path = base / candidate / "items"
         if path.exists():
             return path
-    for d in base.iterdir():
-        if d.is_dir() and (d / "items").exists():
-            return d / "items"
+    for directory in base.iterdir():
+        items = directory / "items"
+        if directory.is_dir() and items.exists():
+            return items
     return None
-
-
-ITEM_DB_DIR = find_item_db_dir()
 
 
 def load_existing_icons():
     icons_root = Path("itemdb") / ICON_REALM / "icons"
     if not icons_root.exists():
-        return None
-    icons = set()
-    for png in icons_root.rglob("*.png"):
-        icons.add(png.relative_to(icons_root).as_posix())
-    print(f"🖼️ Найдено иконок в базе: {len(icons)}")
-    return icons
+        return frozenset()
+    return frozenset(
+        png.relative_to(icons_root).as_posix()
+        for png in icons_root.rglob("*.png")
+    )
 
 
-def get_access_token():
-    payload = {
-        "grant_type": "client_credentials",
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "scope": ""
-    }
-    resp = requests.post(TOKEN_URL, data=payload, timeout=10)
-    resp.raise_for_status()
-    return resp.json().get("access_token")
-
-
-def get_localized_name(content):
-    try:
-        name = content.get("name", {})
-        if isinstance(name, dict):
-            lines = name.get("lines", {})
-            return lines.get(LANG) or lines.get("en") or lines.get("ru") or ""
-        return str(name)
-    except Exception:
+def icon_url(item_id, category, existing_icons):
+    if not category or not existing_icons:
         return ""
-
-
-def build_icon_url(item_id, category):
-    if not category or EXISTING_ICONS is None:
-        return ""
-    for cat in [category, category.split("/")[0]]:
+    for cat in (category, category.split("/")[0]):
         rel = f"{cat}/{item_id}.png"
-        if rel in EXISTING_ICONS:
-            return (f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
-                    f"{ICON_REALM}/icons/{rel}")
+        if rel in existing_icons:
+            return (
+                "https://github.com/EXBO-Studio/stalzone-database/raw/main/"
+                f"{ICON_REALM}/icons/{rel}"
+            )
     return ""
 
 
-def build_all_items_meta():
+def scan_item_database(item_db_dir, existing_icons):
+    tradable = []
     meta = {}
-    if ITEM_DB_DIR is None:
-        return meta
-    for dirpath, _, filenames in os.walk(ITEM_DB_DIR):
-        for fname in filenames:
-            if not fname.endswith(".json"):
-                continue
-            fpath = os.path.join(dirpath, fname)
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    content = json.load(f)
-            except Exception:
-                continue
-            item_id = fname[:-5]
-            category = content.get("category", "")
-            meta[item_id] = {
-                "name": get_localized_name(content),
-                "icon": build_icon_url(item_id, category),
-                "category": category.split("/")[0] if category else "other"
-            }
-    print(f"📚 Метаданные обо всех предметах: {len(meta)}")
-    return meta
-
-
-def discover_tradable_items():
-    items = []
-    if ITEM_DB_DIR is None:
-        return items
-    print(f"📁 Используем базу: {ITEM_DB_DIR}")
-    all_files = list(ITEM_DB_DIR.rglob("*.json"))
-    print(f"Всего файлов в базе: {len(all_files)}")
     skipped = 0
-    with_icon = 0
-    for path in all_files:
+    files = list(item_db_dir.rglob("*.json"))
+    print(f"📁 База: {item_db_dir} ({len(files)} файлов)")
+
+    for path in files:
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                content = json.load(f)
-        except Exception:
-            continue
-        status = content.get("status", {})
-        state = status.get("state", "") if isinstance(status, dict) else str(status)
-        if state in ("PERSONAL_ON_USE", "PERSONAL"):
-            skipped += 1
+            content = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
             continue
         item_id = path.stem
-        category = content.get("category", "")
-        icon = build_icon_url(item_id, category)
-        if icon:
-            with_icon += 1
-        items.append({
+        category = content.get("category", "") or ""
+        top_category = category.split("/")[0] if category else "other"
+        info = {
             "id": item_id,
-            "name": get_localized_name(content),
-            "icon": icon,
-            "category": category.split("/")[0] if category else "other"
-        })
-    print(f"Отфильтровано персональных: {skipped}")
-    print(f"Торгуемых предметов: {len(items)} (с иконкой: {with_icon})")
-    return items
+            "name": localized_name(content),
+            "icon": icon_url(item_id, category, existing_icons),
+            "category": top_category,
+        }
+        meta[item_id] = info
+        if parse_item_state(content) in PERSONAL_STATES:
+            skipped += 1
+            continue
+        tradable.append(info)
+
+    print(f"📚 Мета: {len(meta)}, торгуемых: {len(tradable)}, персональных: {skipped}")
+    return tradable, meta
 
 
-def fetch_lots_for_item(token, item_id):
-    session = get_session(token)
-    url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/lots?limit=200"
-    try:
-        r = session.get(url, timeout=15)
-        if r.status_code != 200:
-            return item_id, []
-        data = r.json()
-        raw_lots = data.get("lots", []) if isinstance(data, dict) else data
-        processed = []
-        for lot in raw_lots:
-            buyout = lot.get("buyoutPrice") or 0
-            amount = lot.get("amount") or 0
-            if buyout <= 0 or amount <= 0:
-                continue
-            processed.append({
-                "price_per_unit": round(buyout / amount),
-                "buyout": buyout,
-                "amount": amount,
-                "endTime": lot.get("endTime", ""),
-            })
-        processed.sort(key=lambda l: l["price_per_unit"])
-        return item_id, processed
-    except Exception:
+def pick_items(tradable, active_ids):
+    if not active_ids:
+        chosen = tradable[:MAX_ITEMS]
+        print(f"🐌 Первый запуск: {len(chosen)}")
+        return chosen
+
+    known = {item["id"] for item in tradable}
+    live_active = active_ids & known
+    by_id = {item["id"]: item for item in tradable}
+    primary = [by_id[item_id] for item_id in live_active]
+    unknown = [item for item in tradable if item["id"] not in live_active][:RESCAN_BATCH]
+    print(f"⚡ Кэш активных: {len(primary)} + рескан {len(unknown)}")
+    return primary + unknown
+
+
+def fetch_lots(api, item_id):
+    data = api.get(f"{API_BASE}/{REGION}/auction/{item_id}/lots?limit=200")
+    if not data:
         return item_id, []
+    raw_lots = data.get("lots", []) if isinstance(data, dict) else data
+    processed = []
+    for lot in raw_lots:
+        buyout = lot.get("buyoutPrice") or 0
+        amount = lot.get("amount") or 0
+        if buyout <= 0 or amount <= 0:
+            continue
+        processed.append({
+            "price_per_unit": round(buyout / amount),
+            "buyout": buyout,
+            "amount": amount,
+            "endTime": lot.get("endTime", ""),
+        })
+    processed.sort(key=lambda lot: lot["price_per_unit"])
+    return item_id, processed
 
 
-def parse_sales_response(item_id, data):
-    """Агрегирует сделки по дням с учётом количества."""
-    global DEBUG_SHOWN
-
-    if not DEBUG_SHOWN and data:
-        print("\n" + "=" * 60)
-        print(f"🔍 ПРИМЕР ОТВЕТА /history для {item_id}:")
-        print(json.dumps(data, ensure_ascii=False)[:1500])
-        print("=" * 60 + "\n")
-        DEBUG_SHOWN = True
-
-    if isinstance(data, list):
-        raw = data
-    elif isinstance(data, dict):
-        raw = data.get("prices") or data.get("history") or []
-    else:
-        raw = []
-
+def parse_sales(raw_entries):
     days = {}
-    for entry in raw:
+    for entry in raw_entries:
         if not isinstance(entry, dict):
             continue
-        t = entry.get("time") or entry.get("timestamp") or ""
+        stamp = entry.get("time") or entry.get("timestamp") or ""
         price = entry.get("price") or entry.get("buyoutPrice")
         amount = entry.get("amount") or 1
-        if not t or not price:
+        if not stamp or not price:
             continue
         try:
-            day = t[:10]
+            day = stamp[:10]
             price = int(price)
             amount = int(amount)
-        except Exception:
+        except (TypeError, ValueError):
             continue
-        if day not in days:
-            days[day] = {"deals": [], "total_amount": 0, "total_sum": 0}
-        days[day]["deals"].append({"price": price, "amount": amount})
-        days[day]["total_amount"] += amount
-        days[day]["total_sum"] += price * amount
+        bucket = days.setdefault(day, {"prices": [], "total_amount": 0, "total_sum": 0})
+        bucket["prices"].append(price)
+        bucket["total_amount"] += amount
+        bucket["total_sum"] += price * amount
 
-    result = []
-    for day in sorted(days.keys()):
-        d = days[day]
-        prices = [x["price"] for x in d["deals"]]
-        avg_weighted = round(d["total_sum"] / d["total_amount"]) if d["total_amount"] > 0 else 0
-        result.append({
-            "t": day + "T00:00:00Z",
-            "a": d["total_amount"],
-            "min": min(prices),
-            "max": max(prices),
-            "avg": avg_weighted,
-        })
-
-    if len(result) > SALES_MAX_DAYS:
-        result = result[-SALES_MAX_DAYS:]
-    return result
+    result = [
+        {
+            "t": f"{day}T00:00:00Z",
+            "a": bucket["total_amount"],
+            "min": min(bucket["prices"]),
+            "max": max(bucket["prices"]),
+            "avg": round(bucket["total_sum"] / bucket["total_amount"]) if bucket["total_amount"] else 0,
+        }
+        for day, bucket in sorted(days.items())
+    ]
+    return result[-SALES_MAX_DAYS:]
 
 
-def fetch_sales_for_item(token, item_id):
-    """Тянет историю продаж с пагинацией: до 5 страниц по 200 сделок."""
-    import time as _time
-    session = get_session(token)
-    base = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history"
-
-    all_prices = []
+def fetch_sales(api, item_id):
+    base = f"{API_BASE}/{REGION}/auction/{item_id}/history"
+    collected = []
     total_available = None
-    MAX_PAGES = 5
-    PAGE_SIZE = 200
-
-    for page in range(MAX_PAGES):
-        offset = page * PAGE_SIZE
-        url = f"{base}?limit={PAGE_SIZE}&offset={offset}"
-        try:
-            r = session.get(url, timeout=15)
-            if r.status_code != 200:
-                break
-            data = r.json()
-            if not isinstance(data, dict):
-                break
-            prices = data.get("prices", [])
-            if total_available is None:
-                total_available = data.get("total", 0)
-            if not prices:
-                break
-            all_prices.extend(prices)
-
-            # Если собрали всё или получили меньше страницы — стоп
-            if total_available and len(all_prices) >= total_available:
-                break
-            if len(prices) < PAGE_SIZE:
-                break
-
-            # Rate limit: пауза между страницами (1 запрос/сек)
-            _time.sleep(1.1)
-        except Exception:
+    for page in range(SALES_MAX_PAGES):
+        offset = page * SALES_PAGE_SIZE
+        data = api.get(f"{base}?limit={SALES_PAGE_SIZE}&offset={offset}")
+        if not isinstance(data, dict):
             break
-
-    if not all_prices:
-        return item_id, []
-
-    # Диагностика — один раз для первого предмета
-    global DEBUG_SHOWN
-    if not DEBUG_SHOWN:
-        first_t = all_prices[0].get("time", "") if isinstance(all_prices[0], dict) else ""
-        last_t = all_prices[-1].get("time", "") if isinstance(all_prices[-1], dict) else ""
-        print("\n" + "=" * 70)
-        print(f"🔬 ИСТОРИЯ для {item_id}: собрано {len(all_prices)} сделок из {total_available}")
-        print(f"   диапазон: {last_t} … {first_t}")
-        print("=" * 70 + "\n")
-        DEBUG_SHOWN = True
-
-    return item_id, parse_sales_response(item_id, {"total": total_available, "prices": all_prices})
+        prices = data.get("prices") or []
+        if total_available is None:
+            total_available = data.get("total", 0)
+        if not prices:
+            break
+        collected.extend(prices)
+        if total_available and len(collected) >= total_available:
+            break
+        if len(prices) < SALES_PAGE_SIZE:
+            break
+    return item_id, parse_sales(collected)
 
 
-def load_history():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def save_history(history):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
-
-
-def sales_needs_refresh():
-    if not os.path.exists(SALES_FILE):
+def sales_needs_refresh(sales):
+    ts_str = sales.get("_updated_at", "")
+    if not ts_str:
         return True
     try:
-        with open(SALES_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        ts_str = data.get("_updated_at", "")
-        if not ts_str:
-            return True
         ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-        age = datetime.now(timezone.utc) - ts
-        return age.total_seconds() >= SALES_REFRESH_HOURS * 3600
-    except Exception:
+    except ValueError:
         return True
-
-
-def load_sales():
-    if os.path.exists(SALES_FILE):
-        try:
-            with open(SALES_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-
-def save_sales(data):
-    with open(SALES_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-
-
-def load_active_items():
-    if os.path.exists(ACTIVE_ITEMS_FILE):
-        try:
-            with open(ACTIVE_ITEMS_FILE, "r", encoding="utf-8") as f:
-                return set(json.load(f))
-        except Exception:
-            return None
-    return None
-
-
-def save_active_items(ids):
-    with open(ACTIVE_ITEMS_FILE, "w", encoding="utf-8") as f:
-        json.dump(sorted(ids), f, ensure_ascii=False, indent=2)
-
-
-def load_recipes():
-    if not os.path.exists(RECIPES_FILE):
-        return {}
-    with open(RECIPES_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    recipes = {}
-    if isinstance(data, dict) and "recipes" in data:
-        source_list = data["recipes"]
-        print(f"📖 Найдено рецептов: {len(source_list)}")
-    elif isinstance(data, list):
-        source_list = data
-    else:
-        source_list = []
-    for r in source_list:
-        item_id = r.get("itemId")
-        if not item_id:
-            continue
-        recipes[item_id] = {
-            "name": r.get("name", item_id),
-            "energy": r.get("energy", 0),
-            "craftAmount": r.get("craftAmount", 1),
-            "station": r.get("station", ""),
-            "bench": r.get("bench", ""),
-            "skill": r.get("skill", ""),
-            "skillId": r.get("skillId", ""),
-            "skillLevel": r.get("skillLevel", 0),
-            "experience": r.get("experience", 0),
-            "experienceSkill": r.get("experienceSkill", ""),
-            "category": r.get("category", ""),
-            "subcategory": r.get("subcategory", ""),
-            "icon": r.get("icon", ""),
-            "requiredStations": r.get("requiredStations", []),
-            "stations": r.get("stations", []),
-            "ingredients": [
-                {"id": res["itemId"], "amount": res["amount"]}
-                for res in r.get("resources", [])
-                if res.get("itemId") and res.get("amount")
-            ]
-        }
-    print(f"✅ Загружено рецептов: {len(recipes)}")
-    return recipes
+    return (utc_now() - ts).total_seconds() >= SALES_REFRESH_HOURS * 3600
 
 
 def aggregate_history(records):
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     cutoff = now - timedelta(hours=24)
     fresh, old = [], []
-    for r in records:
-        try:
-            ts = datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00"))
-        except Exception:
-            continue
-        if ts >= cutoff:
-            fresh.append(r)
-        else:
-            old.append((ts, r))
     last_name = last_icon = ""
     last_category = "other"
-    for r in records:
-        if r.get("name"): last_name = r["name"]
-        if r.get("icon"): last_icon = r["icon"]
-        if r.get("category"): last_category = r["category"]
-    buckets = {}
-    for ts, r in old:
-        key = ts.strftime("%Y-%m-%dT%H")
-        if key not in buckets:
-            buckets[key] = {"min_price": r["price"]}
+    for record in records:
+        if record.get("name"):
+            last_name = record["name"]
+        if record.get("icon"):
+            last_icon = record["icon"]
+        if record.get("category"):
+            last_category = record["category"]
+        try:
+            ts = datetime.fromisoformat(record["timestamp"].replace("Z", "+00:00"))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if ts >= cutoff:
+            fresh.append(record)
         else:
-            buckets[key]["min_price"] = min(buckets[key]["min_price"], r["price"])
+            old.append((ts, record))
+
+    buckets = {}
+    for ts, record in old:
+        key = ts.strftime("%Y-%m-%dT%H")
+        prev = buckets.get(key)
+        if prev is None or record["price"] < prev["price"]:
+            buckets[key] = record
+
     aggregated = [
-        {"timestamp": k + ":00:00+00:00", "price": v["min_price"],
-         "name": last_name, "icon": last_icon, "category": last_category,
-         "aggregated": True}
-        for k, v in sorted(buckets.items())
+        {
+            "timestamp": f"{key}:00:00+00:00",
+            "price": record["price"],
+            "name": last_name,
+            "icon": last_icon,
+            "category": last_category,
+            "aggregated": True,
+        }
+        for key, record in sorted(buckets.items())
     ]
     result = aggregated + fresh
-    return result[-MAX_HISTORY:] if len(result) > MAX_HISTORY else result
+    return result[-MAX_HISTORY:]
+
+
+def load_recipes():
+    data = load_json(RECIPES_FILE, {})
+    if isinstance(data, dict) and "recipes" in data:
+        source = data["recipes"]
+    elif isinstance(data, list):
+        source = data
+    elif isinstance(data, dict):
+        source = [
+            {"itemId": item_id, **recipe} if isinstance(recipe, dict) else {}
+            for item_id, recipe in data.items()
+            if item_id not in {"success", "meta", "totalRecipes", "filteredCount"}
+        ]
+    else:
+        source = []
+
+    recipes = {}
+    for recipe in source:
+        if not isinstance(recipe, dict):
+            continue
+        item_id = recipe.get("itemId") or recipe.get("id")
+        if not item_id:
+            continue
+        resources = recipe.get("resources") or recipe.get("ingredients") or []
+        recipes[item_id] = {
+            "name": recipe.get("name", item_id),
+            "energy": recipe.get("energy", 0),
+            "craftAmount": recipe.get("craftAmount", 1) or 1,
+            "station": recipe.get("station", ""),
+            "bench": recipe.get("bench", ""),
+            "skill": recipe.get("skill", ""),
+            "skillId": recipe.get("skillId", ""),
+            "skillLevel": recipe.get("skillLevel", 0),
+            "experience": recipe.get("experience", 0),
+            "experienceSkill": recipe.get("experienceSkill", ""),
+            "category": recipe.get("category", ""),
+            "subcategory": recipe.get("subcategory", ""),
+            "icon": recipe.get("icon", ""),
+            "requiredStations": recipe.get("requiredStations", []),
+            "stations": recipe.get("stations", []),
+            "ingredients": [
+                {"id": res.get("itemId") or res.get("id"), "amount": res["amount"]}
+                for res in resources
+                if isinstance(res, dict) and (res.get("itemId") or res.get("id")) and res.get("amount")
+            ],
+        }
+    print(f"✅ Рецептов: {len(recipes)}")
+    return recipes
 
 
 def build_craft_tree(recipes, prices, item_id, visited=None):
-    if visited is None:
-        visited = set()
+    visited = set() if visited is None else visited
     if item_id in visited:
         return None
-    visited.add(item_id)
+    visited = visited | {item_id}
+
     price_info = prices.get(item_id, {})
     sell_price = price_info.get("price", 0)
     recipe = recipes.get(item_id)
@@ -454,159 +419,175 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
         "icon": price_info.get("icon") or "",
         "sell_price": sell_price,
         "craftable": bool(recipe and recipe.get("ingredients")),
-        "ingredients": [], "cost": 0, "profit": 0, "roi": 0,
+        "ingredients": [],
+        "cost": 0,
+        "profit": 0,
+        "roi": 0,
     }
     if not recipe:
         node["cost"] = sell_price
         return node
-    node["energy"] = recipe.get("energy", 0)
-    node["craftAmount"] = recipe.get("craftAmount", 1)
-    node["station"] = recipe.get("station", "")
-    node["skill"] = recipe.get("skill", "")
-    node["skillLevel"] = recipe.get("skillLevel", 0)
-    node["experience"] = recipe.get("experience", 0)
-    node["experienceSkill"] = recipe.get("experienceSkill", "")
-    node["stations"] = recipe.get("stations", [])
-    node["category"] = recipe.get("category", "")
-    node["subcategory"] = recipe.get("subcategory", "")
+
+    node.update({
+        "energy": recipe.get("energy", 0),
+        "craftAmount": recipe.get("craftAmount", 1),
+        "station": recipe.get("station", ""),
+        "skill": recipe.get("skill", ""),
+        "skillLevel": recipe.get("skillLevel", 0),
+        "experience": recipe.get("experience", 0),
+        "experienceSkill": recipe.get("experienceSkill", ""),
+        "stations": recipe.get("stations", []),
+        "category": recipe.get("category", ""),
+        "subcategory": recipe.get("subcategory", ""),
+    })
+    if not node["icon"]:
+        node["icon"] = recipe.get("icon", "")
+
     total_cost = 0
     direct_cost = 0
     for ing in recipe.get("ingredients", []):
-        sub = build_craft_tree(recipes, prices, ing["id"], visited.copy())
+        sub = build_craft_tree(recipes, prices, ing["id"], visited)
         if sub is None:
             continue
         sub["amount"] = ing["amount"]
         sub["total_cost"] = sub["cost"] * ing["amount"]
         node["ingredients"].append(sub)
         total_cost += sub["total_cost"]
-
-        # Стоимость «1 ступени»: покупаем готовый ингредиент по его рыночной цене
-        ing_market = prices.get(ing["id"], {}).get("price", 0)
-        direct_cost += ing_market * ing["amount"]
+        direct_cost += prices.get(ing["id"], {}).get("price", 0) * ing["amount"]
 
     craft_amount = recipe.get("craftAmount", 1) or 1
-
-    # --- Обычный расчёт (через крафт до сырья) ---
     node["total_cost_batch"] = total_cost
     node["cost"] = total_cost / craft_amount
     node["profit"] = sell_price - node["cost"]
     node["roi"] = (node["profit"] / node["cost"] * 100) if node["cost"] > 0 else 0
-
-    # --- Расчёт «1 ступени» (покупка прямых ингредиентов) ---
     node["total_direct_cost_batch"] = direct_cost
     node["cost_direct"] = direct_cost / craft_amount
     node["profit_direct"] = sell_price - node["cost_direct"]
     node["roi_direct"] = (node["profit_direct"] / node["cost_direct"] * 100) if node["cost_direct"] > 0 else 0
-
     return node
 
 
-def main():
-    global EXISTING_ICONS
-    print(f"Запуск сбора данных (регион: {REGION})...")
-    EXISTING_ICONS = load_existing_icons()
-    token = get_access_token()
-    print("✅ Токен получен.")
-
-    all_items = discover_tradable_items()
-    if not all_items:
-        return
-    all_meta = build_all_items_meta()
-
-    active_ids = load_active_items()
-    if active_ids is not None:
-        all_ids = {item["id"] for item in all_items}
-        active_ids = active_ids & all_ids
-        items_to_process = [item for item in all_items if item["id"] in active_ids]
-        print(f"⚡ Кэш активных: {len(items_to_process)} (из {len(all_items)})")
-    else:
-        items_to_process = all_items[:MAX_ITEMS]
-        print(f"🐌 Первый запуск: {len(items_to_process)}")
-
-    meta_map = {item["id"]: item for item in items_to_process}
-
-    # --- ЦЕНЫ ---
-    history = load_history()
-    now = datetime.now(timezone.utc).isoformat()
-    updated = 0
+def run_pool(ids, worker, label):
+    results = []
     with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-        futures = {executor.submit(fetch_lots_for_item, token, item["id"]): item["id"]
-                   for item in items_to_process}
+        futures = {executor.submit(worker, item_id): item_id for item_id in ids}
         for n, fut in enumerate(as_completed(futures), 1):
-            item_id, lots = fut.result()
-            if lots:
-                best = lots[0]
-                total_amount = sum(l["amount"] for l in lots)
-                meta = meta_map.get(item_id, {})
-                history.setdefault(item_id, []).append({
-                    "timestamp": now,
-                    "price": best["price_per_unit"],
-                    "best_lot_amount": best["amount"],
-                    "best_lot_buyout": best["buyout"],
-                    "total_amount": total_amount,
-                    "lots_count": len(lots),
-                    "lots": lots[:MAX_LOTS_PER_ITEM],
-                    "name": meta.get("name", item_id),
-                    "icon": meta.get("icon", ""),
-                    "category": meta.get("category", "other"),
-                })
-                history[item_id] = aggregate_history(history[item_id])
-                updated += 1
-            if n % 200 == 0:
-                print(f"  цены: {n}/{len(items_to_process)}")
-    save_history(history)
-    print(f"✅ Цены обновлены. Предметов: {updated}")
+            results.append(fut.result())
+            if n % 100 == 0:
+                print(f"  {label}: {n}/{len(ids)}")
+    return results
 
-    active_now = {iid for iid, rec in history.items() if rec}
-    save_active_items(active_now)
-    print(f"💾 Активных предметов: {len(active_now)}")
 
-    # --- ИСТОРИЯ ПРОДАЖ ---
-    if not sales_needs_refresh():
-        print(f"💤 История продаж свежая (< {SALES_REFRESH_HOURS} ч), пропускаем.")
-    else:
-        print(f"📊 Тянем историю продаж для {len(items_to_process)} предметов...")
-        sales = {"_updated_at": datetime.now(timezone.utc).isoformat()}
-        got = 0
-        empty = 0
-        with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-            futures = {executor.submit(fetch_sales_for_item, token, item["id"]): item["id"]
-                       for item in items_to_process}
-            for n, fut in enumerate(as_completed(futures), 1):
-                item_id, entries = fut.result()
-                if entries:
-                    sales[item_id] = entries
-                    got += 1
-                else:
-                    empty += 1
-                if n % 200 == 0:
-                    print(f"  продажи: {n}/{len(items_to_process)} (есть: {got}, пусто: {empty})")
-        save_sales(sales)
-        size_kb = os.path.getsize(SALES_FILE) / 1024
-        print(f"✅ sales_history.json: {got} предметов с данными, {empty} без ({size_kb:.0f} КБ)")
+def update_prices(api, items, history):
+    now = utc_now().isoformat()
+    meta_map = {item["id"]: item for item in items}
+    updated = 0
+    for item_id, lots in run_pool(
+        [item["id"] for item in items],
+        lambda item_id: fetch_lots(api, item_id),
+        "цены",
+    ):
+        if not lots:
+            continue
+        best = lots[0]
+        meta = meta_map.get(item_id, {})
+        history.setdefault(item_id, []).append({
+            "timestamp": now,
+            "price": best["price_per_unit"],
+            "best_lot_amount": best["amount"],
+            "best_lot_buyout": best["buyout"],
+            "total_amount": sum(lot["amount"] for lot in lots),
+            "lots_count": len(lots),
+            "lots": lots[:MAX_LOTS_PER_ITEM],
+            "name": meta.get("name", item_id),
+            "icon": meta.get("icon", ""),
+            "category": meta.get("category", "other"),
+        })
+        history[item_id] = aggregate_history(history[item_id])
+        updated += 1
+    save_json(DATA_FILE, history)
+    print(f"✅ Цены: {updated} предметов")
+    return history
 
-    # --- КРАФТЫ ---
-    recipes = load_recipes()
-    if recipes:
-        current_prices = {}
-        all_ids_for_prices = set(history.keys()) | set(all_meta.keys())
-        for iid in all_ids_for_prices:
-            records = history.get(iid, [])
-            last_rec = records[-1] if records else {}
-            meta = all_meta.get(iid, {})
-            current_prices[iid] = {
-                "name": last_rec.get("name") or meta.get("name") or iid,
-                "icon": last_rec.get("icon") or meta.get("icon") or "",
-                "price": last_rec.get("price", 0),
-            }
-        craft_trees = {}
-        for iid in recipes:
-            tree = build_craft_tree(recipes, current_prices, iid)
-            if tree:
-                craft_trees[iid] = tree
-        with open("crafts.json", "w", encoding="utf-8") as f:
-            json.dump(craft_trees, f, ensure_ascii=False, separators=(",", ":"))
-        print(f"✅ crafts.json сохранён ({len(craft_trees)} рецептов)")
+
+def update_sales(api, item_ids, previous):
+    if not sales_needs_refresh(previous):
+        print(f"💤 История продаж свежая (< {SALES_REFRESH_HOURS} ч)")
+        return previous
+
+    print(f"📊 История продаж: {len(item_ids)} предметов, до {SALES_MAX_PAGES} стр.")
+    sales = {
+        key: value
+        for key, value in previous.items()
+        if key != "_updated_at"
+    }
+    got = empty = 0
+    for item_id, entries in run_pool(
+        item_ids,
+        lambda item_id: fetch_sales(api, item_id),
+        "продажи",
+    ):
+        if entries:
+            sales[item_id] = entries
+            got += 1
+        else:
+            empty += 1
+    sales["_updated_at"] = utc_now().isoformat()
+    save_json(SALES_FILE, sales)
+    size_kb = SALES_FILE.stat().st_size / 1024
+    print(f"✅ Продажи: {got} с данными, {empty} пусто ({size_kb:.0f} КБ)")
+    return sales
+
+
+def update_crafts(recipes, history, all_meta):
+    if not recipes:
+        return
+    current_prices = {}
+    for item_id in set(history) | set(all_meta):
+        records = history.get(item_id, [])
+        last = records[-1] if records else {}
+        meta = all_meta.get(item_id, {})
+        current_prices[item_id] = {
+            "name": last.get("name") or meta.get("name") or item_id,
+            "icon": last.get("icon") or meta.get("icon") or "",
+            "price": last.get("price", 0),
+        }
+    trees = {
+        item_id: tree
+        for item_id in recipes
+        if (tree := build_craft_tree(recipes, current_prices, item_id))
+    }
+    save_json(CRAFTS_FILE, trees)
+    print(f"✅ Крафты: {len(trees)}")
+
+
+def main():
+    print(f"Запуск (регион: {REGION})")
+    item_db_dir = find_item_db_dir()
+    if item_db_dir is None:
+        raise SystemExit("Нет itemdb — сначала клонируй EXBO-Studio/stalzone-database")
+
+    existing_icons = load_existing_icons()
+    print(f"🖼️ Иконок: {len(existing_icons)}")
+    tradable, all_meta = scan_item_database(item_db_dir, existing_icons)
+    if not tradable:
+        raise SystemExit("В базе нет торгуемых предметов")
+
+    token = get_access_token(os.environ.get("CLIENT_ID"), os.environ.get("CLIENT_SECRET"))
+    print("✅ Токен получен")
+    api = StalcraftApi(token)
+
+    cached_active = load_json(ACTIVE_ITEMS_FILE, None)
+    active_ids = set(cached_active) if isinstance(cached_active, list) else None
+    items = pick_items(tradable, active_ids)
+
+    history = update_prices(api, items, load_json(DATA_FILE, {}))
+    active_now = {item_id for item_id, records in history.items() if records}
+    save_json(ACTIVE_ITEMS_FILE, sorted(active_now), compact=False)
+    print(f"💾 Активных: {len(active_now)}")
+
+    update_sales(api, [item["id"] for item in items], load_json(SALES_FILE, {}))
+    update_crafts(load_recipes(), history, all_meta)
 
 
 if __name__ == "__main__":

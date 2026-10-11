@@ -5,9 +5,14 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch:
 
+concurrency:
+  group: stalzone-update
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
