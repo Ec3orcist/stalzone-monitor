@@ -228,19 +228,49 @@ def scan_item_database(item_db_dir, existing_icons):
     return tradable, meta
 
 
-def pick_items(tradable, active_ids):
-    if not active_ids:
+def recipe_item_ids(recipes):
+    ids = set(recipes)
+    for recipe in recipes.values():
+        ids.update(ing["id"] for ing in recipe.get("ingredients", []))
+    return ids
+
+
+def load_scan_state():
+    raw = load_json(ACTIVE_ITEMS_FILE, None)
+    if isinstance(raw, list):
+        return set(raw), 0
+    if isinstance(raw, dict):
+        return set(raw.get("items") or []), int(raw.get("cursor") or 0)
+    return None, 0
+
+
+def pick_items(tradable, active_ids, priority_ids, cursor):
+    if active_ids is None:
         chosen = tradable[:MAX_ITEMS]
         print(f"🐌 Первый запуск: {len(chosen)}")
-        return chosen
+        return chosen, 0
 
     known = {item["id"] for item in tradable}
     live_active = active_ids & known
     by_id = {item["id"]: item for item in tradable}
-    primary = [by_id[item_id] for item_id in live_active]
-    unknown = [item for item in tradable if item["id"] not in live_active][:RESCAN_BATCH]
-    print(f"⚡ Кэш активных: {len(primary)} + рескан {len(unknown)}")
-    return primary + unknown
+    primary = [by_id[item_id] for item_id in sorted(live_active)]
+    covered = set(live_active)
+    priority = [
+        by_id[item_id]
+        for item_id in sorted(priority_ids)
+        if item_id in by_id and item_id not in covered
+    ]
+    covered.update(item["id"] for item in priority)
+    rest = [item for item in tradable if item["id"] not in covered]
+    if not rest:
+        window = []
+        next_cursor = 0
+    else:
+        start = cursor % len(rest)
+        window = (rest[start:] + rest[:start])[:RESCAN_BATCH]
+        next_cursor = (start + len(window)) % len(rest)
+    print(f"⚡ Активных: {len(primary)}, рецепты без цены: {len(priority)}, рескан: {len(window)}")
+    return primary + priority + window, next_cursor
 
 
 def fetch_lots(api, item_id):
@@ -692,18 +722,20 @@ def main():
     print("✅ Токен получен")
     api = StalcraftApi(token)
 
-    cached_active = load_json(ACTIVE_ITEMS_FILE, None)
-    active_ids = set(cached_active) if isinstance(cached_active, list) else None
-    items = pick_items(tradable, active_ids)
+    recipes = load_recipes()
+    active_ids, cursor = load_scan_state()
+    priced = set(load_json(DATA_FILE, {}))
+    missing_recipe_ids = recipe_item_ids(recipes) - priced
+    items, cursor = pick_items(tradable, active_ids, missing_recipe_ids, cursor)
 
     history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
     history = update_prices(api, items, history)
     active_now = {item_id for item_id, records in history.items() if records}
-    save_json(ACTIVE_ITEMS_FILE, sorted(active_now), compact=False)
+    save_json(ACTIVE_ITEMS_FILE, {"items": sorted(active_now), "cursor": cursor}, compact=False)
     print(f"💾 Активных: {len(active_now)}")
 
     sales = update_sales(api, [item["id"] for item in items], load_json(SALES_FILE, {}))
-    update_crafts(load_recipes(), history, all_meta, sales)
+    update_crafts(recipes, history, all_meta, sales)
 
 
 def rebuild_offline():
