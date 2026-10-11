@@ -607,12 +607,17 @@
             }
         }
 
+        function seenOnMarket(id) {
+            const hist = allData[id];
+            if (hist && hist.some(point => point && point.price > 0)) return true;
+            const sales = salesData[id];
+            return Array.isArray(sales) && sales.some(entry => entry && ((entry.a || 0) > 0 || (entry.avg || 0) > 0));
+        }
         function buildItemsCache() {
-            const ids = new Set(Object.keys(allData));
-            Object.keys(catalogData).forEach(id => {
-                const row = catalogData[id];
-                if (row && row.tradable !== false) ids.add(id);
-            });
+            const ids = new Set([
+                ...Object.keys(allData),
+                ...Object.keys(salesData).filter(id => id !== '_updated_at')
+            ].filter(seenOnMarket));
             itemsCache = [...ids].map(id => {
                 const hist = allData[id];
                 const last = hist && hist.length ? hist[hist.length - 1] : null;
