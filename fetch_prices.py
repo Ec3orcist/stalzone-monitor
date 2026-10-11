@@ -86,10 +86,17 @@ def get_localized_name(content):
 
 
 def build_icon_url(item_id, category):
+    """Ищет иконку в локальной базе (включая вложенные подкатегории)."""
     if not category or EXISTING_ICONS is None:
         return ""
-    for cat in [category, category.split("/")[0]]:
-        rel = f"{cat}/{item_id}.png"
+    candidates = []
+    # Пробуем несколько вариантов пути
+    parts = category.split("/") if category else []
+    for i in range(len(parts), 0, -1):
+        prefix = "/".join(parts[:i])
+        candidates.append(f"{prefix}/{item_id}.png")
+    candidates.append(f"{item_id}.png")
+    for rel in candidates:
         if rel in EXISTING_ICONS:
             return (f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
                     f"{ICON_REALM}/icons/{rel}")
@@ -97,23 +104,29 @@ def build_icon_url(item_id, category):
 
 
 def build_all_items_meta():
-    """Собирает метаданные для ВСЕХ предметов (включая персональные и не торгуемые)."""
+    """Собирает метаданные ВСЕХ предметов из локальной базы."""
     meta = {}
     if ITEM_DB_DIR is None:
         return meta
-    for path in ITEM_DB_DIR.rglob("*.json"):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                content = json.load(f)
-        except Exception:
-            continue
-        item_id = path.stem
-        category = content.get("category", "")
-        meta[item_id] = {
-            "name": get_localized_name(content),
-            "icon": build_icon_url(item_id, category),
-            "category": category.split("/")[0] if category else "other"
-        }
+    count = 0
+    for dirpath, _, filenames in os.walk(ITEM_DB_DIR):
+        for fname in filenames:
+            if not fname.endswith(".json"):
+                continue
+            fpath = os.path.join(dirpath, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = json.load(f)
+            except Exception:
+                continue
+            item_id = fname[:-5]
+            category = content.get("category", "")
+            meta[item_id] = {
+                "name": get_localized_name(content),
+                "icon": build_icon_url(item_id, category),
+                "category": category.split("/")[0] if category else "other"
+            }
+            count += 1
     print(f"📚 Метаданные обо всех предметах: {len(meta)}")
     return meta
 
@@ -390,7 +403,7 @@ def main():
     if not all_items:
         return
 
-    # Метаданные обо ВСЕХ предметах (пригодятся для иконок/названий в крафтах)
+    # Метаданные обо ВСЕХ предметах — для иконок и названий в крафтах
     all_meta = build_all_items_meta()
 
     active_ids = load_active_items()
@@ -442,7 +455,7 @@ def main():
 
     recipes = load_recipes()
     if recipes:
-        # Объединяем: имя/иконка из истории (свежие) ИЛИ из метаданных всех предметов
+        # Объединяем: цена из истории, а имя/иконка — из истории ИЛИ из метаданных всех предметов
         current_prices = {}
         all_ids_for_prices = set(history.keys()) | set(all_meta.keys())
         for iid in all_ids_for_prices:
@@ -450,8 +463,8 @@ def main():
             last_rec = records[-1] if records else {}
             meta = all_meta.get(iid, {})
             current_prices[iid] = {
-                "name": last_rec.get("name") or meta.get("name", iid),
-                "icon": last_rec.get("icon") or meta.get("icon", ""),
+                "name": last_rec.get("name") or meta.get("name") or iid,
+                "icon": last_rec.get("icon") or meta.get("icon") or "",
                 "price": last_rec.get("price", 0),
             }
 
@@ -459,6 +472,12 @@ def main():
         for iid in recipes:
             tree = build_craft_tree(recipes, current_prices, iid)
             if tree:
+                # Финальный fallback для имени/иконки из meta
+                if not tree.get("name") or tree["name"] == iid:
+                    if iid in all_meta:
+                        tree["name"] = all_meta[iid].get("name") or tree["name"]
+                if not tree.get("icon") and iid in all_meta:
+                    tree["icon"] = all_meta[iid].get("icon", "")
                 craft_trees[iid] = tree
         with open("crafts.json", "w", encoding="utf-8") as f:
             json.dump(craft_trees, f, ensure_ascii=False, separators=(",", ":"))
