@@ -6,29 +6,144 @@
     <title>Stalzone Auction Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #e0e0e0; margin: 0; padding: 20px; }
-        h1 { color: #61dafb; text-align: center; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
-        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 16px; }
-        input { min-width: 240px; }
-        button { cursor: pointer; background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
-        button:hover { background: #4fa8c7; }
-        .card { background: #2b2b3c; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .stats { display: flex; justify-content: space-around; text-align: center; margin-top: 10px; flex-wrap: wrap; gap: 15px; }
-        .stat-item { flex: 1; min-width: 150px; }
+        h1 { color: #61dafb; text-align: center; margin-top: 0; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
+        input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 15px; }
+        input { min-width: 260px; }
+        button { cursor: pointer; }
+        #refreshBtn { background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
+        #refreshBtn:hover { background: #4fa8c7; }
+
+        .stats-bar { text-align: center; color: #888; font-size: 14px; margin-bottom: 15px; }
+
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .item-card {
+            background: #2b2b3c;
+            border-radius: 10px;
+            padding: 14px 10px 12px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid transparent;
+        }
+        .item-card:hover { background: #32324a; transform: translateY(-2px); border-color: #61dafb; }
+
+        .card-star {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: transparent;
+            border: none;
+            color: #555;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 2px 7px;
+            line-height: 1;
+            transition: color 0.15s, transform 0.15s;
+            border-radius: 4px;
+        }
+        .card-star:hover { color: #888; transform: scale(1.15); }
+        .card-star.active { color: #ffc107; }
+
+        .card-icon {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            border-radius: 6px;
+        }
+        .card-icon-empty {
+            width: 64px;
+            height: 64px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+            font-size: 24px;
+        }
+
+        .card-name {
+            font-size: 13px;
+            color: #e0e0e0;
+            line-height: 1.3;
+            min-height: 34px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+            width: 100%;
+        }
+
+        .card-price { font-size: 16px; font-weight: bold; color: #61dafb; }
+
+        .card-meta {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #888;
+            flex-wrap: wrap;
+        }
+        .card-dev { font-weight: bold; }
+        .card-dev.green { color: #4caf50; }
+        .card-dev.red { color: #f44336; }
+        .card-dev.neutral { color: #888; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #888; font-size: 16px; grid-column: 1 / -1; }
+
+        /* Модальное окно */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex; justify-content: center; align-items: flex-start;
+            padding: 40px 20px; z-index: 100; overflow-y: auto;
+        }
+        .modal {
+            background: #1e1e2f; border-radius: 12px;
+            max-width: 1000px; width: 100%;
+            padding: 25px; position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        .modal-close {
+            position: absolute; top: 12px; right: 12px;
+            background: transparent; border: none; color: #888;
+            font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1;
+        }
+        .modal-close:hover { color: #fff; }
+
+        .item-header { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; padding-right: 40px; }
+        .item-icon { width: 96px; height: 96px; border-radius: 10px; background: #2b2b3c; object-fit: contain; flex-shrink: 0; }
+        .item-icon-empty { width: 96px; height: 96px; border-radius: 10px; background: #2b2b3c; display: flex; align-items: center; justify-content: center; color: #444; font-size: 36px; flex-shrink: 0; }
+        .item-title { font-size: 24px; font-weight: bold; color: #61dafb; margin-bottom: 6px; }
+        .item-id { font-size: 14px; color: #888; }
+        .category-badge { display: inline-block; padding: 3px 10px; border-radius: 4px; background: #3a3a4f; font-size: 12px; color: #61dafb; margin-left: 10px; vertical-align: middle; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-item { background: #2b2b3c; padding: 14px; border-radius: 8px; text-align: center; }
         .stat-value { font-size: 22px; font-weight: bold; color: #61dafb; }
-        .stat-label { font-size: 13px; color: #aaa; margin-top: 4px; }
-        .stat-sub { font-size: 12px; color: #888; margin-top: 2px; }
-        canvas { max-height: 400px; }
+        .stat-label { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .stat-sub { font-size: 11px; color: #888; margin-top: 3px; }
         .green { color: #4caf50 !important; }
         .red { color: #f44336 !important; }
-        .loading { text-align: center; color: #aaa; padding: 20px; }
-        .item-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
-        .item-icon { width: 72px; height: 72px; border-radius: 8px; background: #1e1e2f; object-fit: contain; }
-        .item-title { font-size: 22px; font-weight: bold; color: #61dafb; }
-        .item-id { font-size: 14px; color: #888; margin-top: 4px; }
-        .category-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #3a3a4f; font-size: 12px; color: #61dafb; margin-left: 8px; }
+
+        .chart-container { background: #2b2b3c; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #3a3a4f; }
         th { color: #61dafb; font-weight: bold; font-size: 14px; }
@@ -36,91 +151,67 @@
         tr:hover { background: #32324a; }
         .price-cell { color: #61dafb; font-weight: bold; }
         .time-cell { color: #aaa; font-size: 13px; }
-        .counter { color: #888; font-size: 13px; margin-left: 5px; }
+
+        .lots-title { color: #61dafb; margin-top: 0; margin-bottom: 10px; }
+
+        canvas { max-height: 350px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Stalzone Auction Monitor</h1>
+
         <div class="controls">
             <select id="categorySelect"><option value="">Все категории</option></select>
             <input type="text" id="searchInput" placeholder="Поиск по названию или ID...">
-            <select id="itemSelect"><option value="">Загрузка...</option></select>
-            <button onclick="loadData()">Обновить</button>
+            <select id="sortSelect">
+                <option value="name">По названию (А-Я)</option>
+                <option value="price_asc">По цене ↑</option>
+                <option value="price_desc">По цене ↓</option>
+                <option value="dev_asc">По скидке (сначала дешёвые)</option>
+                <option value="dev_desc">По наценке (сначала дорогие)</option>
+                <option value="amount_desc">По количеству на аукционе</option>
+            </select>
+            <button id="refreshBtn">🔄 Обновить</button>
         </div>
 
-        <div class="card" id="statsCard" style="display:none;">
-            <div class="item-header">
-                <img id="itemIcon" class="item-icon" src="" alt="" onerror="this.style.display='none'">
-                <div>
-                    <div class="item-title">
-                        <span id="itemName">Предмет</span>
-                        <span class="category-badge" id="itemCategory"></span>
-                    </div>
-                    <div class="item-id" id="itemIdDisplay"></div>
-                </div>
-            </div>
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-value" id="currentPrice">-</div>
-                    <div class="stat-label">Цена за 1 шт</div>
-                    <div class="stat-sub" id="bestLotInfo"></div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="avgPrice">-</div>
-                    <div class="stat-label">Средняя (7 дней)</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="deviation">-</div>
-                    <div class="stat-label">Отклонение от средней</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalAmount">-</div>
-                    <div class="stat-label">Всего на аукционе</div>
-                    <div class="stat-sub" id="lotsCountInfo"></div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="pointsCount">-</div>
-                    <div class="stat-label">Точек истории</div>
-                </div>
-            </div>
+        <div class="stats-bar"><span id="resultCount">Загрузка...</span></div>
+
+        <div class="items-grid" id="itemsGrid"></div>
+        <div id="sentinel" style="height: 20px;"></div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay" style="display:none;">
+        <div class="modal">
+            <button class="modal-close" id="modalClose">×</button>
+            <div id="modalContent"></div>
         </div>
-
-        <div class="card"><canvas id="priceChart"></canvas></div>
-
-        <div class="card" id="lotsCard" style="display:none;">
-            <h2 style="color:#61dafb; margin-top:0;">📋 Актуальные лоты</h2>
-            <table id="lotsTable">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Цена за 1 шт</th>
-                        <th>Количество</th>
-                        <th>Цена лота</th>
-                        <th>Истекает</th>
-                    </tr>
-                </thead>
-                <tbody id="lotsTableBody"></tbody>
-            </table>
-        </div>
-
-        <div class="loading" id="loadingMsg" style="display:none;">Загрузка данных...</div>
     </div>
 
     <script>
-        let allData = {}, chartInstance = null;
+        // ============ СОСТОЯНИЕ ============
+        let allData = {};
+        let itemsCache = [];
+        let favorites = [];
+        let filteredItems = [];
+        let currentChunk = 0;
+        const CHUNK_SIZE = 120;
+        let currentChart = null;
+        let currentModalId = null;
 
-        // Русские названия категорий (как в игре)
+        const FAV_STORAGE_KEY = 'sz_favorites';
+
+        // ============ КАТЕГОРИИ ============
         const CATEGORY_NAMES = {
             "weapon":         "Оружие",
             "weapon_modules": "Модули оружия",
+            "attachment":     "Обвесы",
             "ammo":           "Патроны",
             "bullet":         "Патроны",
             "armor":          "Костюмы",
             "armour":         "Костюмы",
             "artefact":       "Артефакты",
             "artifact":       "Артефакты",
-            "attachment":     "Обвесы",
             "backpacks":      "Рюкзаки и сумки",
             "backpack":       "Рюкзаки и сумки",
             "containers":     "Контейнеры",
@@ -129,15 +220,14 @@
             "meds":           "Медикаменты и еда",
             "grenade":        "Гранаты",
             "grenades":       "Гранаты",
-            "misc":           "Разное",
-            "other":          "Прочее",
             "device":         "Устройства",
             "devices":        "Устройства",
             "supply":         "Расходники",
-            "supplies":       "Расходники"
+            "supplies":       "Расходники",
+            "misc":           "Разное",
+            "other":          "Прочее"
         };
 
-        // Порядок категорий (как в игре)
         const CATEGORY_ORDER = [
             "weapon", "weapon_modules", "attachment",
             "ammo", "bullet",
@@ -152,57 +242,120 @@
             "misc", "other"
         ];
 
+        const FAVORITES_KEY = "__favorites__";
+
         function categoryName(key) {
+            if (key === FAVORITES_KEY) return "⭐ Избранное";
             return CATEGORY_NAMES[key] || key;
         }
 
         function categoryOrder(key) {
+            if (key === FAVORITES_KEY) return -1;
             const idx = CATEGORY_ORDER.indexOf(key);
             return idx === -1 ? 9999 : idx;
         }
 
+        // ============ ИЗБРАННОЕ ============
+        function loadFavorites() {
+            try {
+                return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]');
+            } catch { return []; }
+        }
+
+        function saveFavorites() {
+            localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify(favorites));
+        }
+
+        function isFavorite(id) {
+            return favorites.includes(id);
+        }
+
+        function toggleFavorite(id) {
+            const idx = favorites.indexOf(id);
+            if (idx >= 0) {
+                favorites.splice(idx, 1);
+            } else {
+                favorites.push(id);
+            }
+            saveFavorites();
+            return isFavorite(id);
+        }
+
+        // ============ DOM ============
+        const els = {
+            categorySelect: document.getElementById('categorySelect'),
+            searchInput: document.getElementById('searchInput'),
+            sortSelect: document.getElementById('sortSelect'),
+            refreshBtn: document.getElementById('refreshBtn'),
+            itemsGrid: document.getElementById('itemsGrid'),
+            resultCount: document.getElementById('resultCount'),
+            sentinel: document.getElementById('sentinel'),
+            modalOverlay: document.getElementById('modalOverlay'),
+            modalContent: document.getElementById('modalContent'),
+            modalClose: document.getElementById('modalClose'),
+        };
+
+        // ============ ЗАГРУЗКА ДАННЫХ ============
         async function loadData() {
-            const msg = document.getElementById('loadingMsg');
-            msg.style.display = 'block';
-            msg.textContent = 'Загрузка данных...';
+            els.resultCount.textContent = 'Загрузка данных...';
             try {
                 const resp = await fetch('prices.json?t=' + Date.now());
                 allData = await resp.json();
+                buildItemsCache();
                 populateCategories();
-                populateSelect();
-                msg.style.display = 'none';
+                applyFilters();
             } catch (e) {
                 console.error(e);
-                msg.textContent = '❌ Не удалось загрузить prices.json';
+                els.resultCount.textContent = '❌ Не удалось загрузить prices.json';
             }
         }
 
-        function getItemMeta(id) {
-            const hist = allData[id];
-            if (hist && hist.length) {
+        function buildItemsCache() {
+            itemsCache = Object.keys(allData).map(id => {
+                const hist = allData[id];
+                if (!hist || !hist.length) return null;
                 const last = hist[hist.length - 1];
+                const prices = hist.map(h => h.price);
+                const cur = prices[prices.length - 1];
+                const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+                const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
                 return {
+                    id,
                     name: last.name || id,
                     icon: last.icon || '',
-                    category: last.category || 'other'
+                    category: last.category || 'other',
+                    price: cur,
+                    avg: avg,
+                    deviation: dev,
+                    total_amount: last.total_amount || 0,
+                    lots_count: last.lots_count || 0,
+                    lastRecord: last
                 };
-            }
-            return { name: id, icon: '', category: 'other' };
+            }).filter(Boolean);
         }
 
         function populateCategories() {
-            const sel = document.getElementById('categorySelect');
-            const current = sel.value;
-            sel.innerHTML = '<option value="">Все категории</option>';
+            const current = els.categorySelect.value;
+            els.categorySelect.innerHTML = '';
 
-            // Считаем количество предметов в каждой категории
+            // Избранное — всегда сверху
+            const favOpt = document.createElement('option');
+            favOpt.value = FAVORITES_KEY;
+            favOpt.textContent = `⭐ Избранное (${favorites.length})`;
+            els.categorySelect.appendChild(favOpt);
+
+            // Все категории
+            const allOpt = document.createElement('option');
+            allOpt.value = '';
+            allOpt.textContent = 'Все категории';
+            els.categorySelect.appendChild(allOpt);
+
+            // Считаем предметы по категориям
             const counts = {};
-            Object.keys(allData).forEach(id => {
-                const cat = getItemMeta(id).category;
-                counts[cat] = (counts[cat] || 0) + 1;
+            itemsCache.forEach(item => {
+                counts[item.category] = (counts[item.category] || 0) + 1;
             });
 
-            // Сортируем категории по порядку из CATEGORY_ORDER
             const sortedCats = Object.keys(counts).sort((a, b) => {
                 const oa = categoryOrder(a);
                 const ob = categoryOrder(b);
@@ -214,192 +367,353 @@
                 const opt = document.createElement('option');
                 opt.value = cat;
                 opt.textContent = `${categoryName(cat)} (${counts[cat]})`;
-                sel.appendChild(opt);
+                els.categorySelect.appendChild(opt);
             });
 
-            if (current) sel.value = current;
-        }
-
-        function populateSelect(filter = '') {
-            const sel = document.getElementById('itemSelect');
-            const current = sel.value;
-            const categoryFilter = document.getElementById('categorySelect').value;
-            sel.innerHTML = '';
-
-            const f = filter.toLowerCase().trim();
-
-            // Фильтруем предметы
-            const items = Object.keys(allData).filter(id => {
-                const meta = getItemMeta(id);
-                if (categoryFilter && meta.category !== categoryFilter) return false;
-                if (!f) return true;
-                return id.toLowerCase().includes(f) || meta.name.toLowerCase().includes(f);
-            });
-
-            // Группируем по категориям
-            const groups = {};
-            items.forEach(id => {
-                const cat = getItemMeta(id).category;
-                if (!groups[cat]) groups[cat] = [];
-                groups[cat].push(id);
-            });
-
-            // Сортируем категории
-            const sortedCats = Object.keys(groups).sort((a, b) => {
-                const oa = categoryOrder(a);
-                const ob = categoryOrder(b);
-                if (oa !== ob) return oa - ob;
-                return categoryName(a).localeCompare(categoryName(b), 'ru');
-            });
-
-            // Строим optgroup'ы
-            sortedCats.forEach(cat => {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = `${categoryName(cat)} (${groups[cat].length})`;
-
-                groups[cat]
-                    .sort((a, b) =>
-                        getItemMeta(a).name.localeCompare(getItemMeta(b).name, 'ru')
-                    )
-                    .forEach(id => {
-                        const opt = document.createElement('option');
-                        opt.value = id;
-                        opt.textContent = getItemMeta(id).name;
-                        optgroup.appendChild(opt);
-                    });
-
-                sel.appendChild(optgroup);
-            });
-
-            // Восстанавливаем выбор
-            if (current && sel.querySelector(`option[value="${current}"]`)) {
-                sel.value = current;
+            // Восстанавливаем или ставим "Все категории" по умолчанию
+            if (current) {
+                els.categorySelect.value = current;
             } else {
-                const firstOption = sel.querySelector('option');
-                if (firstOption) {
-                    sel.value = firstOption.value;
+                els.categorySelect.value = '';
+            }
+        }
+
+        // ============ ФИЛЬТРАЦИЯ И СОРТИРОВКА ============
+        function applyFilters() {
+            const cat = els.categorySelect.value;
+            const query = els.searchInput.value.toLowerCase().trim();
+            const sort = els.sortSelect.value;
+
+            let items = itemsCache.slice();
+
+            // Фильтр по категории
+            if (cat === FAVORITES_KEY) {
+                items = items.filter(it => isFavorite(it.id));
+            } else if (cat) {
+                items = items.filter(it => it.category === cat);
+            }
+
+            // Поиск
+            if (query) {
+                items = items.filter(it =>
+                    it.id.toLowerCase().includes(query) ||
+                    it.name.toLowerCase().includes(query)
+                );
+            }
+
+            // Сортировка
+            switch (sort) {
+                case 'name':
+                    items.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+                    break;
+                case 'price_asc':
+                    items.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price_desc':
+                    items.sort((a, b) => b.price - a.price);
+                    break;
+                case 'dev_asc':
+                    items.sort((a, b) => a.deviation - b.deviation);
+                    break;
+                case 'dev_desc':
+                    items.sort((a, b) => b.deviation - a.deviation);
+                    break;
+                case 'amount_desc':
+                    items.sort((a, b) => b.total_amount - a.total_amount);
+                    break;
+            }
+
+            filteredItems = items;
+            currentChunk = 0;
+            els.itemsGrid.innerHTML = '';
+
+            if (filteredItems.length === 0) {
+                if (cat === FAVORITES_KEY && favorites.length === 0) {
+                    els.itemsGrid.innerHTML = '<div class="empty-state">⭐ В избранном пока пусто.<br>Нажмите на звёздочку в углу карточки, чтобы добавить предмет.</div>';
+                } else {
+                    els.itemsGrid.innerHTML = '<div class="empty-state">Ничего не найдено</div>';
                 }
-                renderChart();
+                els.resultCount.textContent = 'Найдено: 0';
+                els.sentinel.style.display = 'none';
+                return;
+            }
+
+            els.resultCount.textContent = `Найдено: ${filteredItems.length}`;
+            els.sentinel.style.display = 'block';
+            renderNextChunk();
+        }
+
+        // ============ РЕНДЕР СЕТКИ ============
+        function renderNextChunk() {
+            const start = currentChunk * CHUNK_SIZE;
+            if (start >= filteredItems.length) return;
+
+            const end = Math.min(start + CHUNK_SIZE, filteredItems.length);
+            const fragment = document.createDocumentFragment();
+
+            for (let i = start; i < end; i++) {
+                fragment.appendChild(createCard(filteredItems[i]));
+            }
+            els.itemsGrid.appendChild(fragment);
+            currentChunk++;
+
+            if (currentChunk * CHUNK_SIZE >= filteredItems.length) {
+                els.sentinel.style.display = 'none';
             }
         }
 
-        function renderLots(lots) {
-            const card = document.getElementById('lotsCard');
-            const tbody = document.getElementById('lotsTableBody');
-            tbody.innerHTML = '';
+        function createCard(item) {
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.dataset.id = item.id;
 
-            if (!lots || !lots.length) {
-                card.style.display = 'none';
-                return;
+            const iconHtml = item.icon
+                ? `<img class="card-icon" src="${item.icon}" alt="" onerror="this.outerHTML='<div class=&quot;card-icon-empty&quot;>?</div>'">`
+                : `<div class="card-icon-empty">?</div>`;
+
+            let devClass = 'neutral';
+            let devText = '—';
+            if (item.deviation > 0.5) {
+                devClass = 'red';
+                devText = '+' + item.deviation.toFixed(1) + '%';
+            } else if (item.deviation < -0.5) {
+                devClass = 'green';
+                devText = item.deviation.toFixed(1) + '%';
+            } else {
+                devText = '0%';
             }
-            card.style.display = 'block';
 
-            lots.forEach((lot, i) => {
-                const tr = document.createElement('tr');
-                const endTime = lot.endTime
-                    ? new Date(lot.endTime).toLocaleString('ru-RU')
-                    : '—';
-                tr.innerHTML = `
-                    <td>${i + 1}</td>
-                    <td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td>
-                    <td>${lot.amount.toLocaleString('ru-RU')} шт</td>
-                    <td>${lot.buyout.toLocaleString('ru-RU')} ₽</td>
-                    <td class="time-cell">${endTime}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+            const fav = isFavorite(item.id);
+
+            card.innerHTML = `
+                <button class="card-star ${fav ? 'active' : ''}" data-star="${item.id}" title="${fav ? 'Убрать из избранного' : 'В избранное'}">★</button>
+                ${iconHtml}
+                <div class="card-name">${escapeHtml(item.name)}</div>
+                <div class="card-price">${item.price.toLocaleString('ru-RU')} ₽</div>
+                <div class="card-meta">
+                    <span class="card-dev ${devClass}">${devText}</span>
+                    <span>· ${item.total_amount.toLocaleString('ru-RU')} шт</span>
+                </div>
+            `;
+            return card;
         }
 
-        function renderChart() {
-            const id = document.getElementById('itemSelect').value;
-            if (!id || !allData[id] || !allData[id].length) {
-                document.getElementById('statsCard').style.display = 'none';
-                document.getElementById('lotsCard').style.display = 'none';
-                return;
-            }
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        // ============ МОДАЛЬНОЕ ОКНО ============
+        function openModal(id) {
+            const item = itemsCache.find(i => i.id === id);
+            if (!item) return;
+            currentModalId = id;
+
             const hist = allData[id];
-            const meta = getItemMeta(id);
-            const labels = hist.map(h => new Date(h.timestamp).toLocaleString('ru-RU'));
             const prices = hist.map(h => h.price);
-
             const last = hist[hist.length - 1];
             const cur = prices[prices.length - 1];
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
             const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
 
-            document.getElementById('statsCard').style.display = 'block';
-            document.getElementById('itemName').textContent = meta.name;
-            document.getElementById('itemIdDisplay').textContent = `ID: ${id}`;
-            document.getElementById('itemCategory').textContent = categoryName(meta.category);
+            const fav = isFavorite(id);
+            const iconHtml = item.icon
+                ? `<img class="item-icon" src="${item.icon}" alt="" onerror="this.outerHTML='<div class=&quot;item-icon-empty&quot;>?</div>'">`
+                : `<div class="item-icon-empty">?</div>`;
 
-            const img = document.getElementById('itemIcon');
-            if (meta.icon) {
-                img.style.display = 'block';
-                img.src = meta.icon;
-            } else {
-                img.style.display = 'none';
-                img.removeAttribute('src');
-            }
+            let devClass = 'green';
+            if (dev > 0) devClass = 'red';
 
-            document.getElementById('currentPrice').textContent =
-                cur.toLocaleString('ru-RU') + ' ₽';
-
-            const bestInfo = document.getElementById('bestLotInfo');
+            let bestLotInfo = '';
             if (last.best_lot_amount && last.best_lot_buyout) {
-                bestInfo.textContent = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString('ru-RU')} ₽`;
-            } else {
-                bestInfo.textContent = '';
+                bestLotInfo = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString('ru-RU')} ₽`;
             }
 
-            document.getElementById('avgPrice').textContent =
-                Math.round(avg).toLocaleString('ru-RU') + ' ₽';
+            let lotsHtml = '';
+            if (last.lots && last.lots.length) {
+                const rows = last.lots.map((lot, i) => {
+                    const endTime = lot.endTime ? new Date(lot.endTime).toLocaleString('ru-RU') : '—';
+                    return `<tr>
+                        <td>${i + 1}</td>
+                        <td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td>
+                        <td>${lot.amount.toLocaleString('ru-RU')} шт</td>
+                        <td>${lot.buyout.toLocaleString('ru-RU')} ₽</td>
+                        <td class="time-cell">${endTime}</td>
+                    </tr>`;
+                }).join('');
+                lotsHtml = `
+                    <h3 class="lots-title">📋 Актуальные лоты (${last.lots.length})</h3>
+                    <table>
+                        <thead><tr>
+                            <th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>`;
+            }
 
-            const devEl = document.getElementById('deviation');
-            devEl.textContent = (dev > 0 ? '+' : '') + dev.toFixed(1) + '%';
-            devEl.className = 'stat-value ' + (dev > 0 ? 'red' : 'green');
+            els.modalContent.innerHTML = `
+                <div class="item-header">
+                    ${iconHtml}
+                    <div style="flex:1">
+                        <div class="item-title">
+                            <span id="modalItemName">${escapeHtml(item.name)}</span>
+                            <span class="category-badge">${escapeHtml(categoryName(item.category))}</span>
+                        </div>
+                        <div class="item-id">ID: ${item.id}</div>
+                    </div>
+                    <button id="modalFavBtn" class="card-star ${fav ? 'active' : ''}" style="position:static; font-size:32px; padding:0 12px;" title="В избранное">★</button>
+                </div>
 
-            const totalEl = document.getElementById('totalAmount');
-            totalEl.textContent = (last.total_amount !== undefined)
-                ? last.total_amount.toLocaleString('ru-RU') + ' шт'
-                : '—';
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value">${cur.toLocaleString('ru-RU')} ₽</div>
+                        <div class="stat-label">Цена за 1 шт</div>
+                        <div class="stat-sub">${bestLotInfo}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${Math.round(avg).toLocaleString('ru-RU')} ₽</div>
+                        <div class="stat-label">Средняя (7 дней)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value ${devClass}">${(dev > 0 ? '+' : '') + dev.toFixed(1)}%</div>
+                        <div class="stat-label">Отклонение</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div>
+                        <div class="stat-label">Всего на аукционе</div>
+                        <div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${prices.length}</div>
+                        <div class="stat-label">Точек истории</div>
+                    </div>
+                </div>
 
-            const lotsInfo = document.getElementById('lotsCountInfo');
-            lotsInfo.textContent = (last.lots_count !== undefined)
-                ? `${last.lots_count} лотов`
-                : '';
+                <div class="chart-container"><canvas id="modalChart"></canvas></div>
+                ${lotsHtml}
+            `;
 
-            document.getElementById('pointsCount').textContent = prices.length;
-
-            renderLots(last.lots || []);
-
-            const ctx = document.getElementById('priceChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'Цена за 1 шт', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
-                        { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#e0e0e0' } } },
-                    scales: {
-                        x: { ticks: { color: '#aaa' }, grid: { color: '#444' } },
-                        y: { ticks: { color: '#aaa' }, grid: { color: '#444' } }
-                    }
+            // Вешаем обработчик на кнопку избранного в модалке
+            const modalFavBtn = document.getElementById('modalFavBtn');
+            modalFavBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const nowFav = toggleFavorite(id);
+                modalFavBtn.classList.toggle('active', nowFav);
+                // Обновляем счётчик избранного в фильтре
+                const favOpt = els.categorySelect.querySelector(`option[value="${FAVORITES_KEY}"]`);
+                if (favOpt) favOpt.textContent = `⭐ Избранное (${favorites.length})`;
+                // Обновляем звёздочки во всех видимых карточках
+                document.querySelectorAll(`[data-star="${id}"]`).forEach(btn => {
+                    btn.classList.toggle('active', nowFav);
+                });
+                // Если текущий фильтр — избранное, перерисовываем
+                if (els.categorySelect.value === FAVORITES_KEY) {
+                    applyFilters();
                 }
+            });
+
+            // Показываем модалку
+            els.modalOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            // Рисуем график
+            requestAnimationFrame(() => {
+                const ctx = document.getElementById('modalChart').getContext('2d');
+                if (currentChart) currentChart.destroy();
+                const labels = hist.map(h => new Date(h.timestamp).toLocaleString('ru-RU'));
+                currentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Цена за 1 шт', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
+                            { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#e0e0e0' } } },
+                        scales: {
+                            x: { ticks: { color: '#aaa', maxTicksLimit: 12 }, grid: { color: '#444' } },
+                            y: { ticks: { color: '#aaa' }, grid: { color: '#444' } }
+                        }
+                    }
+                });
             });
         }
 
-        document.getElementById('itemSelect').addEventListener('change', renderChart);
-        document.getElementById('categorySelect').addEventListener('change',
-            () => populateSelect(document.getElementById('searchInput').value));
-        document.getElementById('searchInput').addEventListener('input',
-            e => populateSelect(e.target.value));
+        function closeModal() {
+            els.modalOverlay.style.display = 'none';
+            document.body.style.overflow = '';
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+            currentModalId = null;
+        }
+
+        // ============ БЕСКОНЕЧНАЯ ПРОКРУТКА ============
+        let observer = null;
+        function setupInfiniteScroll() {
+            if (observer) observer.disconnect();
+            observer = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting && currentChunk * CHUNK_SIZE < filteredItems.length) {
+                    renderNextChunk();
+                }
+            }, { rootMargin: '300px' });
+            observer.observe(els.sentinel);
+        }
+
+        // ============ СОБЫТИЯ ============
+        els.categorySelect.addEventListener('change', applyFilters);
+        els.sortSelect.addEventListener('change', applyFilters);
+        els.refreshBtn.addEventListener('click', loadData);
+
+        // Поиск с задержкой
+        let searchTimer = null;
+        els.searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(applyFilters, 200);
+        });
+
+        // Клик по карточке или звёздочке — через делегирование
+        els.itemsGrid.addEventListener('click', (e) => {
+            const star = e.target.closest('[data-star]');
+            if (star) {
+                e.stopPropagation();
+                const id = star.dataset.star;
+                const nowFav = toggleFavorite(id);
+                star.classList.toggle('active', nowFav);
+                star.title = nowFav ? 'Убрать из избранного' : 'В избранное';
+                const favOpt = els.categorySelect.querySelector(`option[value="${FAVORITES_KEY}"]`);
+                if (favOpt) favOpt.textContent = `⭐ Избранное (${favorites.length})`;
+                if (els.categorySelect.value === FAVORITES_KEY) {
+                    applyFilters();
+                }
+                return;
+            }
+
+            const card = e.target.closest('.item-card');
+            if (card) {
+                openModal(card.dataset.id);
+            }
+        });
+
+        // Закрытие модалки
+        els.modalClose.addEventListener('click', closeModal);
+        els.modalOverlay.addEventListener('click', (e) => {
+            if (e.target === els.modalOverlay) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && els.modalOverlay.style.display !== 'none') {
+                closeModal();
+            }
+        });
+
+        // ============ СТАРТ ============
+        favorites = loadFavorites();
+        setupInfiniteScroll();
         loadData();
     </script>
 </body>
