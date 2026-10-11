@@ -247,8 +247,49 @@ def parse_sales_response(item_id, data):
 
 
 def fetch_sales_for_item(token, item_id):
+    """Первые N предметов — диагностика, остальные — рабочий режим."""
     session = get_session(token)
-    url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history?limit=100"
+    base = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history"
+    global DEBUG_SHOWN
+
+    # Диагностику делаем ТОЛЬКО для первого предмета
+    if not DEBUG_SHOWN:
+        variants = [
+            ("default",     ""),
+            ("limit=10",    "?limit=10"),
+            ("limit=100",   "?limit=100"),
+            ("limit=1000",  "?limit=1000"),
+            ("offset=50",   "?limit=100&offset=50"),
+            ("offset=500",  "?limit=100&offset=500"),
+            ("from/week",   "?from=" + (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")),
+        ]
+        print("\n" + "=" * 70)
+        print(f"🔬 ДИАГНОСТИКА API на предмете {item_id}")
+        print("=" * 70)
+        for label, qs in variants:
+            try:
+                r = session.get(base + qs, timeout=15)
+                if r.status_code != 200:
+                    print(f"  [{label}] {qs}: HTTP {r.status_code}")
+                    continue
+                data = r.json()
+                if isinstance(data, dict):
+                    prices = data.get("prices", [])
+                    total = data.get("total", "?")
+                    times = [p.get("time", "") for p in prices if isinstance(p, dict) and p.get("time")]
+                    span = ""
+                    if times:
+                        span = f", диапазон: {times[-1][:10]} … {times[0][:10]}"
+                    print(f"  [{label}]: total={total}, вернулось={len(prices)}{span}")
+                else:
+                    print(f"  [{label}]: формат {type(data).__name__}")
+            except Exception as e:
+                print(f"  [{label}]: ошибка {e}")
+        print("=" * 70 + "\n")
+        DEBUG_SHOWN = True
+
+    # Рабочий режим — limit=100 (позже подправим на лучший, если найдётся)
+    url = base + "?limit=100"
     try:
         r = session.get(url, timeout=15)
         if r.status_code != 200:
