@@ -1,0 +1,33 @@
+name: Update Auction Data
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # каждые 15 минут
+  workflow_dispatch:          # ручной запуск
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch data
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REGION: EU          # при необходимости замените на EU, NA, SEA
+        run: python fetch_prices.py
+
+      - name: Commit and push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-update auction prices"
+          file_pattern: prices.json
