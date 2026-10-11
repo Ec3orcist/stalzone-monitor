@@ -49,7 +49,6 @@ def load_existing_icons():
 
     icons = set()
     for png in icons_root.rglob("*.png"):
-        # rel = "misc/6wmkp.png" или "weapon/rifle/abc12.png"
         rel = png.relative_to(icons_root).as_posix()
         icons.add(rel)
 
@@ -84,11 +83,9 @@ def build_icon_url(item_id, category):
     """Возвращает URL иконки ТОЛЬКО если файл реально существует в базе."""
     if not category:
         return ""
-    # Если список иконок ещё не загружен — возвращаем пусто (безопаснее)
     if EXISTING_ICONS is None:
         return ""
 
-    # Пробуем разные варианты пути
     variants = [category, category.split("/")[0]]
     for cat in variants:
         rel = f"{cat}/{item_id}.png"
@@ -130,10 +127,15 @@ def discover_tradable_items():
         icon = build_icon_url(item_id, category)
         if icon:
             with_icon += 1
+
+        # Верхнеуровневая категория для группировки
+        top_category = category.split("/")[0] if category else "other"
+
         items.append({
             "id": item_id,
             "name": get_localized_name(content),
-            "icon": icon
+            "icon": icon,
+            "category": top_category
         })
 
     print(f"Отфильтровано персональных: {skipped}")
@@ -202,13 +204,17 @@ def aggregate_history(records):
         else:
             old.append((ts, r))
 
+    # Сохраняем метаданные для агрегированных записей
     last_name = ""
     last_icon = ""
+    last_category = "other"
     for r in records:
         if r.get("name"):
             last_name = r["name"]
         if r.get("icon"):
             last_icon = r["icon"]
+        if r.get("category"):
+            last_category = r["category"]
 
     buckets = {}
     for ts, r in old:
@@ -224,6 +230,7 @@ def aggregate_history(records):
             "price": v["min_price"],
             "name": last_name,
             "icon": last_icon,
+            "category": last_category,
             "aggregated": True
         }
         for k, v in sorted(buckets.items())
@@ -255,7 +262,11 @@ def main():
     print(f"Обрабатываем предметов: {len(items_to_process)}")
 
     meta_map = {
-        item["id"]: {"name": item["name"], "icon": item["icon"]}
+        item["id"]: {
+            "name": item["name"],
+            "icon": item["icon"],
+            "category": item.get("category", "other")
+        }
         for item in items_to_process
     }
 
@@ -286,6 +297,7 @@ def main():
                     "lots": top_lots,
                     "name": meta.get("name", item_id),
                     "icon": meta.get("icon", ""),
+                    "category": meta.get("category", "other"),
                 })
                 history[item_id] = aggregate_history(history[item_id])
                 updated += 1
