@@ -7,7 +7,7 @@ from pathlib import Path
 
 # --- Настройки ---
 REGION = os.environ.get("REGION", "EU")
-LANG = "en"           # "en" для EU, "ru" для RU
+LANG = "ru"           # "en" для EU, "ru" для RU
 ICON_REALM = "ru"     # Иконки лежат в папке ru даже для EU-региона
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
