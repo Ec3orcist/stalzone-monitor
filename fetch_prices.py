@@ -11,10 +11,11 @@ LANG = "ru"
 ICON_REALM = "ru"
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
-MAX_HISTORY = 168           # 1 неделя часовых точек (защита от раздувания файла)
-MAX_ITEMS = 3000            # берём ВСЕ торгуемые предметы
-WORKERS = 6                 # безопасно для лимита API (400 запросов/мин)
-MAX_LOTS_PER_ITEM = 10      # храним топ-10 лотов (было 20)
+RECIPES_FILE = "recipes.json"
+MAX_HISTORY = 168
+MAX_ITEMS = 3000
+WORKERS = 6
+MAX_LOTS_PER_ITEM = 10
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -42,7 +43,7 @@ ITEM_DB_DIR = find_item_db_dir()
 def load_existing_icons():
     icons_root = Path("itemdb") / ICON_REALM / "icons"
     if not icons_root.exists():
-        print(f"⚠️ Папка {icons_root} не найдена — проверка иконок отключена.")
+        print(f"⚠️ Папка {icons_root} не найдена.")
         return None
     icons = set()
     for png in icons_root.rglob("*.png"):
@@ -180,6 +181,14 @@ def save_history(history):
         json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
 
 
+def load_recipes():
+    """Загружает рецепты из recipes.json, если он есть."""
+    if os.path.exists(RECIPES_FILE):
+        with open(RECIPES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
 def aggregate_history(records):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
@@ -228,6 +237,68 @@ def aggregate_history(records):
 
     result = aggregated + fresh
     return result[-MAX_HISTORY:] if len(result) > MAX_HISTORY else result
+
+
+def build_craft_tree(recipes, prices, item_id, depth=0, visited=None):
+    """
+    Рекурсивно строит дерево крафта для предмета.
+    Возвращает словарь: {id, name, icon, craftable, cost, ingredients: [...]}.
+    """
+    if visited is None:
+        visited = set()
+
+    if item_id in visited:
+        return None
+    visited.add(item_id)
+
+    price_info = prices.get(item_id, {})
+    name = price_info.get("name", item_id)
+    icon = price_info.get("icon", "")
+    sell_price = price_info.get("price", 0)
+
+    recipe = recipes.get(item_id)
+
+    node = {
+        "id": item_id,
+        "name": name,
+        "icon": icon,
+        "sell_price": sell_price,
+        "craftable": bool(recipe),
+        "ingredients": [],
+        "cost": 0,
+        "profit": 0,
+        "roi": 0,
+    }
+
+    if not recipe:
+        # Не крафтится — стоимость = цена на аукционе
+        node["cost"] = sell_price
+        return node
+
+    # Считаем себестоимость по ингредиентам
+    total_cost = 0
+    for ing in recipe.get("ingredients", []):
+        ing_id = ing["id"]
+        ing_amount = ing.get("amount", 1)
+        sub = build_craft_tree(recipes, prices, ing_id, depth + 1, visited)
+        if sub is None:
+            continue
+        sub["amount"] = ing_amount
+        sub["total_cost"] = sub["cost"] * ing_amount
+        node["ingredients"].append(sub)
+        total_cost += sub["total_cost"]
+
+    # Добавляем энергию как часть себестоимости (если указана)
+    energy = recipe.get("energy", 0)
+    if energy > 0:
+        node["energy"] = energy
+        # Энергия обычно бесплатна, но можно учесть её стоимость
+
+    node["cost"] = total_cost
+    node["profit"] = sell_price - total_cost
+    node["roi"] = (node["profit"] / total_cost * 100) if total_cost > 0 else 0
+
+    return node
 
 
 def main():
@@ -294,6 +365,36 @@ def main():
     save_history(history)
     print(f"✅ Готово. Обновлено предметов: {updated}")
     print(f"   Файл {DATA_FILE}: {os.path.getsize(DATA_FILE)} байт")
+
+    # --- Построение дерева крафтов (если есть recipes.json) ---
+    recipes = load_recipes()
+    if recipes:
+        print(f"📦 Найдено рецептов: {len(recipes)}")
+
+        # Собираем текущие цены из history (последняя запись по каждому предмету)
+        current_prices = {}
+        for item_id, records in history.items():
+            if records:
+                last = records[-1]
+                current_prices[item_id] = {
+                    "name": last.get("name", item_id),
+                    "icon": last.get("icon", ""),
+                    "price": last.get("price", 0),
+                }
+
+        # Строим дерево для каждого рецепта
+        craft_trees = {}
+        for item_id in recipes:
+            tree = build_craft_tree(recipes, current_prices, item_id)
+            if tree:
+                craft_trees[item_id] = tree
+
+        # Сохраняем результат в отдельный файл
+        with open("crafts.json", "w", encoding="utf-8") as f:
+            json.dump(craft_trees, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"✅ Дерево крафтов сохранено в crafts.json ({len(craft_trees)} рецептов)")
+    else:
+        print("ℹ️ Файл recipes.json не найден — пропускаем построение дерева крафтов.")
 
 
 if __name__ == "__main__":
