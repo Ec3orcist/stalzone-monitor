@@ -7,7 +7,8 @@ from pathlib import Path
 
 # --- Настройки ---
 REGION = os.environ.get("REGION", "EU")
-LANG = "en"           # en для EU, ru для RU, es/fr/ko для других
+LANG = "en"           # "en" для EU, "ru" для RU
+ICON_REALM = "ru"     # Иконки лежат в папке ru даже для EU-региона
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
 MAX_HISTORY = 500
@@ -17,17 +18,15 @@ WORKERS = 8
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 
-# Пробуем найти папку с базой под наш регион, иначе используем ru
+# Путь к базе предметов (ищем папку ru, т.к. ID одинаковые для всех регионов)
 def find_item_db_dir():
     base = Path("itemdb")
     if not base.exists():
         return None
-    # Кандидаты: en, eu, ru
     for candidate in [LANG, REGION.lower(), "en", "ru"]:
         path = base / candidate / "items"
         if path.exists():
             return path
-    # Fallback — ищем любую папку с items
     for d in base.iterdir():
         if d.is_dir() and (d / "items").exists():
             return d / "items"
@@ -47,7 +46,6 @@ def get_access_token():
     return resp.json().get("access_token")
 
 def get_localized_name(content):
-    """Извлекает название на нужном языке."""
     try:
         name = content.get("name", {})
         if isinstance(name, dict):
@@ -56,6 +54,13 @@ def get_localized_name(content):
         return str(name)
     except Exception:
         return ""
+
+def build_icon_url(item_id, category):
+    """Строит URL иконки по официальной схеме."""
+    if not category:
+        return ""
+    # category вида "weapon/pistol" или "misc"
+    return f"https://github.com/EXBO-Studio/stalzone-database/raw/main/{ICON_REALM}/icons/{category}/{item_id}.png"
 
 def discover_tradable_items():
     items = []
@@ -81,9 +86,12 @@ def discover_tradable_items():
             skipped += 1
             continue
 
+        item_id = path.stem
+        category = content.get("category", "")
         items.append({
-            "id": path.stem,
-            "name": get_localized_name(content)
+            "id": item_id,
+            "name": get_localized_name(content),
+            "icon": build_icon_url(item_id, category)
         })
 
     print(f"Отфильтровано персональных: {skipped}")
@@ -156,7 +164,8 @@ def main():
     items_to_process = all_items[:MAX_ITEMS]
     print(f"Обрабатываем предметов: {len(items_to_process)}")
 
-    names_map = {item["id"]: item["name"] for item in items_to_process}
+    # Сохраняем мета-данные (имя, иконку) для каждого предмета
+    meta_map = {item["id"]: {"name": item["name"], "icon": item["icon"]} for item in items_to_process}
 
     history = load_history()
     now = datetime.now(timezone.utc).isoformat()
@@ -176,10 +185,12 @@ def main():
                     if p > 0:
                         prices.append(p)
                 if prices:
+                    meta = meta_map.get(item_id, {})
                     history.setdefault(item_id, []).append({
                         "timestamp": now,
                         "price": min(prices),
-                        "name": names_map.get(item_id, item_id),
+                        "name": meta.get("name", item_id),
+                        "icon": meta.get("icon", ""),
                         "all_prices": prices,
                     })
                     history[item_id] = aggregate_history(history[item_id])
