@@ -18,13 +18,12 @@
 
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
         input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 15px; }
-        input { min-width: 260px; }
+        input { min-width: 240px; }
         button { cursor: pointer; }
         #refreshBtn { background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
         #refreshBtn:hover { background: #4fa8c7; }
 
         .stats-bar { text-align: center; color: #888; font-size: 14px; margin-bottom: 15px; }
-
         .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
         .item-card { background: #2b2b3c; border-radius: 10px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: all 0.15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid transparent; }
         .item-card:hover { background: #32324a; transform: translateY(-2px); border-color: #61dafb; }
@@ -71,7 +70,6 @@
         .lots-title { color: #61dafb; margin-top: 0; margin-bottom: 10px; }
         canvas { max-height: 350px; }
 
-        /* Стили для дерева крафтов */
         .craft-tree { margin-top: 15px; }
         .craft-node { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #444; }
         .craft-node.profitable { border-left-color: #4caf50; }
@@ -90,12 +88,6 @@
         .craft-ingredient-name { color: #ccc; }
         .craft-ingredient-amount { color: #888; font-size: 12px; }
         .craft-ingredient-cost { color: #61dafb; margin-left: auto; font-weight: bold; }
-
-        .craft-summary { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-        .craft-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
-        .craft-summary-item { text-align: center; }
-        .craft-summary-value { font-size: 20px; font-weight: bold; }
-        .craft-summary-label { font-size: 12px; color: #888; margin-top: 4px; }
 
         .craft-search { margin-bottom: 20px; }
         .craft-search input { width: 100%; }
@@ -119,7 +111,6 @@
             <button class="tab" data-tab="crafts">🔨 Крафты</button>
         </div>
 
-        <!-- ВКЛАДКА: АУКЦИОН -->
         <div id="tab-market">
             <div class="controls">
                 <select id="categorySelect"><option value="">Все категории</option></select>
@@ -139,7 +130,6 @@
             <div id="sentinel" style="height: 20px;"></div>
         </div>
 
-        <!-- ВКЛАДКА: КРАФТЫ -->
         <div id="tab-crafts" style="display:none;">
             <div class="craft-search">
                 <input type="text" id="craftSearchInput" placeholder="Поиск по названию предмета...">
@@ -150,7 +140,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно предмета -->
     <div class="modal-overlay" id="modalOverlay" style="display:none;">
         <div class="modal">
             <button class="modal-close" id="modalClose">×</button>
@@ -158,7 +147,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно крафта -->
     <div class="modal-overlay" id="craftModalOverlay" style="display:none;">
         <div class="modal" style="max-width: 900px;">
             <button class="modal-close" id="craftModalClose">×</button>
@@ -167,7 +155,6 @@
     </div>
 
     <script>
-        // ============ СОСТОЯНИЕ ============
         let allData = {};
         let craftsData = {};
         let itemsCache = [];
@@ -176,10 +163,8 @@
         let currentChunk = 0;
         const CHUNK_SIZE = 120;
         let currentChart = null;
-
         const FAV_STORAGE_KEY = 'sz_favorites';
 
-        // ============ КАТЕГОРИИ ============
         const CATEGORY_NAMES = {
             "weapon": "Оружие", "weapon_modules": "Модули оружия", "attachment": "Обвесы",
             "ammo": "Патроны", "bullet": "Патроны", "armor": "Костюмы", "armour": "Костюмы",
@@ -207,7 +192,6 @@
             return idx === -1 ? 9999 : idx;
         }
 
-        // ============ ИЗБРАННОЕ ============
         function loadFavorites() {
             try { return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]'); } catch { return []; }
         }
@@ -221,7 +205,6 @@
             return isFavorite(id);
         }
 
-        // ============ DOM ============
         const els = {
             categorySelect: document.getElementById('categorySelect'),
             searchInput: document.getElementById('searchInput'),
@@ -240,7 +223,6 @@
             craftModalClose: document.getElementById('craftModalClose'),
         };
 
-        // ============ ВКЛАДКИ ============
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -252,7 +234,6 @@
             });
         });
 
-        // ============ ЗАГРУЗКА ============
         async function loadData() {
             els.resultCount.textContent = 'Загрузка данных...';
             try {
@@ -325,7 +306,6 @@
             else els.categorySelect.value = '';
         }
 
-        // ============ ФИЛЬТРАЦИЯ ============
         function applyFilters() {
             const cat = els.categorySelect.value;
             const query = els.searchInput.value.toLowerCase().trim();
@@ -370,7 +350,6 @@
             renderNextChunk();
         }
 
-        // ============ РЕНДЕР СЕТКИ ============
         function renderNextChunk() {
             const start = currentChunk * CHUNK_SIZE;
             if (start >= filteredItems.length) return;
@@ -415,7 +394,6 @@
             return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
-        // ============ МОДАЛКА ПРЕДМЕТА ============
         function openModal(id) {
             const item = itemsCache.find(i => i.id === id);
             if (!item) return;
@@ -497,14 +475,13 @@
             if (currentChart) { currentChart.destroy(); currentChart = null; }
         }
 
-        // ============ ВКЛАДКА КРАФТОВ ============
         function renderCraftList() {
             const query = els.craftSearchInput.value.toLowerCase().trim();
             const container = els.craftListContainer;
 
             const recipeIds = Object.keys(craftsData);
             if (recipeIds.length === 0) {
-                container.innerHTML = '<div class="empty-state">🔨 Пока нет рецептов.<br>Добавьте их в файл <code>recipes.json</code> в вашем репозитории.</div>';
+                container.innerHTML = '<div class="empty-state">🔨 Пока нет рецептов.<br>Добавьте их в файл <code>recipes.json</code>.</div>';
                 return;
             }
 
@@ -532,18 +509,18 @@
                 const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
                 const profitSign = profit > 0 ? '+' : '';
                 const iconHtml = item.icon
-                    ? `<img class="craft-list-icon" src="${item.icon}" alt="">`
+                    ? `<img class="craft-list-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
                     : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
                 row.innerHTML = `
                     ${iconHtml}
                     <div class="craft-list-info">
                         <div class="craft-list-name">${escapeHtml(item.name)}</div>
                         <div style="font-size:12px;color:#888;">
-                            Себестоимость: ${item.cost.toLocaleString('ru-RU')} ₽ · Продажа: ${item.sell_price.toLocaleString('ru-RU')} ₽
+                            Себестоимость: ${Math.round(item.cost || 0).toLocaleString('ru-RU')} ₽ · Продажа: ${(item.sell_price || 0).toLocaleString('ru-RU')} ₽
                         </div>
                     </div>
                     <div class="craft-list-profit ${profitClass}" style="text-align:right;">
-                        ${profitSign}${profit.toLocaleString('ru-RU')} ₽
+                        ${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽
                         <div style="font-size:12px;font-weight:normal;color:#888;">ROI: ${(item.roi || 0).toFixed(1)}%</div>
                     </div>
                 `;
@@ -555,33 +532,49 @@
             const craft = craftsData[id];
             if (!craft) return;
 
-            const modalContent = els.craftModalContent;
-
-            function renderNode(node, depth = 0) {
+            function renderNode(node) {
                 if (!node) return '';
                 const profit = node.profit || 0;
                 const nodeClass = profit > 0 ? 'profitable' : (profit < 0 ? 'unprofitable' : '');
                 const iconHtml = node.icon
-                    ? `<img class="craft-node-icon" src="${node.icon}" alt="">`
+                    ? `<img class="craft-node-icon" src="${node.icon}" alt="" onerror="this.style.display='none'">`
                     : `<div class="craft-node-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
+
+                let extraInfo = '';
+                if (node.craftable) {
+                    const parts = [];
+                    if (node.craftAmount && node.craftAmount > 1) parts.push(`×${node.craftAmount} за крафт`);
+                    if (node.energy) parts.push(`⚡ ${node.energy} энергии`);
+                    if (node.skill) parts.push(`🎓 ${node.skill} ур. ${node.skillLevel}`);
+                    if (node.experience) parts.push(`⭐ ${node.experience} XP`);
+                    if (node.station) parts.push(`🛠 ${node.station}`);
+                    extraInfo = parts.length ? `<div style="font-size:12px;color:#888;margin-top:6px;">${parts.join(' · ')}</div>` : '';
+                }
+
                 let ingredientsHtml = '';
                 if (node.ingredients && node.ingredients.length > 0) {
                     ingredientsHtml = '<div class="craft-ingredients">';
                     node.ingredients.forEach(ing => {
                         const ingIcon = ing.icon
-                            ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="">`
+                            ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="" onerror="this.style.display='none'">`
                             : `<div class="craft-ingredient-icon" style="display:flex;align-items:center;justify-content:center;color:#444;font-size:11px;">?</div>`;
+                        const subInfo = ing.craftable ? `<span style="color:#888;font-size:11px;margin-left:6px;">(крафт)</span>` : '';
                         ingredientsHtml += `
                             <div class="craft-ingredient">
                                 ${ingIcon}
-                                <span class="craft-ingredient-name">${escapeHtml(ing.name)}</span>
+                                <span class="craft-ingredient-name">${escapeHtml(ing.name)}${subInfo}</span>
                                 <span class="craft-ingredient-amount">×${ing.amount}</span>
-                                <span class="craft-ingredient-cost">${ing.total_cost.toLocaleString('ru-RU')} ₽</span>
+                                <span class="craft-ingredient-cost">${Math.round(ing.total_cost || 0).toLocaleString('ru-RU')} ₽</span>
                             </div>
                         `;
                     });
                     ingredientsHtml += '</div>';
                 }
+
+                const batchInfo = (node.craftAmount && node.craftAmount > 1 && node.total_cost_batch)
+                    ? `<div style="font-size:12px;color:#888;">Себестоимость партии (${node.craftAmount} шт): ${Math.round(node.total_cost_batch).toLocaleString('ru-RU')} ₽</div>`
+                    : '';
+
                 return `
                     <div class="craft-node ${nodeClass}">
                         <div class="craft-node-header">
@@ -589,20 +582,34 @@
                             <div>
                                 <div class="craft-node-name">${escapeHtml(node.name)}</div>
                                 <div class="craft-node-id">ID: ${node.id}</div>
+                                ${extraInfo}
                             </div>
                         </div>
                         <div class="craft-node-stats">
-                            <div class="craft-node-stat"><span class="craft-node-stat-label">Цена продажи</span><span class="craft-node-stat-value" style="color:#61dafb;">${node.sell_price.toLocaleString('ru-RU')} ₽</span></div>
-                            <div class="craft-node-stat"><span class="craft-node-stat-label">Себестоимость</span><span class="craft-node-stat-value">${node.cost.toLocaleString('ru-RU')} ₽</span></div>
-                            <div class="craft-node-stat"><span class="craft-node-stat-label">Прибыль</span><span class="craft-node-stat-value ${profit > 0 ? 'green' : 'red'}">${profit > 0 ? '+' : ''}${profit.toLocaleString('ru-RU')} ₽</span></div>
-                            <div class="craft-node-stat"><span class="craft-node-stat-label">ROI</span><span class="craft-node-stat-value ${profit > 0 ? 'green' : 'red'}">${(node.roi || 0).toFixed(1)}%</span></div>
+                            <div class="craft-node-stat">
+                                <span class="craft-node-stat-label">Цена продажи (1 шт)</span>
+                                <span class="craft-node-stat-value" style="color:#61dafb;">${(node.sell_price || 0).toLocaleString('ru-RU')} ₽</span>
+                            </div>
+                            <div class="craft-node-stat">
+                                <span class="craft-node-stat-label">Себестоимость (1 шт)</span>
+                                <span class="craft-node-stat-value">${Math.round(node.cost || 0).toLocaleString('ru-RU')} ₽</span>
+                                ${batchInfo}
+                            </div>
+                            <div class="craft-node-stat">
+                                <span class="craft-node-stat-label">Прибыль</span>
+                                <span class="craft-node-stat-value ${profit > 0 ? 'green' : 'red'}">${profit > 0 ? '+' : ''}${Math.round(profit).toLocaleString('ru-RU')} ₽</span>
+                            </div>
+                            <div class="craft-node-stat">
+                                <span class="craft-node-stat-label">ROI</span>
+                                <span class="craft-node-stat-value ${profit > 0 ? 'green' : 'red'}">${(node.roi || 0).toFixed(1)}%</span>
+                            </div>
                         </div>
                         ${ingredientsHtml}
                     </div>
                 `;
             }
 
-            modalContent.innerHTML = `
+            els.craftModalContent.innerHTML = `
                 <h2 style="color:#61dafb; margin-top:0;">🔨 Дерево крафта</h2>
                 ${renderNode(craft)}
             `;
@@ -616,7 +623,6 @@
             document.body.style.overflow = '';
         }
 
-        // ============ БЕСКОНЕЧНАЯ ПРОКРУТКА ============
         let observer = null;
         function setupInfiniteScroll() {
             if (observer) observer.disconnect();
@@ -628,7 +634,6 @@
             observer.observe(els.sentinel);
         }
 
-        // ============ СОБЫТИЯ ============
         els.categorySelect.addEventListener('change', applyFilters);
         els.sortSelect.addEventListener('change', applyFilters);
         els.refreshBtn.addEventListener('click', loadData);
@@ -679,7 +684,6 @@
         els.craftModalClose.addEventListener('click', closeCraftModal);
         els.craftModalOverlay.addEventListener('click', (e) => { if (e.target === els.craftModalOverlay) closeCraftModal(); });
 
-        // ============ СТАРТ ============
         favorites = loadFavorites();
         setupInfiniteScroll();
         loadData();
