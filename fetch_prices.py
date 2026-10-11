@@ -5,7 +5,6 @@ from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-# --- Настройки ---
 REGION = os.environ.get("REGION", "EU")
 LANG = "ru"
 ICON_REALM = "ru"
@@ -97,10 +96,31 @@ def build_icon_url(item_id, category):
     return ""
 
 
+def build_all_items_meta():
+    """Собирает метаданные для ВСЕХ предметов (включая персональные и не торгуемые)."""
+    meta = {}
+    if ITEM_DB_DIR is None:
+        return meta
+    for path in ITEM_DB_DIR.rglob("*.json"):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = json.load(f)
+        except Exception:
+            continue
+        item_id = path.stem
+        category = content.get("category", "")
+        meta[item_id] = {
+            "name": get_localized_name(content),
+            "icon": build_icon_url(item_id, category),
+            "category": category.split("/")[0] if category else "other"
+        }
+    print(f"📚 Метаданные обо всех предметах: {len(meta)}")
+    return meta
+
+
 def discover_tradable_items():
     items = []
     if ITEM_DB_DIR is None:
-        print("❌ Папка с базой предметов не найдена.")
         return items
     print(f"📁 Используем базу: {ITEM_DB_DIR}")
     all_files = list(ITEM_DB_DIR.rglob("*.json"))
@@ -174,7 +194,6 @@ def save_history(history):
 
 
 def load_active_items():
-    """Возвращает список ID, у которых раньше были лоты. None = первый запуск."""
     if os.path.exists(ACTIVE_ITEMS_FILE):
         try:
             with open(ACTIVE_ITEMS_FILE, "r", encoding="utf-8") as f:
@@ -191,7 +210,7 @@ def save_active_items(active_ids):
 
 def load_recipes():
     if not os.path.exists(RECIPES_FILE):
-        print("ℹ️ recipes.json не найден — крафты не будут построены.")
+        print("ℹ️ recipes.json не найден.")
         return {}
     with open(RECIPES_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -331,7 +350,6 @@ def analyze_crafts(recipes, current_prices):
 
     raw_with_price = []
     raw_no_price = []
-
     for iid in sorted(ingredient_ids):
         if iid in recipes and recipes[iid].get("ingredients"):
             continue
@@ -347,14 +365,8 @@ def analyze_crafts(recipes, current_prices):
     print("=" * 60)
     print(f"   Всего рецептов: {len(recipes)}")
     print(f"   Уникальных ингредиентов: {len(ingredient_ids)}")
-    print(f"   Сырьё (не крафтится) с ценой: {len(raw_with_price)}")
+    print(f"   Сырьё с ценой: {len(raw_with_price)}")
     print(f"   ⚠️ Сырьё БЕЗ цены: {len(raw_no_price)}")
-    if raw_no_price:
-        print("   Список предметов без цены:")
-        for item in raw_no_price[:50]:
-            print(f"     - {item['id']}  ({item['name']})")
-        if len(raw_no_price) > 50:
-            print(f"     ...и ещё {len(raw_no_price) - 50}")
 
     analysis = {
         "total_recipes": len(recipes),
@@ -378,16 +390,18 @@ def main():
     if not all_items:
         return
 
-    # Кэш: если знаем активные предметы — работаем только с ними
+    # Метаданные обо ВСЕХ предметах (пригодятся для иконок/названий в крафтах)
+    all_meta = build_all_items_meta()
+
     active_ids = load_active_items()
     if active_ids is not None:
         all_ids = {item["id"] for item in all_items}
-        active_ids = active_ids & all_ids  # отсеиваем несуществующие
+        active_ids = active_ids & all_ids
         items_to_process = [item for item in all_items if item["id"] in active_ids]
-        print(f"⚡ Используем кэш активных предметов: {len(items_to_process)} (из {len(all_items)})")
+        print(f"⚡ Кэш активных: {len(items_to_process)} (из {len(all_items)})")
     else:
         items_to_process = all_items[:MAX_ITEMS]
-        print(f"🐌 Первый запуск, обрабатываем: {len(items_to_process)}")
+        print(f"🐌 Первый запуск: {len(items_to_process)}")
 
     meta_map = {item["id"]: item for item in items_to_process}
 
@@ -422,25 +436,25 @@ def main():
     save_history(history)
     print(f"✅ Цены обновлены. Предметов: {updated}")
 
-    # Сохраняем активные предметы для следующего запуска
-    active_now = set()
-    for iid, records in history.items():
-        if records:
-            active_now.add(iid)
+    active_now = {iid for iid, rec in history.items() if rec}
     save_active_items(active_now)
-    print(f"💾 Сохранено активных предметов: {len(active_now)}")
+    print(f"💾 Активных предметов: {len(active_now)}")
 
     recipes = load_recipes()
     if recipes:
+        # Объединяем: имя/иконка из истории (свежие) ИЛИ из метаданных всех предметов
         current_prices = {}
-        for iid, records in history.items():
-            if records:
-                last = records[-1]
-                current_prices[iid] = {
-                    "name": last.get("name", iid),
-                    "icon": last.get("icon", ""),
-                    "price": last.get("price", 0),
-                }
+        all_ids_for_prices = set(history.keys()) | set(all_meta.keys())
+        for iid in all_ids_for_prices:
+            records = history.get(iid, [])
+            last_rec = records[-1] if records else {}
+            meta = all_meta.get(iid, {})
+            current_prices[iid] = {
+                "name": last_rec.get("name") or meta.get("name", iid),
+                "icon": last_rec.get("icon") or meta.get("icon", ""),
+                "price": last_rec.get("price", 0),
+            }
+
         craft_trees = {}
         for iid in recipes:
             tree = build_craft_tree(recipes, current_prices, iid)
