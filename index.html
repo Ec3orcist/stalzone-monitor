@@ -79,15 +79,16 @@
         }
 
         function getItemMeta(id) {
-            const hist = allData[id];
-            if (hist && hist.length) {
-                return {
-                    name: hist[0].name || id,
-                    icon: hist[0].icon || ''
-                };
-            }
-            return { name: id, icon: '' };
-        }
+    const hist = allData[id];
+    if (hist && hist.length) {
+        const last = hist[hist.length - 1];    // ← берём ПОСЛЕДНЮЮ (свежую) запись
+        return {
+            name: last.name || id,
+            icon: last.icon || ''
+        };
+    }
+    return { name: id, icon: '' };
+}
 
         function populateSelect(filter = '') {
             const sel = document.getElementById('itemSelect');
