@@ -5,20 +5,34 @@ from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+# --- Настройки ---
 REGION = os.environ.get("REGION", "EU")
 LANG = "ru"
 ICON_REALM = "ru"
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
 RECIPES_FILE = "recipes.json"
+ACTIVE_ITEMS_FILE = "active_items.json"
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
-WORKERS = 6
+WORKERS = 10
 MAX_LOTS_PER_ITEM = 10
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 EXISTING_ICONS = None
+SESSION = None
+
+
+def get_session(token):
+    global SESSION
+    if SESSION is None:
+        SESSION = requests.Session()
+        SESSION.headers.update({
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json"
+        })
+    return SESSION
 
 
 def find_item_db_dir():
@@ -121,10 +135,10 @@ def discover_tradable_items():
 
 
 def fetch_lots_for_item(token, item_id):
+    session = get_session(token)
     url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/lots?limit=200"
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     try:
-        r = requests.get(url, headers=headers, timeout=15)
+        r = session.get(url, timeout=15)
         if r.status_code != 200:
             return item_id, []
         data = r.json()
@@ -157,6 +171,22 @@ def load_history():
 def save_history(history):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def load_active_items():
+    """Возвращает список ID, у которых раньше были лоты. None = первый запуск."""
+    if os.path.exists(ACTIVE_ITEMS_FILE):
+        try:
+            with open(ACTIVE_ITEMS_FILE, "r", encoding="utf-8") as f:
+                return set(json.load(f))
+        except Exception:
+            return None
+    return None
+
+
+def save_active_items(active_ids):
+    with open(ACTIVE_ITEMS_FILE, "w", encoding="utf-8") as f:
+        json.dump(sorted(active_ids), f, ensure_ascii=False, indent=2)
 
 
 def load_recipes():
@@ -294,7 +324,6 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
 
 
 def analyze_crafts(recipes, current_prices):
-    """Анализирует рецепты: находит ингредиенты без рецепта (сырьё) и без цены."""
     ingredient_ids = set()
     for r in recipes.values():
         for ing in r.get("ingredients", []):
@@ -305,7 +334,7 @@ def analyze_crafts(recipes, current_prices):
 
     for iid in sorted(ingredient_ids):
         if iid in recipes and recipes[iid].get("ingredients"):
-            continue  # крафтится, не сырьё
+            continue
         price = current_prices.get(iid, {}).get("price", 0)
         name = current_prices.get(iid, {}).get("name", iid)
         if price > 0:
@@ -348,8 +377,18 @@ def main():
     all_items = discover_tradable_items()
     if not all_items:
         return
-    items_to_process = all_items[:MAX_ITEMS]
-    print(f"Обрабатываем предметов: {len(items_to_process)}")
+
+    # Кэш: если знаем активные предметы — работаем только с ними
+    active_ids = load_active_items()
+    if active_ids is not None:
+        all_ids = {item["id"] for item in all_items}
+        active_ids = active_ids & all_ids  # отсеиваем несуществующие
+        items_to_process = [item for item in all_items if item["id"] in active_ids]
+        print(f"⚡ Используем кэш активных предметов: {len(items_to_process)} (из {len(all_items)})")
+    else:
+        items_to_process = all_items[:MAX_ITEMS]
+        print(f"🐌 Первый запуск, обрабатываем: {len(items_to_process)}")
+
     meta_map = {item["id"]: item for item in items_to_process}
 
     history = load_history()
@@ -382,6 +421,14 @@ def main():
                 print(f"  обработано {n}/{len(items_to_process)}")
     save_history(history)
     print(f"✅ Цены обновлены. Предметов: {updated}")
+
+    # Сохраняем активные предметы для следующего запуска
+    active_now = set()
+    for iid, records in history.items():
+        if records:
+            active_now.add(iid)
+    save_active_items(active_now)
+    print(f"💾 Сохранено активных предметов: {len(active_now)}")
 
     recipes = load_recipes()
     if recipes:
