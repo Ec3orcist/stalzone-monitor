@@ -247,57 +247,59 @@ def parse_sales_response(item_id, data):
 
 
 def fetch_sales_for_item(token, item_id):
-    """Первые N предметов — диагностика, остальные — рабочий режим."""
+    """Тянет историю продаж с пагинацией: до 5 страниц по 200 сделок."""
+    import time as _time
     session = get_session(token)
     base = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history"
-    global DEBUG_SHOWN
 
-    # Диагностику делаем ТОЛЬКО для первого предмета
+    all_prices = []
+    total_available = None
+    MAX_PAGES = 5
+    PAGE_SIZE = 200
+
+    for page in range(MAX_PAGES):
+        offset = page * PAGE_SIZE
+        url = f"{base}?limit={PAGE_SIZE}&offset={offset}"
+        try:
+            r = session.get(url, timeout=15)
+            if r.status_code != 200:
+                break
+            data = r.json()
+            if not isinstance(data, dict):
+                break
+            prices = data.get("prices", [])
+            if total_available is None:
+                total_available = data.get("total", 0)
+            if not prices:
+                break
+            all_prices.extend(prices)
+
+            # Если собрали всё или получили меньше страницы — стоп
+            if total_available and len(all_prices) >= total_available:
+                break
+            if len(prices) < PAGE_SIZE:
+                break
+
+            # Rate limit: пауза между страницами (1 запрос/сек)
+            _time.sleep(1.1)
+        except Exception:
+            break
+
+    if not all_prices:
+        return item_id, []
+
+    # Диагностика — один раз для первого предмета
+    global DEBUG_SHOWN
     if not DEBUG_SHOWN:
-        variants = [
-            ("default",     ""),
-            ("limit=10",    "?limit=10"),
-            ("limit=100",   "?limit=100"),
-            ("limit=1000",  "?limit=1000"),
-            ("offset=50",   "?limit=100&offset=50"),
-            ("offset=500",  "?limit=100&offset=500"),
-            ("from/week",   "?from=" + (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")),
-        ]
+        first_t = all_prices[0].get("time", "") if isinstance(all_prices[0], dict) else ""
+        last_t = all_prices[-1].get("time", "") if isinstance(all_prices[-1], dict) else ""
         print("\n" + "=" * 70)
-        print(f"🔬 ДИАГНОСТИКА API на предмете {item_id}")
-        print("=" * 70)
-        for label, qs in variants:
-            try:
-                r = session.get(base + qs, timeout=15)
-                if r.status_code != 200:
-                    print(f"  [{label}] {qs}: HTTP {r.status_code}")
-                    continue
-                data = r.json()
-                if isinstance(data, dict):
-                    prices = data.get("prices", [])
-                    total = data.get("total", "?")
-                    times = [p.get("time", "") for p in prices if isinstance(p, dict) and p.get("time")]
-                    span = ""
-                    if times:
-                        span = f", диапазон: {times[-1][:10]} … {times[0][:10]}"
-                    print(f"  [{label}]: total={total}, вернулось={len(prices)}{span}")
-                else:
-                    print(f"  [{label}]: формат {type(data).__name__}")
-            except Exception as e:
-                print(f"  [{label}]: ошибка {e}")
+        print(f"🔬 ИСТОРИЯ для {item_id}: собрано {len(all_prices)} сделок из {total_available}")
+        print(f"   диапазон: {last_t} … {first_t}")
         print("=" * 70 + "\n")
         DEBUG_SHOWN = True
 
-    # Рабочий режим — limit=100 (позже подправим на лучший, если найдётся)
-    url = base + "?limit=100"
-    try:
-        r = session.get(url, timeout=15)
-        if r.status_code != 200:
-            return item_id, []
-        data = r.json()
-        return item_id, parse_sales_response(item_id, data)
-    except Exception:
-        return item_id, []
+    return item_id, parse_sales_response(item_id, {"total": total_available, "prices": all_prices})
 
 
 def load_history():
