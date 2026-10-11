@@ -659,23 +659,21 @@
                             { label: 'Цена за 1 шт', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
                             { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5,5], pointRadius: 0, fill: false },
                             {
-                                label: 'Продажи',
-                                data: (() => {
-                                    const result = new Array(hist.length).fill(null);
-                                    for (const s of sales) {
-                                        if (!s.t) continue;
-                                        const saleTs = new Date(s.t).getTime();
-                                        let closestIdx = -1, minDiff = Infinity;
-                                        hist.forEach((h, i) => {
-                                            const d = Math.abs(new Date(h.timestamp).getTime() - saleTs);
-                                            if (d < minDiff) { minDiff = d; closestIdx = i; }
-                                        });
-                                        if (closestIdx >= 0 && minDiff < 3600000) {
-                                            result[closestIdx] = s.avg;
-                                        }
-                                    }
-                                    return result;
-                                })(),
+    label: 'Продажи',
+    data: (() => {
+        const result = new Array(hist.length).fill(null);
+        for (const s of sales) {
+            if (!s.t) continue;
+            const saleDay = s.t.slice(0, 10);  // "2026-10-09"
+            hist.forEach((h, i) => {
+                const histDay = h.timestamp.slice(0, 10);
+                if (histDay === saleDay) {
+                    result[i] = s.avg;
+                }
+            });
+        }
+        return result;
+    })(),
                                 borderColor: '#4caf50',
                                 backgroundColor: '#4caf50',
                                 pointRadius: 5,
