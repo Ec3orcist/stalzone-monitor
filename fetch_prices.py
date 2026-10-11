@@ -12,6 +12,8 @@ TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
 RECIPES_FILE = "recipes.json"
 ACTIVE_ITEMS_FILE = "active_items.json"
+HISTORY_FILE = "sales_history.json"
+HISTORY_MAX_AGE_HOURS = 6
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
 WORKERS = 10
@@ -86,17 +88,10 @@ def get_localized_name(content):
 
 
 def build_icon_url(item_id, category):
-    """Ищет иконку в локальной базе (включая вложенные подкатегории)."""
     if not category or EXISTING_ICONS is None:
         return ""
-    candidates = []
-    # Пробуем несколько вариантов пути
-    parts = category.split("/") if category else []
-    for i in range(len(parts), 0, -1):
-        prefix = "/".join(parts[:i])
-        candidates.append(f"{prefix}/{item_id}.png")
-    candidates.append(f"{item_id}.png")
-    for rel in candidates:
+    for cat in [category, category.split("/")[0]]:
+        rel = f"{cat}/{item_id}.png"
         if rel in EXISTING_ICONS:
             return (f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
                     f"{ICON_REALM}/icons/{rel}")
@@ -104,11 +99,9 @@ def build_icon_url(item_id, category):
 
 
 def build_all_items_meta():
-    """Собирает метаданные ВСЕХ предметов из локальной базы."""
     meta = {}
     if ITEM_DB_DIR is None:
         return meta
-    count = 0
     for dirpath, _, filenames in os.walk(ITEM_DB_DIR):
         for fname in filenames:
             if not fname.endswith(".json"):
@@ -126,7 +119,6 @@ def build_all_items_meta():
                 "icon": build_icon_url(item_id, category),
                 "category": category.split("/")[0] if category else "other"
             }
-            count += 1
     print(f"📚 Метаданные обо всех предметах: {len(meta)}")
     return meta
 
@@ -194,6 +186,50 @@ def fetch_lots_for_item(token, item_id):
         return item_id, []
 
 
+def fetch_history_for_item(token, item_id):
+    """Запрашивает историю продаж предмета за последние ~30 дней."""
+    session = get_session(token)
+    url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history"
+    try:
+        r = session.get(url, timeout=15)
+        if r.status_code != 200:
+            return item_id, []
+        data = r.json()
+        # API может возвращать list или dict
+        if isinstance(data, list):
+            raw = data
+        elif isinstance(data, dict):
+            raw = data.get("history") or data.get("prices") or data.get("sales") or []
+        else:
+            raw = []
+
+        processed = []
+        for entry in raw:
+            time_str = entry.get("time") or entry.get("timestamp") or ""
+            prices = entry.get("prices") or []
+            amount = entry.get("amount")
+            if amount is None:
+                amount = len(prices) if prices else 1
+            if not prices:
+                # Попробуем альтернативные поля
+                single_price = entry.get("price") or entry.get("buyoutPrice")
+                if single_price:
+                    prices = [single_price]
+            if not prices:
+                continue
+            processed.append({
+                "time": time_str,
+                "amount": int(amount),
+                "min_price": min(prices),
+                "max_price": max(prices),
+                "avg_price": round(sum(prices) / len(prices)),
+            })
+        processed.sort(key=lambda x: x["time"])
+        return item_id, processed
+    except Exception:
+        return item_id, []
+
+
 def load_history():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -204,6 +240,38 @@ def load_history():
 def save_history(history):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def load_sales_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_sales_history(data):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def sales_history_is_fresh():
+    """Проверяет, обновлялась ли история меньше N часов назад."""
+    if not os.path.exists(HISTORY_FILE):
+        return False
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        updated_at = data.get("_updated_at")
+        if not updated_at:
+            return False
+        ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+        age = datetime.now(timezone.utc) - ts
+        return age.total_seconds() < HISTORY_MAX_AGE_HOURS * 3600
+    except Exception:
+        return False
 
 
 def load_active_items():
@@ -223,7 +291,6 @@ def save_active_items(active_ids):
 
 def load_recipes():
     if not os.path.exists(RECIPES_FILE):
-        print("ℹ️ recipes.json не найден.")
         return {}
     with open(RECIPES_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -355,44 +422,6 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
     return node
 
 
-def analyze_crafts(recipes, current_prices):
-    ingredient_ids = set()
-    for r in recipes.values():
-        for ing in r.get("ingredients", []):
-            ingredient_ids.add(ing["id"])
-
-    raw_with_price = []
-    raw_no_price = []
-    for iid in sorted(ingredient_ids):
-        if iid in recipes and recipes[iid].get("ingredients"):
-            continue
-        price = current_prices.get(iid, {}).get("price", 0)
-        name = current_prices.get(iid, {}).get("name", iid)
-        if price > 0:
-            raw_with_price.append({"id": iid, "name": name, "price": price})
-        else:
-            raw_no_price.append({"id": iid, "name": name})
-
-    print("\n" + "=" * 60)
-    print("📊 АНАЛИЗ КРАФТОВ")
-    print("=" * 60)
-    print(f"   Всего рецептов: {len(recipes)}")
-    print(f"   Уникальных ингредиентов: {len(ingredient_ids)}")
-    print(f"   Сырьё с ценой: {len(raw_with_price)}")
-    print(f"   ⚠️ Сырьё БЕЗ цены: {len(raw_no_price)}")
-
-    analysis = {
-        "total_recipes": len(recipes),
-        "total_ingredients": len(ingredient_ids),
-        "raw_with_price": len(raw_with_price),
-        "raw_no_price_count": len(raw_no_price),
-        "raw_no_price": raw_no_price,
-    }
-    with open("craft_analysis.json", "w", encoding="utf-8") as f:
-        json.dump(analysis, f, ensure_ascii=False, indent=2)
-    print("=" * 60)
-
-
 def main():
     global EXISTING_ICONS
     print(f"Запуск сбора данных (регион: {REGION})...")
@@ -403,7 +432,6 @@ def main():
     if not all_items:
         return
 
-    # Метаданные обо ВСЕХ предметах — для иконок и названий в крафтах
     all_meta = build_all_items_meta()
 
     active_ids = load_active_items()
@@ -449,13 +477,33 @@ def main():
     save_history(history)
     print(f"✅ Цены обновлены. Предметов: {updated}")
 
+    # --- ИСТОРИЯ ПРОДАЖ ---
+    sales_history = load_sales_history()
+    if sales_history_is_fresh():
+        print(f"💤 История продаж свежая (обновлялась < {HISTORY_MAX_AGE_HOURS} ч назад), пропускаем.")
+    else:
+        print(f"📊 Загружаем историю продаж для {len(items_to_process)} предметов...")
+        sales_updated = 0
+        new_sales = {"_updated_at": datetime.now(timezone.utc).isoformat()}
+        with ThreadPoolExecutor(max_workers=WORKERS) as executor:
+            futures = {executor.submit(fetch_history_for_item, token, item["id"]): item["id"]
+                       for item in items_to_process}
+            for n, fut in enumerate(as_completed(futures), 1):
+                item_id, entries = fut.result()
+                if entries:
+                    new_sales[item_id] = entries
+                    sales_updated += 1
+                if n % 200 == 0:
+                    print(f"  история: {n}/{len(items_to_process)}")
+        save_sales_history(new_sales)
+        print(f"✅ История продаж сохранена для {sales_updated} предметов")
+
     active_now = {iid for iid, rec in history.items() if rec}
     save_active_items(active_now)
     print(f"💾 Активных предметов: {len(active_now)}")
 
     recipes = load_recipes()
     if recipes:
-        # Объединяем: цена из истории, а имя/иконка — из истории ИЛИ из метаданных всех предметов
         current_prices = {}
         all_ids_for_prices = set(history.keys()) | set(all_meta.keys())
         for iid in all_ids_for_prices:
@@ -467,23 +515,14 @@ def main():
                 "icon": last_rec.get("icon") or meta.get("icon") or "",
                 "price": last_rec.get("price", 0),
             }
-
         craft_trees = {}
         for iid in recipes:
             tree = build_craft_tree(recipes, current_prices, iid)
             if tree:
-                # Финальный fallback для имени/иконки из meta
-                if not tree.get("name") or tree["name"] == iid:
-                    if iid in all_meta:
-                        tree["name"] = all_meta[iid].get("name") or tree["name"]
-                if not tree.get("icon") and iid in all_meta:
-                    tree["icon"] = all_meta[iid].get("icon", "")
                 craft_trees[iid] = tree
         with open("crafts.json", "w", encoding="utf-8") as f:
             json.dump(craft_trees, f, ensure_ascii=False, separators=(",", ":"))
         print(f"✅ crafts.json сохранён ({len(craft_trees)} рецептов)")
-
-        analyze_crafts(recipes, current_prices)
 
 
 if __name__ == "__main__":
