@@ -7,8 +7,8 @@ from pathlib import Path
 
 # --- Настройки ---
 REGION = os.environ.get("REGION", "EU")
-LANG = "ru"           # "ru" — русские названия, "en" — английские
-ICON_REALM = "ru"     # Иконки лежат в папке ru даже для EU-региона
+LANG = "ru"
+ICON_REALM = "ru"
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
 MAX_HISTORY = 500
@@ -60,10 +60,8 @@ def get_localized_name(content):
 
 
 def build_icon_url(item_id, category):
-    """Строит URL иконки по официальной схеме."""
     if not category:
         return ""
-    # Если category вида "weapon/pistol" — берём только первую часть ("weapon")
     top_category = category.split("/")[0]
     return (
         f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
@@ -109,6 +107,7 @@ def discover_tradable_items():
 
 
 def fetch_lots_for_item(token, item_id):
+    """Возвращает список ТОЛЬКО лотов с buyoutPrice (ставки игнорируются)."""
     url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/lots?limit=200"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     try:
@@ -117,10 +116,27 @@ def fetch_lots_for_item(token, item_id):
             return item_id, []
         data = r.json()
         if isinstance(data, dict) and "lots" in data:
-            return item_id, data["lots"]
-        if isinstance(data, list):
-            return item_id, data
-        return item_id, []
+            raw_lots = data["lots"]
+        elif isinstance(data, list):
+            raw_lots = data
+        else:
+            raw_lots = []
+
+        # Обрабатываем только лоты с реальной ценой выкупа
+        processed = []
+        for lot in raw_lots:
+            buyout = lot.get("buyoutPrice") or 0
+            amount = lot.get("amount") or 0
+            # Игнорируем лоты без выкупа и без количества
+            if buyout <= 0 or amount <= 0:
+                continue
+            price_per_unit = buyout / amount
+            processed.append({
+                "price_per_unit": price_per_unit,
+                "buyout": buyout,
+                "amount": amount,
+            })
+        return item_id, processed
     except Exception:
         return item_id, []
 
@@ -138,8 +154,6 @@ def save_history(history):
 
 
 def aggregate_history(records):
-    """Оставляем детально 24 часа, старше — по одной точке в час.
-    name и icon сохраняются, чтобы не теряться при сжатии."""
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
 
@@ -154,7 +168,7 @@ def aggregate_history(records):
         else:
             old.append((ts, r))
 
-    # Запоминаем последние известные name/icon — иначе старые записи без них
+    # Сохраняем метаданные для агрегированных записей
     last_name = ""
     last_icon = ""
     for r in records:
@@ -163,7 +177,6 @@ def aggregate_history(records):
         if r.get("icon"):
             last_icon = r["icon"]
 
-    # Агрегация по часам
     buckets = {}
     for ts, r in old:
         key = ts.strftime("%Y-%m-%dT%H")
@@ -217,22 +230,24 @@ def main():
         for n, fut in enumerate(as_completed(futures), 1):
             item_id, lots = fut.result()
             if lots:
-                prices = []
-                for lot in lots:
-                    p = lot.get("buyoutPrice") or lot.get("startPrice") or 0
-                    if p > 0:
-                        prices.append(p)
-                if prices:
-                    meta = meta_map.get(item_id, {})
-                    history.setdefault(item_id, []).append({
-                        "timestamp": now,
-                        "price": min(prices),
-                        "name": meta.get("name", item_id),
-                        "icon": meta.get("icon", ""),
-                        "all_prices": prices,
-                    })
-                    history[item_id] = aggregate_history(history[item_id])
-                    updated += 1
+                # Ищем лучший лот: минимальная цена за единицу
+                best = min(lots, key=lambda l: l["price_per_unit"])
+                # Суммарное количество предметов на аукционе
+                total_amount = sum(l["amount"] for l in lots)
+
+                meta = meta_map.get(item_id, {})
+                history.setdefault(item_id, []).append({
+                    "timestamp": now,
+                    "price": round(best["price_per_unit"]),       # цена за единицу
+                    "best_lot_amount": best["amount"],            # штук в лучшем лоте
+                    "best_lot_buyout": best["buyout"],            # цена лучшего лота целиком
+                    "total_amount": total_amount,                 # всего штук на аукционе
+                    "lots_count": len(lots),                      # сколько лотов
+                    "name": meta.get("name", item_id),
+                    "icon": meta.get("icon", ""),
+                })
+                history[item_id] = aggregate_history(history[item_id])
+                updated += 1
             if n % 50 == 0:
                 print(f"  обработано {n}/{len(items_to_process)}")
 
