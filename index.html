@@ -26,8 +26,16 @@
         .loading { text-align: center; color: #aaa; padding: 20px; }
         .item-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
         .item-icon { width: 72px; height: 72px; border-radius: 8px; background: #1e1e2f; object-fit: contain; }
+        .item-icon-placeholder { width: 72px; height: 72px; border-radius: 8px; background: #3a3a4f; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #61dafb; }
         .item-title { font-size: 22px; font-weight: bold; color: #61dafb; }
         .item-id { font-size: 14px; color: #888; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #3a3a4f; }
+        th { color: #61dafb; font-weight: bold; font-size: 14px; }
+        td { font-size: 15px; }
+        tr:hover { background: #32324a; }
+        .price-cell { color: #61dafb; font-weight: bold; }
+        .time-cell { color: #aaa; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -41,7 +49,8 @@
 
         <div class="card" id="statsCard" style="display:none;">
             <div class="item-header">
-                <img id="itemIcon" class="item-icon" src="" alt="icon" onerror="this.style.display='none'">
+                <img id="itemIcon" class="item-icon" src="" alt="icon" onerror="showIconPlaceholder()">
+                <div id="iconPlaceholder" class="item-icon-placeholder" style="display:none;"></div>
                 <div>
                     <div class="item-title" id="itemName">Предмет</div>
                     <div class="item-id" id="itemIdDisplay"></div>
@@ -74,6 +83,23 @@
         </div>
 
         <div class="card"><canvas id="priceChart"></canvas></div>
+
+        <div class="card" id="lotsCard" style="display:none;">
+            <h2 style="color:#61dafb; margin-top:0;">📋 Актуальные лоты</h2>
+            <table id="lotsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Цена за 1 шт</th>
+                        <th>Количество</th>
+                        <th>Цена лота</th>
+                        <th>Истекает</th>
+                    </tr>
+                </thead>
+                <tbody id="lotsTableBody"></tbody>
+            </table>
+        </div>
+
         <div class="loading" id="loadingMsg" style="display:none;">Загрузка данных...</div>
     </div>
 
@@ -99,12 +125,17 @@
             const hist = allData[id];
             if (hist && hist.length) {
                 const last = hist[hist.length - 1];
-                return {
-                    name: last.name || id,
-                    icon: last.icon || ''
-                };
+                return { name: last.name || id, icon: last.icon || '' };
             }
             return { name: id, icon: '' };
+        }
+
+        function showIconPlaceholder() {
+            const img = document.getElementById('itemIcon');
+            const placeholder = document.getElementById('iconPlaceholder');
+            img.style.display = 'none';
+            placeholder.style.display = 'flex';
+            placeholder.textContent = (document.getElementById('itemName').textContent || '?')[0].toUpperCase();
         }
 
         function populateSelect(filter = '') {
@@ -135,10 +166,36 @@
             }
         }
 
+        function renderLots(lots) {
+            const card = document.getElementById('lotsCard');
+            const tbody = document.getElementById('lotsTableBody');
+            tbody.innerHTML = '';
+
+            if (!lots || !lots.length) {
+                card.style.display = 'none';
+                return;
+            }
+            card.style.display = 'block';
+
+            lots.forEach((lot, i) => {
+                const tr = document.createElement('tr');
+                const endTime = lot.endTime ? new Date(lot.endTime).toLocaleString('ru-RU') : '—';
+                tr.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td class="price-cell">${lot.price_per_unit.toLocaleString()} ₽</td>
+                    <td>${lot.amount.toLocaleString()} шт</td>
+                    <td>${lot.buyout.toLocaleString()} ₽</td>
+                    <td class="time-cell">${endTime}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
         function renderChart() {
             const id = document.getElementById('itemSelect').value;
             if (!id || !allData[id] || !allData[id].length) {
                 document.getElementById('statsCard').style.display = 'none';
+                document.getElementById('lotsCard').style.display = 'none';
                 return;
             }
             const hist = allData[id];
@@ -155,17 +212,21 @@
             document.getElementById('itemName').textContent = meta.name;
             document.getElementById('itemIdDisplay').textContent = `ID: ${id}`;
 
-            const iconEl = document.getElementById('itemIcon');
+            // Иконка (с fallback)
+            const img = document.getElementById('itemIcon');
+            const placeholder = document.getElementById('iconPlaceholder');
             if (meta.icon) {
-                iconEl.src = meta.icon;
-                iconEl.style.display = 'block';
+                img.style.display = 'block';
+                img.src = meta.icon;
+                placeholder.style.display = 'none';
             } else {
-                iconEl.style.display = 'none';
+                img.style.display = 'none';
+                placeholder.style.display = 'flex';
+                placeholder.textContent = (meta.name || '?')[0].toUpperCase();
             }
 
             document.getElementById('currentPrice').textContent = cur.toLocaleString() + ' ₽';
 
-            // Информация о лучшем лоте
             const bestInfo = document.getElementById('bestLotInfo');
             if (last.best_lot_amount && last.best_lot_buyout) {
                 bestInfo.textContent = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString()} ₽`;
@@ -179,23 +240,20 @@
             devEl.textContent = (dev > 0 ? '+' : '') + dev.toFixed(1) + '%';
             devEl.className = 'stat-value ' + (dev > 0 ? 'red' : 'green');
 
-            // Количество на аукционе
             const totalEl = document.getElementById('totalAmount');
-            if (last.total_amount !== undefined) {
-                totalEl.textContent = last.total_amount.toLocaleString() + ' шт';
-            } else {
-                totalEl.textContent = '—';
-            }
+            totalEl.textContent = (last.total_amount !== undefined)
+                ? last.total_amount.toLocaleString() + ' шт'
+                : '—';
 
             const lotsInfo = document.getElementById('lotsCountInfo');
-            if (last.lots_count !== undefined) {
-                lotsInfo.textContent = `${last.lots_count} лотов`;
-            } else {
-                lotsInfo.textContent = '';
-            }
+            lotsInfo.textContent = (last.lots_count !== undefined) ? `${last.lots_count} лотов` : '';
 
             document.getElementById('pointsCount').textContent = prices.length;
 
+            // Рисуем таблицу лотов
+            renderLots(last.lots || []);
+
+            // График
             const ctx = document.getElementById('priceChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
 
