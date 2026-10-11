@@ -242,6 +242,7 @@
         let allData = {};
         let craftsData = {};
         let salesData = {};
+        let itemIndex = {};
         let itemsCache = [];
         let favorites = [];
         let filteredItems = [];
@@ -363,10 +364,45 @@
             return db + path;
         }
         function itemCatalog(id) {
-            return (craftsData._items || {})[id] || {};
+            return itemIndex[id] || (craftsData._items || {})[id] || {};
         }
         function recipeIds() {
             return Object.keys(craftsData).filter(id => id !== '_items');
+        }
+        function humanName(id, ...names) {
+            const catalog = itemCatalog(id);
+            return [catalog.name, ...names].find(n => n && n !== id) || id;
+        }
+        function humanIcon(id, ...icons) {
+            const catalog = itemCatalog(id);
+            return resolveIcon(catalog.icon || icons.find(Boolean) || '');
+        }
+        function rememberItem(id, name, icon) {
+            if (!id) return;
+            const prev = itemIndex[id] || {};
+            const nextName = (name && name !== id) ? name : prev.name;
+            const nextIcon = resolveIcon(icon || prev.icon || '');
+            itemIndex[id] = { name: nextName || prev.name || id, icon: nextIcon };
+        }
+        function ingestRecipes(data) {
+            const list = (data && data.recipes) || [];
+            list.forEach(rec => {
+                const id = rec.itemId;
+                if (id) rememberItem(id, rec.name, rec.icon);
+                (rec.resources || rec.ingredients || []).forEach(res => {
+                    const rid = res.itemId || res.id;
+                    rememberItem(rid, res.name, res.icon);
+                });
+            });
+        }
+        function ingestCrafts() {
+            const meta = craftsData._items || {};
+            Object.keys(meta).forEach(id => rememberItem(id, meta[id].name, meta[id].icon));
+            recipeIds().forEach(id => {
+                const craft = craftsData[id] || {};
+                rememberItem(id, craft.name, craft.icon);
+                (craft.ingredients || []).forEach(ing => rememberItem(ing.id, ing.name, ing.icon));
+            });
         }
         function resolveNode(nodeOrId) {
             if (!nodeOrId) return { id: '', name: '', icon: '', ingredients: [], sell_price: 0, craftable: false };
@@ -374,18 +410,38 @@
             const craft = craftsData[id] || {};
             const last = lastListing(id) || {};
             const fromNode = typeof nodeOrId === 'object' ? nodeOrId : {};
-            const catalog = itemCatalog(id);
             const amount = fromNode.amount;
             return {
                 ...craft,
                 id,
-                name: last.name || craft.name || fromNode.name || catalog.name || id,
-                icon: resolveIcon(last.icon || craft.icon || fromNode.icon || catalog.icon || ''),
+                name: humanName(id, fromNode.name, craft.name, last.name),
+                icon: humanIcon(id, fromNode.icon, craft.icon, last.icon),
                 sell_price: last.price || craft.sell_price || typicalSale(id) || 0,
                 craftable: Boolean(craft.ingredients && craft.ingredients.length),
                 ingredients: craft.ingredients || [],
                 amount
             };
+        }
+        function iconError(img) {
+            const id = img.dataset.id;
+            const n = Number(img.dataset.try || 0);
+            const paths = [
+                `ru/icons/misc/${id}.png`,
+                `ru/icons/supply/medicine/${id}.png`,
+                `ru/icons/supply/${id}.png`,
+                `ru/icons/artefact/${id}.png`,
+                `ru/icons/bullet/${id}.png`
+            ];
+            if (!id || n >= paths.length) {
+                img.onerror = null;
+                img.replaceWith(Object.assign(document.createElement('div'), {
+                    className: img.className,
+                    textContent: '?'
+                }));
+                return;
+            }
+            img.dataset.try = String(n + 1);
+            img.src = 'https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main/' + paths[n];
         }
         function computeBonus(requiredLevel, myLevel) {
             if (!myLevel || myLevel <= requiredLevel) {
@@ -487,16 +543,20 @@
 
         async function loadSecondary(force) {
             try {
-                const [crafts, sales] = await Promise.all([
+                const [crafts, sales, recipes] = await Promise.all([
                     fetchJson('crafts.json', force).catch(() => ({})),
-                    fetchJson('sales_history.json', force).catch(() => ({}))
+                    fetchJson('sales_history.json', force).catch(() => ({})),
+                    fetchJson('recipes.json', force).catch(() => ({}))
                 ]);
                 craftsData = crafts;
                 salesData = sales;
+                ingestCrafts();
+                ingestRecipes(recipes);
                 buildItemsCache();
                 populateCategories();
                 populateCraftSkills();
                 applyFilters();
+                if (document.getElementById('tab-crafts').style.display !== 'none') renderCraftList();
                 els.craftResultCount.textContent = `Рецептов: ${recipeIds().length}`;
             } catch (e) {
                 console.error(e);
@@ -875,7 +935,7 @@
             const profitClass = !hasProfit ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
             const profitSign = hasProfit && profit > 0 ? '+' : '';
             const iconHtml = item.icon
-                ? `<img class="craft-list-icon" src="${item.icon}" alt="" loading="lazy" decoding="async" draggable="false" onerror="this.src=''; this.alt=''; this.style.background='#12140f'">`
+                ? `<img class="craft-list-icon" src="${item.icon}" alt="" data-id="${item.id}" loading="lazy" decoding="async" draggable="false" onerror="iconError(this)">`
                 : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
             const levelBadge = item.skillLevel
                 ? `<span class="skill-level-badge lvl-${item.skillLevel}">ур. ${item.skillLevel}</span>`
@@ -930,6 +990,8 @@
                     });
                 }
                 const item = flat.get(resolved.id);
+                if (item.name === item.id && resolved.name !== item.id) item.name = resolved.name;
+                if (!item.icon && resolved.icon) item.icon = resolved.icon;
                 item.quantity += quantity;
                 item.total_cost = item.quantity * item.unit_price;
                 return;
@@ -980,7 +1042,7 @@
                 const priceText = hasPrice ? `${item.unit_price.toLocaleString('ru-RU')} ₽` : '<span class="no-price">—</span>';
                 const costText = hasPrice ? `${Math.round(item.total_cost).toLocaleString('ru-RU')} ₽` : '—';
                 const iconHtml = item.icon
-                    ? `<img class="shopping-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
+                    ? `<img class="shopping-icon" src="${item.icon}" alt="" data-id="${item.id}" onerror="iconError(this)">`
                     : '';
                 const qtyText = Number.isInteger(item.quantity)
                     ? item.quantity.toLocaleString('ru-RU')
@@ -1018,7 +1080,7 @@
             if (items.length === 0) return '';
             const rows = items.map(item => {
                 const iconHtml = item.icon
-                    ? `<img class="shopping-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
+                    ? `<img class="shopping-icon" src="${item.icon}" alt="" data-id="${item.id}" onerror="iconError(this)">`
                     : '';
                 const valueText = item.unit_price > 0
                     ? `<span style="color:#888;font-size:12px;">≈ ${Math.round(item.total_value).toLocaleString('ru-RU')} ₽</span>`
@@ -1162,7 +1224,7 @@
 
         function renderIngredientRow(ing, isSubCraft) {
             const iconHtml = ing.icon
-                ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="" onerror="this.style.display='none'">`
+                ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="" data-id="${ing.id}" onerror="iconError(this)">`
                 : `<div class="craft-ingredient-icon" style="display:flex;align-items:center;justify-content:center;color:#444;font-size:11px;">?</div>`;
             const subInfo = isSubCraft ? `<span style="color:#61dafb;font-size:11px;margin-left:6px;">(крафт)</span>` : '';
             const unit = ing.total_cost > 0 ? ing.total_cost / (ing.amount || 1) : (ing.cost_direct || ing.sell_price || ing.cost || 0);
