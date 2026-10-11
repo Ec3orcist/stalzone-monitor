@@ -14,10 +14,13 @@ DATA_FILE = "prices.json"
 MAX_HISTORY = 500
 MAX_ITEMS = 500
 WORKERS = 8
-MAX_LOTS_PER_ITEM = 20   # сколько лотов сохраняем для отображения
+MAX_LOTS_PER_ITEM = 20
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
+
+# Глобально — множество существующих иконок (заполняется в main)
+EXISTING_ICONS = None
 
 
 def find_item_db_dir():
@@ -35,6 +38,23 @@ def find_item_db_dir():
 
 
 ITEM_DB_DIR = find_item_db_dir()
+
+
+def load_existing_icons():
+    """Собирает список всех .png иконок, которые есть в локально склонированном репо."""
+    icons_root = Path("itemdb") / ICON_REALM / "icons"
+    if not icons_root.exists():
+        print(f"⚠️ Папка {icons_root} не найдена — проверка иконок отключена.")
+        return None
+
+    icons = set()
+    for png in icons_root.rglob("*.png"):
+        # rel = "misc/6wmkp.png" или "weapon/rifle/abc12.png"
+        rel = png.relative_to(icons_root).as_posix()
+        icons.add(rel)
+
+    print(f"🖼️ Найдено иконок в базе: {len(icons)}")
+    return icons
 
 
 def get_access_token():
@@ -61,13 +81,23 @@ def get_localized_name(content):
 
 
 def build_icon_url(item_id, category):
+    """Возвращает URL иконки ТОЛЬКО если файл реально существует в базе."""
     if not category:
         return ""
-    top_category = category.split("/")[0]
-    return (
-        f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
-        f"{ICON_REALM}/icons/{top_category}/{item_id}.png"
-    )
+    # Если список иконок ещё не загружен — возвращаем пусто (безопаснее)
+    if EXISTING_ICONS is None:
+        return ""
+
+    # Пробуем разные варианты пути
+    variants = [category, category.split("/")[0]]
+    for cat in variants:
+        rel = f"{cat}/{item_id}.png"
+        if rel in EXISTING_ICONS:
+            return (
+                f"https://github.com/EXBO-Studio/stalzone-database/raw/main/"
+                f"{ICON_REALM}/icons/{rel}"
+            )
+    return ""
 
 
 def discover_tradable_items():
@@ -81,6 +111,7 @@ def discover_tradable_items():
     print(f"Всего файлов в базе: {len(all_files)}")
 
     skipped = 0
+    with_icon = 0
     for path in all_files:
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -96,19 +127,21 @@ def discover_tradable_items():
 
         item_id = path.stem
         category = content.get("category", "")
+        icon = build_icon_url(item_id, category)
+        if icon:
+            with_icon += 1
         items.append({
             "id": item_id,
             "name": get_localized_name(content),
-            "icon": build_icon_url(item_id, category)
+            "icon": icon
         })
 
     print(f"Отфильтровано персональных: {skipped}")
-    print(f"Торгуемых предметов: {len(items)}")
+    print(f"Торгуемых предметов: {len(items)} (с иконкой: {with_icon})")
     return items
 
 
 def fetch_lots_for_item(token, item_id):
-    """Возвращает обработанные лоты: только с buyoutPrice, отсортированные по цене за единицу."""
     url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/lots?limit=200"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     try:
@@ -129,15 +162,13 @@ def fetch_lots_for_item(token, item_id):
             amount = lot.get("amount") or 0
             if buyout <= 0 or amount <= 0:
                 continue
-            price_per_unit = buyout / amount
             processed.append({
-                "price_per_unit": round(price_per_unit),
+                "price_per_unit": round(buyout / amount),
                 "buyout": buyout,
                 "amount": amount,
                 "endTime": lot.get("endTime", ""),
             })
 
-        # Сортируем по цене за единицу (самые дешёвые — сверху)
         processed.sort(key=lambda l: l["price_per_unit"])
         return item_id, processed
     except Exception:
@@ -157,8 +188,6 @@ def save_history(history):
 
 
 def aggregate_history(records):
-    """Оставляем детально 24 часа, старше — по одной точке в час.
-    Сохраняем метаданные, чтобы не терять name/icon."""
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
 
@@ -205,10 +234,18 @@ def aggregate_history(records):
 
 
 def main():
+    global EXISTING_ICONS
+
     print(f"Запуск сбора данных (регион: {REGION}, язык: {LANG})...")
+
+    # 1. Загружаем список существующих иконок (локально, без HTTP)
+    EXISTING_ICONS = load_existing_icons()
+
+    # 2. Токен
     token = get_access_token()
     print("✅ Токен получен.")
 
+    # 3. Предметы
     all_items = discover_tradable_items()
     if not all_items:
         print("❌ Не найдено торгуемых предметов.")
@@ -234,9 +271,8 @@ def main():
         for n, fut in enumerate(as_completed(futures), 1):
             item_id, lots = fut.result()
             if lots:
-                best = lots[0]  # уже отсортированы
+                best = lots[0]
                 total_amount = sum(l["amount"] for l in lots)
-                # Ограничиваем количество лотов в снапшоте (файл не раздуваем)
                 top_lots = lots[:MAX_LOTS_PER_ITEM]
 
                 meta = meta_map.get(item_id, {})
@@ -247,7 +283,7 @@ def main():
                     "best_lot_buyout": best["buyout"],
                     "total_amount": total_amount,
                     "lots_count": len(lots),
-                    "lots": top_lots,                    # ← актуальные лоты
+                    "lots": top_lots,
                     "name": meta.get("name", item_id),
                     "icon": meta.get("icon", ""),
                 })
