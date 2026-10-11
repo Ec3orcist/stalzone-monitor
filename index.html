@@ -10,19 +10,16 @@
         body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #e0e0e0; margin: 0; padding: 20px; }
         h1 { color: #61dafb; text-align: center; margin-top: 0; }
         .container { max-width: 1400px; margin: 0 auto; }
-
         .tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 25px; border-bottom: 1px solid #3a3a4f; }
         .tab { padding: 12px 24px; background: transparent; border: none; color: #888; font-size: 16px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; }
         .tab:hover { color: #ccc; }
         .tab.active { color: #61dafb; border-bottom-color: #61dafb; }
-
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; align-items: center; }
         input, select, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2b2b3c; color: white; font-size: 15px; }
         input { min-width: 240px; }
         button { cursor: pointer; }
         #refreshBtn { background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
         #refreshBtn:hover { background: #4fa8c7; }
-
         .stats-bar { text-align: center; color: #888; font-size: 14px; margin-bottom: 15px; }
         .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
         .item-card { background: #2b2b3c; border-radius: 10px; padding: 14px 10px 12px; cursor: pointer; position: relative; transition: all 0.15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid transparent; }
@@ -39,9 +36,7 @@
         .card-dev.green { color: #4caf50; }
         .card-dev.red { color: #f44336; }
         .card-dev.neutral { color: #888; }
-
         .empty-state { text-align: center; padding: 60px 20px; color: #888; font-size: 16px; grid-column: 1 / -1; }
-
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; z-index: 100; overflow-y: auto; }
         .modal { background: #1e1e2f; border-radius: 12px; max-width: 1100px; width: 100%; padding: 25px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
         .modal-close { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #888; font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1; }
@@ -69,8 +64,6 @@
         .time-cell { color: #aaa; font-size: 13px; }
         .lots-title { color: #61dafb; margin-top: 0; margin-bottom: 10px; }
         canvas { max-height: 350px; }
-
-        /* Крафты */
         .craft-search { margin-bottom: 20px; }
         .craft-search input { width: 100%; }
         .craft-list { display: flex; flex-direction: column; gap: 10px; }
@@ -82,7 +75,6 @@
         .craft-list-profit { font-weight: bold; }
         .craft-list-profit.green { color: #4caf50; }
         .craft-list-profit.red { color: #f44336; }
-
         .craft-node { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #444; }
         .craft-node.profitable { border-left-color: #4caf50; }
         .craft-node.unprofitable { border-left-color: #f44336; }
@@ -91,24 +83,18 @@
         .craft-node-name { font-size: 16px; font-weight: bold; color: #61dafb; }
         .craft-node-id { font-size: 12px; color: #888; }
         .craft-node-stats { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; }
-        .craft-node-stat { display: flex; flex-direction: column; }
-        .craft-node-stat-label { font-size: 11px; color: #888; }
-        .craft-node-stat-value { font-size: 15px; font-weight: bold; }
         .craft-ingredients { margin-left: 20px; margin-top: 10px; padding-left: 15px; border-left: 2px dashed #3a3a4f; }
         .craft-ingredient { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
         .craft-ingredient-icon { width: 28px; height: 28px; object-fit: contain; border-radius: 3px; background: #1e1e2f; }
         .craft-ingredient-name { color: #ccc; }
         .craft-ingredient-amount { color: #888; font-size: 12px; }
         .craft-ingredient-cost { color: #61dafb; margin-left: auto; font-weight: bold; }
-
-        /* Список покупок и итоги */
         .shopping-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #2b2b3c; border-radius: 8px; overflow: hidden; }
         .shopping-table th { background: #32324a; padding: 12px; text-align: left; font-size: 13px; color: #61dafb; }
         .shopping-table td { padding: 10px 12px; border-top: 1px solid #3a3a4f; font-size: 14px; }
         .shopping-table tr:hover { background: #32324a; }
         .shopping-icon { width: 32px; height: 32px; vertical-align: middle; margin-right: 10px; border-radius: 4px; background: #1e1e2f; object-fit: contain; }
-        .no-price { color: #f44336; font-style: italic; }
-
+        .no-price { color: #888; font-style: italic; }
         .craft-summary { background: #2b2b3c; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
         .craft-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
         .craft-summary-item { text-align: center; }
@@ -116,18 +102,19 @@
         .craft-summary-value.green { color: #4caf50; }
         .craft-summary-value.red { color: #f44336; }
         .craft-summary-label { font-size: 12px; color: #888; margin-top: 4px; }
-
         .qty-input { width: 120px; padding: 10px; border-radius: 6px; background: #2b2b3c; border: 1px solid #444; color: white; font-size: 16px; text-align: center; }
         .qty-row { display: flex; gap: 15px; align-items: center; margin-bottom: 20px; padding: 15px; background: #2b2b3c; border-radius: 8px; flex-wrap: wrap; }
         .qty-row label { color: #aaa; font-size: 15px; }
         .qty-preset { padding: 6px 12px; font-size: 13px; border-radius: 4px; background: #3a3a4f; border: 1px solid #444; color: #ccc; cursor: pointer; }
         .qty-preset:hover { background: #4a4a5f; color: #fff; }
+        .excess-section { background: #2b2b3c; border-radius: 8px; padding: 15px; margin-bottom: 20px; border-left: 4px solid #ffc107; }
+        .excess-section h3 { color: #ffc107; margin: 0 0 10px 0; }
+        .excess-hint { font-size: 12px; color: #888; margin-top: 8px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Stalzone Auction Monitor</h1>
-
         <div class="tabs">
             <button class="tab active" data-tab="market">🏪 Аукцион</button>
             <button class="tab" data-tab="crafts">🔨 Крафты</button>
@@ -213,7 +200,6 @@
             const idx = CATEGORY_ORDER.indexOf(key);
             return idx === -1 ? 9999 : idx;
         }
-
         function loadFavorites() {
             try { return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]'); } catch { return []; }
         }
@@ -310,7 +296,6 @@
             allOpt.value = '';
             allOpt.textContent = 'Все категории';
             els.categorySelect.appendChild(allOpt);
-
             const counts = {};
             itemsCache.forEach(item => { counts[item.category] = (counts[item.category] || 0) + 1; });
             const sortedCats = Object.keys(counts).sort((a, b) => {
@@ -332,17 +317,14 @@
             const cat = els.categorySelect.value;
             const query = els.searchInput.value.toLowerCase().trim();
             const sort = els.sortSelect.value;
-
             let items = itemsCache.slice();
             if (cat === FAVORITES_KEY) items = items.filter(it => isFavorite(it.id));
             else if (cat) items = items.filter(it => it.category === cat);
-
             if (query) {
                 items = items.filter(it =>
                     it.id.toLowerCase().includes(query) || it.name.toLowerCase().includes(query)
                 );
             }
-
             switch (sort) {
                 case 'name': items.sort((a, b) => a.name.localeCompare(b.name, 'ru')); break;
                 case 'price_asc': items.sort((a, b) => a.price - b.price); break;
@@ -351,11 +333,9 @@
                 case 'dev_desc': items.sort((a, b) => b.deviation - a.deviation); break;
                 case 'amount_desc': items.sort((a, b) => b.total_amount - a.total_amount); break;
             }
-
             filteredItems = items;
             currentChunk = 0;
             els.itemsGrid.innerHTML = '';
-
             if (filteredItems.length === 0) {
                 if (cat === FAVORITES_KEY && favorites.length === 0) {
                     els.itemsGrid.innerHTML = '<div class="empty-state">⭐ В избранном пока пусто.<br>Нажмите на звёздочку в углу карточки, чтобы добавить предмет.</div>';
@@ -366,7 +346,6 @@
                 els.sentinel.style.display = 'none';
                 return;
             }
-
             els.resultCount.textContent = `Найдено: ${filteredItems.length}`;
             els.sentinel.style.display = 'block';
             renderNextChunk();
@@ -416,7 +395,6 @@
             return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
-        // ---------- Модалка предмета ----------
         function openModal(id) {
             const item = itemsCache.find(i => i.id === id);
             if (!item) return;
@@ -498,13 +476,12 @@
             if (currentChart) { currentChart.destroy(); currentChart = null; }
         }
 
-        // ---------- Список крафтов ----------
         function renderCraftList() {
             const query = els.craftSearchInput.value.toLowerCase().trim();
             const container = els.craftListContainer;
             const recipeIds = Object.keys(craftsData);
             if (recipeIds.length === 0) {
-                container.innerHTML = '<div class="empty-state">🔨 Пока нет рецептов.<br>Убедитесь, что recipes.json загружен в репозиторий.</div>';
+                container.innerHTML = '<div class="empty-state">🔨 Пока нет рецептов.</div>';
                 return;
             }
             const items = recipeIds
@@ -514,7 +491,6 @@
                     return item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query);
                 })
                 .sort((a, b) => (b.profit || 0) - (a.profit || 0));
-
             if (items.length === 0) {
                 container.innerHTML = '<div class="empty-state">Ничего не найдено</div>';
                 return;
@@ -548,37 +524,183 @@
             });
         }
 
-        // ---------- Модалка крафта с калькулятором ----------
-
-        // Flatten дерево в список сырьевых материалов
-        function flattenTree(node, multiplier, result) {
-            if (!node) return result;
-            result = result || new Map();
+        // ---------- Калькулятор крафта ----------
+        // Округляет количество крафтов вверх и собирает:
+        //   flat - список сырьевых материалов (что покупать)
+        //   excess - что останется лишним после всех крафтов
+        function flattenTree(node, quantity, flat, excess) {
+            if (!node) return;
+            flat = flat || new Map();
+            excess = excess || new Map();
             const hasIngredients = node.ingredients && node.ingredients.length > 0;
             const isCraftable = node.craftable && hasIngredients;
 
             if (!isCraftable) {
                 const id = node.id;
-                if (!result.has(id)) {
-                    result.set(id, {
+                if (!flat.has(id)) {
+                    flat.set(id, {
                         id, name: node.name, icon: node.icon,
                         quantity: 0,
                         unit_price: node.sell_price || 0,
                         total_cost: 0
                     });
                 }
-                const item = result.get(id);
-                item.quantity += multiplier;
+                const item = flat.get(id);
+                item.quantity += quantity;
                 item.total_cost = item.quantity * item.unit_price;
-                return result;
+                return;
             }
 
             const craftAmount = node.craftAmount || 1;
-            const craftsNeeded = multiplier / craftAmount;
-            for (const ing of node.ingredients) {
-                flattenTree(ing, ing.amount * craftsNeeded, result);
+            const craftsNeeded = Math.ceil(quantity / craftAmount - 1e-9);
+            const totalProduced = craftsNeeded * craftAmount;
+            const excessQty = totalProduced - quantity;
+
+            if (excessQty > 1e-9) {
+                const id = node.id;
+                if (!excess.has(id)) {
+                    excess.set(id, {
+                        id, name: node.name, icon: node.icon,
+                        quantity: 0,
+                        unit_price: node.sell_price || 0
+                    });
+                }
+                const ex = excess.get(id);
+                ex.quantity += excessQty;
+                ex.total_value = ex.quantity * ex.unit_price;
             }
-            return result;
+
+            for (const ing of node.ingredients) {
+                flattenTree(ing, ing.amount * craftsNeeded, flat, excess);
+            }
+        }
+
+        function renderShoppingList(flat) {
+            const items = Array.from(flat.values()).sort((a, b) => {
+                const aHas = a.unit_price > 0;
+                const bHas = b.unit_price > 0;
+                if (aHas && !bHas) return -1;
+                if (!aHas && bHas) return 1;
+                return b.total_cost - a.total_cost;
+            });
+
+            if (items.length === 0) {
+                return '<div class="empty-state" style="padding:20px;">Нет сырьевых материалов</div>';
+            }
+
+            let totalCost = 0;
+            const rows = items.map(item => {
+                const hasPrice = item.unit_price > 0;
+                if (hasPrice) totalCost += item.total_cost;
+                const priceText = hasPrice ? `${item.unit_price.toLocaleString('ru-RU')} ₽` : '<span class="no-price">—</span>';
+                const costText = hasPrice ? `${Math.round(item.total_cost).toLocaleString('ru-RU')} ₽` : '—';
+                const iconHtml = item.icon
+                    ? `<img class="shopping-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
+                    : '';
+                return `<tr>
+                    <td>${iconHtml}${escapeHtml(item.name)}</td>
+                    <td style="text-align:right;font-weight:bold;">${item.quantity.toLocaleString('ru-RU')}</td>
+                    <td style="text-align:right;">${priceText}</td>
+                    <td style="text-align:right;" class="price-cell">${costText}</td>
+                </tr>`;
+            }).join('');
+
+            return `
+                <table class="shopping-table">
+                    <thead>
+                        <tr>
+                            <th>Материал</th>
+                            <th style="text-align:right;">Кол-во</th>
+                            <th style="text-align:right;">Цена за 1</th>
+                            <th style="text-align:right;">Итого</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot>
+                        <tr style="background:#32324a;">
+                            <td colspan="3" style="text-align:right;font-weight:bold;color:#aaa;">Всего материалов:</td>
+                            <td style="text-align:right;font-weight:bold;color:#61dafb;font-size:16px;">${Math.round(totalCost).toLocaleString('ru-RU')} ₽</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+        }
+
+        function renderExcess(excess) {
+            const items = Array.from(excess.values()).sort((a, b) => b.quantity - a.quantity);
+            if (items.length === 0) return '';
+
+            const rows = items.map(item => {
+                const iconHtml = item.icon
+                    ? `<img class="shopping-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
+                    : '';
+                const valueText = item.unit_price > 0
+                    ? `<span style="color:#888;font-size:12px;">≈ ${Math.round(item.total_value).toLocaleString('ru-RU')} ₽</span>`
+                    : '';
+                return `<tr>
+                    <td>${iconHtml}${escapeHtml(item.name)}</td>
+                    <td style="text-align:right;font-weight:bold;color:#ffc107;">${item.quantity.toLocaleString('ru-RU')} шт</td>
+                    <td style="text-align:right;">${valueText}</td>
+                </tr>`;
+            }).join('');
+
+            return `
+                <div class="excess-section">
+                    <h3>📦 Останется после крафта (излишек)</h3>
+                    <table class="shopping-table" style="margin-top:0;">
+                        <thead>
+                            <tr>
+                                <th>Предмет</th>
+                                <th style="text-align:right;">Останется</th>
+                                <th style="text-align:right;">Оценочно</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <div class="excess-hint">
+                        Эти предметы не пропадут — их можно использовать в следующих крафтах или продать на аукционе.
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSummary(flat, craft, qty) {
+            let materialsCost = 0;
+            let missingCount = 0;
+            for (const item of flat.values()) {
+                if (item.unit_price > 0) materialsCost += item.total_cost;
+                else missingCount++;
+            }
+            const sellUnit = craft.sell_price || 0;
+            const sellTotal = sellUnit * qty;
+            const profit = sellTotal - materialsCost;
+            const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
+            const profitSign = profit > 0 ? '+' : '';
+            const roi = materialsCost > 0 ? (profit / materialsCost * 100) : 0;
+
+            return `
+                <div class="craft-summary-grid">
+                    <div class="craft-summary-item">
+                        <div class="craft-summary-value">${qty.toLocaleString('ru-RU')} шт</div>
+                        <div class="craft-summary-label">Хотим получить</div>
+                    </div>
+                    <div class="craft-summary-item">
+                        <div class="craft-summary-value">${Math.round(materialsCost).toLocaleString('ru-RU')} ₽</div>
+                        <div class="craft-summary-label">Материалы</div>
+                        ${missingCount > 0 ? `<div style="font-size:11px;color:#888;margin-top:2px;">${missingCount} без цены</div>` : ''}
+                    </div>
+                    <div class="craft-summary-item">
+                        <div class="craft-summary-value">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</div>
+                        <div class="craft-summary-label">Продажа</div>
+                        <div style="font-size:11px;color:#888;margin-top:2px;">${sellUnit.toLocaleString('ru-RU')} ₽/шт</div>
+                    </div>
+                    <div class="craft-summary-item">
+                        <div class="craft-summary-value ${profitClass}">${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽</div>
+                        <div class="craft-summary-label">Прибыль</div>
+                        <div style="font-size:11px;color:#888;margin-top:2px;">ROI: ${roi.toFixed(1)}%</div>
+                    </div>
+                </div>
+            `;
         }
 
         function renderTree(node) {
@@ -608,12 +730,15 @@
                         ? `<img class="craft-ingredient-icon" src="${ing.icon}" alt="" onerror="this.style.display='none'">`
                         : `<div class="craft-ingredient-icon" style="display:flex;align-items:center;justify-content:center;color:#444;font-size:11px;">?</div>`;
                     const subInfo = ing.craftable ? `<span style="color:#888;font-size:11px;margin-left:6px;">(крафт)</span>` : '';
+                    const costText = ing.total_cost > 0
+                        ? `${Math.round(ing.total_cost).toLocaleString('ru-RU')} ₽`
+                        : '—';
                     ingredientsHtml += `
                         <div class="craft-ingredient">
                             ${ingIcon}
                             <span class="craft-ingredient-name">${escapeHtml(ing.name)}${subInfo}</span>
                             <span class="craft-ingredient-amount">×${ing.amount}</span>
-                            <span class="craft-ingredient-cost">${Math.round(ing.total_cost || 0).toLocaleString('ru-RU')} ₽</span>
+                            <span class="craft-ingredient-cost">${costText}</span>
                         </div>
                     `;
                 });
@@ -631,100 +756,6 @@
                         </div>
                     </div>
                     ${ingredientsHtml}
-                </div>
-            `;
-        }
-
-        function renderShoppingList(flat) {
-            const items = Array.from(flat.values()).sort((a, b) => {
-                if (!a.unit_price && b.unit_price) return 1;
-                if (a.unit_price && !b.unit_price) return -1;
-                return b.total_cost - a.total_cost;
-            });
-
-            if (items.length === 0) {
-                return '<div class="empty-state" style="padding:20px;">Нет сырьевых материалов</div>';
-            }
-
-            let totalCost = 0;
-            let missingCount = 0;
-            const rows = items.map(item => {
-                const missing = !item.unit_price || item.unit_price <= 0;
-                if (missing) missingCount++;
-                if (!missing) totalCost += item.total_cost;
-                const priceText = missing ? '<span class="no-price">нет данных</span>' : `${item.unit_price.toLocaleString('ru-RU')} ₽`;
-                const costText = missing ? '—' : `${Math.round(item.total_cost).toLocaleString('ru-RU')} ₽`;
-                const iconHtml = item.icon
-                    ? `<img class="shopping-icon" src="${item.icon}" alt="" onerror="this.style.display='none'">`
-                    : '';
-                return `<tr>
-                    <td>${iconHtml}${escapeHtml(item.name)}</td>
-                    <td style="text-align:right;font-weight:bold;">${item.quantity.toLocaleString('ru-RU')}</td>
-                    <td style="text-align:right;">${priceText}</td>
-                    <td style="text-align:right;" class="price-cell">${costText}</td>
-                </tr>`;
-            }).join('');
-
-            const warning = missingCount > 0
-                ? `<div style="margin-top:10px;padding:10px;background:#3a2b2b;border-left:3px solid #f44336;border-radius:4px;font-size:13px;color:#f44336;">
-                    ⚠️ Для ${missingCount} предметов нет данных о цене — общая стоимость неполная.
-                   </div>`
-                : '';
-
-            return `
-                <table class="shopping-table">
-                    <thead>
-                        <tr>
-                            <th>Материал</th>
-                            <th style="text-align:right;">Кол-во</th>
-                            <th style="text-align:right;">Цена за 1</th>
-                            <th style="text-align:right;">Итого</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                    <tfoot>
-                        <tr style="background:#32324a;">
-                            <td colspan="3" style="text-align:right;font-weight:bold;color:#aaa;">Всего материалов:</td>
-                            <td style="text-align:right;font-weight:bold;color:#61dafb;font-size:16px;">${Math.round(totalCost).toLocaleString('ru-RU')} ₽</td>
-                        </tr>
-                    </tfoot>
-                </table>
-                ${warning}
-            `;
-        }
-
-        function renderSummary(flat, craft, qty) {
-            let materialsCost = 0;
-            for (const item of flat.values()) {
-                if (item.unit_price > 0) materialsCost += item.total_cost;
-            }
-            const sellUnit = craft.sell_price || 0;
-            const sellTotal = sellUnit * qty;
-            const profit = sellTotal - materialsCost;
-            const profitClass = profit > 0 ? 'green' : (profit < 0 ? 'red' : '');
-            const profitSign = profit > 0 ? '+' : '';
-            const roi = materialsCost > 0 ? (profit / materialsCost * 100) : 0;
-
-            return `
-                <div class="craft-summary-grid">
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value">${qty.toLocaleString('ru-RU')} шт</div>
-                        <div class="craft-summary-label">Крафтим</div>
-                    </div>
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value">${Math.round(materialsCost).toLocaleString('ru-RU')} ₽</div>
-                        <div class="craft-summary-label">Материалы</div>
-                    </div>
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value">${Math.round(sellTotal).toLocaleString('ru-RU')} ₽</div>
-                        <div class="craft-summary-label">Продажа</div>
-                        <div style="font-size:11px;color:#888;margin-top:2px;">${sellUnit.toLocaleString('ru-RU')} ₽/шт</div>
-                    </div>
-                    <div class="craft-summary-item">
-                        <div class="craft-summary-value ${profitClass}">${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽</div>
-                        <div class="craft-summary-label">Прибыль</div>
-                        <div style="font-size:11px;color:#888;margin-top:2px;">ROI: ${roi.toFixed(1)}%</div>
-                    </div>
                 </div>
             `;
         }
@@ -752,6 +783,7 @@
                 <div style="font-size:18px;color:#e0e0e0;margin-bottom:15px;">${escapeHtml(craft.name)}</div>
                 ${qtyRowHtml}
                 <div class="craft-summary" id="craftSummaryBox"></div>
+                <div id="craftExcessBox"></div>
                 <h3 style="color:#61dafb; margin-top:0;">🛒 Список покупок</h3>
                 <div id="craftShoppingBox"></div>
                 <h3 style="color:#61dafb; margin-top:25px;">🌳 Дерево крафта</h3>
@@ -759,8 +791,11 @@
             `;
 
             function refresh() {
-                const flat = flattenTree(craft, quantity);
+                const flat = new Map();
+                const excess = new Map();
+                flattenTree(craft, quantity, flat, excess);
                 document.getElementById('craftSummaryBox').innerHTML = renderSummary(flat, craft, quantity);
+                document.getElementById('craftExcessBox').innerHTML = renderExcess(excess);
                 document.getElementById('craftShoppingBox').innerHTML = renderShoppingList(flat);
                 document.getElementById('craftTreeBox').innerHTML = renderTree(craft);
             }
@@ -789,7 +824,6 @@
             document.body.style.overflow = '';
         }
 
-        // ---------- Прочее ----------
         let observer = null;
         function setupInfiniteScroll() {
             if (observer) observer.disconnect();
