@@ -5,7 +5,6 @@ from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-# --- Настройки ---
 REGION = os.environ.get("REGION", "EU")
 LANG = "ru"
 ICON_REALM = "ru"
@@ -164,10 +163,8 @@ def load_recipes():
     if not os.path.exists(RECIPES_FILE):
         print("ℹ️ recipes.json не найден — крафты не будут построены.")
         return {}
-
     with open(RECIPES_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-
     recipes = {}
     if isinstance(data, dict) and "recipes" in data:
         source_list = data["recipes"]
@@ -176,7 +173,6 @@ def load_recipes():
         source_list = data
     else:
         source_list = []
-
     for r in source_list:
         item_id = r.get("itemId")
         if not item_id:
@@ -259,7 +255,7 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
         "name": price_info.get("name") or (recipe or {}).get("name", item_id),
         "icon": price_info.get("icon") or "",
         "sell_price": sell_price,
-        "craftable": bool(recipe),
+        "craftable": bool(recipe and recipe.get("ingredients")),
         "ingredients": [],
         "cost": 0, "profit": 0, "roi": 0,
     }
@@ -295,6 +291,52 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
     node["profit"] = sell_price - node["cost"]
     node["roi"] = (node["profit"] / node["cost"] * 100) if node["cost"] > 0 else 0
     return node
+
+
+def analyze_crafts(recipes, current_prices):
+    """Анализирует рецепты: находит ингредиенты без рецепта (сырьё) и без цены."""
+    ingredient_ids = set()
+    for r in recipes.values():
+        for ing in r.get("ingredients", []):
+            ingredient_ids.add(ing["id"])
+
+    raw_with_price = []
+    raw_no_price = []
+
+    for iid in sorted(ingredient_ids):
+        if iid in recipes and recipes[iid].get("ingredients"):
+            continue  # крафтится, не сырьё
+        price = current_prices.get(iid, {}).get("price", 0)
+        name = current_prices.get(iid, {}).get("name", iid)
+        if price > 0:
+            raw_with_price.append({"id": iid, "name": name, "price": price})
+        else:
+            raw_no_price.append({"id": iid, "name": name})
+
+    print("\n" + "=" * 60)
+    print("📊 АНАЛИЗ КРАФТОВ")
+    print("=" * 60)
+    print(f"   Всего рецептов: {len(recipes)}")
+    print(f"   Уникальных ингредиентов: {len(ingredient_ids)}")
+    print(f"   Сырьё (не крафтится) с ценой: {len(raw_with_price)}")
+    print(f"   ⚠️ Сырьё БЕЗ цены: {len(raw_no_price)}")
+    if raw_no_price:
+        print("   Список предметов без цены:")
+        for item in raw_no_price[:50]:
+            print(f"     - {item['id']}  ({item['name']})")
+        if len(raw_no_price) > 50:
+            print(f"     ...и ещё {len(raw_no_price) - 50}")
+
+    analysis = {
+        "total_recipes": len(recipes),
+        "total_ingredients": len(ingredient_ids),
+        "raw_with_price": len(raw_with_price),
+        "raw_no_price_count": len(raw_no_price),
+        "raw_no_price": raw_no_price,
+    }
+    with open("craft_analysis.json", "w", encoding="utf-8") as f:
+        json.dump(analysis, f, ensure_ascii=False, indent=2)
+    print("=" * 60)
 
 
 def main():
@@ -360,6 +402,8 @@ def main():
         with open("crafts.json", "w", encoding="utf-8") as f:
             json.dump(craft_trees, f, ensure_ascii=False, separators=(",", ":"))
         print(f"✅ crafts.json сохранён ({len(craft_trees)} рецептов)")
+
+        analyze_crafts(recipes, current_prices)
 
 
 if __name__ == "__main__":
