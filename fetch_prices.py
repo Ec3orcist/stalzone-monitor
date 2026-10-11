@@ -6,16 +6,34 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # --- Настройки ---
-REGION = os.environ.get("REGION", "RU")
+REGION = os.environ.get("REGION", "EU")
+LANG = "en"           # en для EU, ru для RU, es/fr/ko для других
 TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
-ITEM_DB_DIR = "itemdb/ru/items"
 MAX_HISTORY = 500
-MAX_ITEMS = 300
-WORKERS = 15
+MAX_ITEMS = 500
+WORKERS = 8
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
+
+# Пробуем найти папку с базой под наш регион, иначе используем ru
+def find_item_db_dir():
+    base = Path("itemdb")
+    if not base.exists():
+        return None
+    # Кандидаты: en, eu, ru
+    for candidate in [LANG, REGION.lower(), "en", "ru"]:
+        path = base / candidate / "items"
+        if path.exists():
+            return path
+    # Fallback — ищем любую папку с items
+    for d in base.iterdir():
+        if d.is_dir() and (d / "items").exists():
+            return d / "items"
+    return None
+
+ITEM_DB_DIR = find_item_db_dir()
 
 def get_access_token():
     payload = {
@@ -28,21 +46,28 @@ def get_access_token():
     resp.raise_for_status()
     return resp.json().get("access_token")
 
-def discover_tradable_item_ids():
-    """
-    Читает базу предметов и возвращает только те ID,
-    которые НЕ являются персональными (можно продать на аукционе).
-    """
-    ids = []
-    root = Path(ITEM_DB_DIR)
-    if not root.exists():
-        print(f"❌ Папка {ITEM_DB_DIR} не найдена.")
-        return ids
+def get_localized_name(content):
+    """Извлекает название на нужном языке."""
+    try:
+        name = content.get("name", {})
+        if isinstance(name, dict):
+            lines = name.get("lines", {})
+            return lines.get(LANG) or lines.get("en") or lines.get("ru") or ""
+        return str(name)
+    except Exception:
+        return ""
 
-    all_files = list(root.rglob("*.json"))
+def discover_tradable_items():
+    items = []
+    if ITEM_DB_DIR is None:
+        print("❌ Папка с базой предметов не найдена.")
+        return items
+
+    print(f"📁 Используем базу: {ITEM_DB_DIR}")
+    all_files = list(ITEM_DB_DIR.rglob("*.json"))
     print(f"Всего файлов в базе: {len(all_files)}")
 
-    skipped_personal = 0
+    skipped = 0
     for path in all_files:
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -50,35 +75,33 @@ def discover_tradable_item_ids():
         except Exception:
             continue
 
-        # Проверяем статус: если предмет персональный — пропускаем
         status = content.get("status", {})
-        if isinstance(status, dict):
-            state = status.get("state", "")
-        else:
-            state = str(status) if status else ""
-
-        # PERSONAL_ON_USE и PERSONAL — не торгуются
+        state = status.get("state", "") if isinstance(status, dict) else str(status)
         if state in ("PERSONAL_ON_USE", "PERSONAL"):
-            skipped_personal += 1
+            skipped += 1
             continue
 
-        ids.append(path.stem)
+        items.append({
+            "id": path.stem,
+            "name": get_localized_name(content)
+        })
 
-    print(f"Отфильтровано персональных: {skipped_personal}")
-    print(f"Торгуемых предметов: {len(ids)}")
-    return ids
+    print(f"Отфильтровано персональных: {skipped}")
+    print(f"Торгуемых предметов: {len(items)}")
+    return items
 
 def fetch_lots_for_item(token, item_id):
     url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/lots?limit=200"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     try:
         r = requests.get(url, headers=headers, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            if isinstance(data, dict) and "lots" in data:
-                return item_id, data["lots"]
-            if isinstance(data, list):
-                return item_id, data
+        if r.status_code != 200:
+            return item_id, []
+        data = r.json()
+        if isinstance(data, dict) and "lots" in data:
+            return item_id, data["lots"]
+        if isinstance(data, list):
+            return item_id, data
         return item_id, []
     except Exception:
         return item_id, []
@@ -121,42 +144,52 @@ def aggregate_history(records):
     return result[-720:] if len(result) > 720 else result
 
 def main():
-    print("Запуск сбора данных...")
+    print(f"Запуск сбора данных (регион: {REGION}, язык: {LANG})...")
     token = get_access_token()
     print("✅ Токен получен.")
 
-    tradable_ids = discover_tradable_item_ids()
-    if not tradable_ids:
+    all_items = discover_tradable_items()
+    if not all_items:
         print("❌ Не найдено торгуемых предметов.")
         return
 
-    # Берём только первые MAX_ITEMS торгуемых
-    item_ids = tradable_ids[:MAX_ITEMS]
-    print(f"Обрабатываем предметов: {len(item_ids)}")
+    items_to_process = all_items[:MAX_ITEMS]
+    print(f"Обрабатываем предметов: {len(items_to_process)}")
+
+    names_map = {item["id"]: item["name"] for item in items_to_process}
 
     history = load_history()
     now = datetime.now(timezone.utc).isoformat()
     updated = 0
 
     with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-        futures = {executor.submit(fetch_lots_for_item, token, iid): iid for iid in item_ids}
+        futures = {
+            executor.submit(fetch_lots_for_item, token, item["id"]): item["id"]
+            for item in items_to_process
+        }
         for n, fut in enumerate(as_completed(futures), 1):
             item_id, lots = fut.result()
             if lots:
-                prices = [l.get("price") for l in lots if l.get("price")]
+                prices = []
+                for lot in lots:
+                    p = lot.get("buyoutPrice") or lot.get("startPrice") or 0
+                    if p > 0:
+                        prices.append(p)
                 if prices:
                     history.setdefault(item_id, []).append({
                         "timestamp": now,
                         "price": min(prices),
+                        "name": names_map.get(item_id, item_id),
                         "all_prices": prices,
                     })
                     history[item_id] = aggregate_history(history[item_id])
                     updated += 1
             if n % 50 == 0:
-                print(f"  обработано {n}/{len(item_ids)}")
+                print(f"  обработано {n}/{len(items_to_process)}")
 
     save_history(history)
     print(f"✅ Готово. Обновлено предметов: {updated}")
+    print(f"   Файл {DATA_FILE}: {os.path.getsize(DATA_FILE)} байт")
 
 if __name__ == "__main__":
     main()
