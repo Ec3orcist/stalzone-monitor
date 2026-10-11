@@ -15,20 +15,19 @@
         button { cursor: pointer; background: #61dafb; color: #1e1e2f; font-weight: bold; border: none; }
         button:hover { background: #4fa8c7; }
         .card { background: #2b2b3c; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .stats { display: flex; justify-content: space-around; text-align: center; margin-top: 10px; flex-wrap: wrap; }
+        .stats { display: flex; justify-content: space-around; text-align: center; margin-top: 10px; flex-wrap: wrap; gap: 15px; }
         .stat-item { flex: 1; min-width: 150px; }
-        .stat-value { font-size: 24px; font-weight: bold; color: #61dafb; }
-        .stat-label { font-size: 14px; color: #aaa; }
+        .stat-value { font-size: 22px; font-weight: bold; color: #61dafb; }
+        .stat-label { font-size: 13px; color: #aaa; margin-top: 4px; }
+        .stat-sub { font-size: 12px; color: #888; margin-top: 2px; }
         canvas { max-height: 400px; }
         .green { color: #4caf50 !important; }
         .red { color: #f44336 !important; }
         .loading { text-align: center; color: #aaa; padding: 20px; }
         .item-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
-        .item-icon { width: 64px; height: 64px; border-radius: 8px; background: #1e1e2f; object-fit: contain; }
+        .item-icon { width: 72px; height: 72px; border-radius: 8px; background: #1e1e2f; object-fit: contain; }
         .item-title { font-size: 22px; font-weight: bold; color: #61dafb; }
         .item-id { font-size: 14px; color: #888; margin-top: 4px; }
-        /* Стилизация выпадающего списка с иконками */
-        select option { padding: 8px; }
     </style>
 </head>
 <body>
@@ -49,10 +48,28 @@
                 </div>
             </div>
             <div class="stats">
-                <div class="stat-item"><div class="stat-value" id="currentPrice">-</div><div class="stat-label">Текущая цена</div></div>
-                <div class="stat-item"><div class="stat-value" id="avgPrice">-</div><div class="stat-label">Средняя (7 дней)</div></div>
-                <div class="stat-item"><div class="stat-value" id="deviation">-</div><div class="stat-label">Отклонение от средней</div></div>
-                <div class="stat-item"><div class="stat-value" id="pointsCount">-</div><div class="stat-label">Точек истории</div></div>
+                <div class="stat-item">
+                    <div class="stat-value" id="currentPrice">-</div>
+                    <div class="stat-label">Цена за 1 шт</div>
+                    <div class="stat-sub" id="bestLotInfo"></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgPrice">-</div>
+                    <div class="stat-label">Средняя (7 дней)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="deviation">-</div>
+                    <div class="stat-label">Отклонение от средней</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalAmount">-</div>
+                    <div class="stat-label">Всего на аукционе</div>
+                    <div class="stat-sub" id="lotsCountInfo"></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="pointsCount">-</div>
+                    <div class="stat-label">Точек истории</div>
+                </div>
             </div>
         </div>
 
@@ -79,16 +96,16 @@
         }
 
         function getItemMeta(id) {
-    const hist = allData[id];
-    if (hist && hist.length) {
-        const last = hist[hist.length - 1];    // ← берём ПОСЛЕДНЮЮ (свежую) запись
-        return {
-            name: last.name || id,
-            icon: last.icon || ''
-        };
-    }
-    return { name: id, icon: '' };
-}
+            const hist = allData[id];
+            if (hist && hist.length) {
+                const last = hist[hist.length - 1];
+                return {
+                    name: last.name || id,
+                    icon: last.icon || ''
+                };
+            }
+            return { name: id, icon: '' };
+        }
 
         function populateSelect(filter = '') {
             const sel = document.getElementById('itemSelect');
@@ -128,11 +145,12 @@
             const meta = getItemMeta(id);
             const labels = hist.map(h => new Date(h.timestamp).toLocaleString());
             const prices = hist.map(h => h.price);
+
+            const last = hist[hist.length - 1];
             const cur = prices[prices.length - 1];
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
             const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
 
-            // Обновляем карточку
             document.getElementById('statsCard').style.display = 'block';
             document.getElementById('itemName').textContent = meta.name;
             document.getElementById('itemIdDisplay').textContent = `ID: ${id}`;
@@ -146,11 +164,35 @@
             }
 
             document.getElementById('currentPrice').textContent = cur.toLocaleString() + ' ₽';
+
+            // Информация о лучшем лоте
+            const bestInfo = document.getElementById('bestLotInfo');
+            if (last.best_lot_amount && last.best_lot_buyout) {
+                bestInfo.textContent = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString()} ₽`;
+            } else {
+                bestInfo.textContent = '';
+            }
+
             document.getElementById('avgPrice').textContent = Math.round(avg).toLocaleString() + ' ₽';
 
             const devEl = document.getElementById('deviation');
             devEl.textContent = (dev > 0 ? '+' : '') + dev.toFixed(1) + '%';
             devEl.className = 'stat-value ' + (dev > 0 ? 'red' : 'green');
+
+            // Количество на аукционе
+            const totalEl = document.getElementById('totalAmount');
+            if (last.total_amount !== undefined) {
+                totalEl.textContent = last.total_amount.toLocaleString() + ' шт';
+            } else {
+                totalEl.textContent = '—';
+            }
+
+            const lotsInfo = document.getElementById('lotsCountInfo');
+            if (last.lots_count !== undefined) {
+                lotsInfo.textContent = `${last.lots_count} лотов`;
+            } else {
+                lotsInfo.textContent = '';
+            }
 
             document.getElementById('pointsCount').textContent = prices.length;
 
@@ -162,7 +204,7 @@
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Цена выкупа', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
+                        { label: 'Цена за 1 шт', data: prices, borderColor: '#61dafb', backgroundColor: 'rgba(97,218,251,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.1 },
                         { label: 'Средняя', data: new Array(prices.length).fill(avg), borderColor: '#f44336', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false }
                     ]
                 },
