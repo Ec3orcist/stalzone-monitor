@@ -21,6 +21,7 @@ RECIPES_FILE = Path("recipes.json")
 ACTIVE_ITEMS_FILE = Path("active_items.json")
 SALES_FILE = Path("sales_history.json")
 CRAFTS_FILE = Path("crafts.json")
+ITEMS_FILE = Path("items.json")
 
 SALES_REFRESH_HOURS = 6
 SALES_MAX_DAYS = 60
@@ -28,14 +29,18 @@ SALES_MAX_PAGES = 8
 SALES_PAGE_SIZE = 200
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
-RESCAN_BATCH = 80
+RESCAN_BATCH = 200
 WORKERS = 4
 MAX_LOTS_PER_ITEM = 10
 MIN_REQUEST_INTERVAL = 1.05
 REQUEST_TIMEOUT = 15
 RETRIES = 3
 
-PERSONAL_STATES = frozenset({"PERSONAL_ON_USE", "PERSONAL"})
+UNTRADABLE_STATES = frozenset({
+    "PERSONAL",
+    "PERSONAL_ON_GET",
+    "PERSONAL_DROP_ON_GET",
+})
 
 
 def utc_now():
@@ -167,13 +172,14 @@ def load_existing_icons():
 
 
 def icon_url(item_id, category, existing_icons):
-    if not category or not existing_icons:
+    if not category:
         return ""
-    for cat in (category, category.split("/")[0]):
+    candidates = (category, category.split("/")[0])
+    for cat in candidates:
         rel = f"{cat}/{item_id}.png"
-        if rel in existing_icons:
+        if not existing_icons or rel in existing_icons:
             return f"{ICON_CDN}/{ICON_REALM}/icons/{rel}"
-    return ""
+    return f"{ICON_CDN}/{ICON_REALM}/icons/{category}/{item_id}.png"
 
 
 def normalize_icon(icon):
@@ -201,17 +207,21 @@ def scan_item_database(item_db_dir, existing_icons):
     tradable = []
     meta = {}
     skipped = 0
-    files = list(item_db_dir.rglob("*.json"))
-    print(f"📁 База: {item_db_dir} ({len(files)} файлов)")
+    files = [path for path in item_db_dir.rglob("*.json") if "_variants" not in path.parts]
+    print(f"📁 База: {item_db_dir} ({len(files)} предметов)")
 
     for path in files:
         try:
             content = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        item_id = path.stem
-        category = content.get("category", "") or ""
-        top_category = category.split("/")[0] if category else "other"
+        item_id = content.get("id") or path.stem
+        if not item_id:
+            continue
+        category = content.get("category") or ""
+        if not category:
+            category = path.relative_to(item_db_dir).parts[0]
+        top_category = category.split("/")[0] or "other"
         info = {
             "id": item_id,
             "name": localized_name(content),
@@ -219,12 +229,12 @@ def scan_item_database(item_db_dir, existing_icons):
             "category": top_category,
         }
         meta[item_id] = info
-        if parse_item_state(content) in PERSONAL_STATES:
+        if parse_item_state(content) in UNTRADABLE_STATES:
             skipped += 1
             continue
         tradable.append(info)
 
-    print(f"📚 Мета: {len(meta)}, торгуемых: {len(tradable)}, персональных: {skipped}")
+    print(f"📚 Мета: {len(meta)}, торгуемых: {len(tradable)}, неторгуемых: {skipped}")
     return tradable, meta
 
 
@@ -670,6 +680,24 @@ def update_sales(api, item_ids, previous):
     return sales
 
 
+def save_item_catalog(meta, tradable):
+    tradable_ids = {item["id"] for item in tradable}
+    catalog = {
+        item_id: {
+            "name": info.get("name") or item_id,
+            "icon": info.get("icon") or "",
+            "category": info.get("category") or "other",
+            "tradable": item_id in tradable_ids,
+        }
+        for item_id, info in meta.items()
+        if info.get("name")
+    }
+    save_json(ITEMS_FILE, catalog)
+    tradable_count = sum(1 for row in catalog.values() if row["tradable"])
+    print(f"✅ Каталог: {len(catalog)} предметов, торгуемых {tradable_count}")
+    return catalog
+
+
 def update_crafts(recipes, history, all_meta, sales):
     if not recipes:
         return
@@ -717,6 +745,7 @@ def main():
     tradable, all_meta = scan_item_database(item_db_dir, existing_icons)
     if not tradable:
         raise SystemExit("В базе нет торгуемых предметов")
+    save_item_catalog(all_meta, tradable)
 
     token = get_access_token(os.environ.get("CLIENT_ID"), os.environ.get("CLIENT_SECRET"))
     print("✅ Токен получен")
@@ -746,8 +775,18 @@ def rebuild_offline():
     update_crafts(load_recipes(), history, {}, sales)
 
 
+def catalog_only():
+    item_db_dir = find_item_db_dir()
+    if item_db_dir is None:
+        raise SystemExit("Нет itemdb — сначала клонируй EXBO-Studio/stalzone-database")
+    tradable, all_meta = scan_item_database(item_db_dir, load_existing_icons())
+    save_item_catalog(all_meta, tradable)
+
+
 if __name__ == "__main__":
     if "--offline" in sys.argv:
         rebuild_offline()
+    elif "--catalog" in sys.argv:
+        catalog_only()
     else:
         main()

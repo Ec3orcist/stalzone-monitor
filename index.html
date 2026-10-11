@@ -274,6 +274,7 @@
 
     <script>
         let allData = {};
+        let catalogData = {};
         let craftsData = {};
         let salesData = {};
         let itemIndex = {};
@@ -417,6 +418,12 @@
             const nextName = (name && name !== id) ? name : prev.name;
             const nextIcon = resolveIcon(icon || prev.icon || '');
             itemIndex[id] = { name: nextName || prev.name || id, icon: nextIcon };
+        }
+        function ingestCatalog() {
+            Object.keys(catalogData).forEach(id => {
+                const row = catalogData[id] || {};
+                rememberItem(id, row.name, row.icon);
+            });
         }
         function ingestRecipes(data) {
             const list = (data && data.recipes) || [];
@@ -577,13 +584,16 @@
 
         async function loadSecondary(force) {
             try {
-                const [crafts, sales, recipes] = await Promise.all([
+                const [crafts, sales, recipes, catalog] = await Promise.all([
                     fetchJson('crafts.json', force).catch(() => ({})),
                     fetchJson('sales_history.json', force).catch(() => ({})),
-                    fetchJson('recipes.json', force).catch(() => ({}))
+                    fetchJson('recipes.json', force).catch(() => ({})),
+                    fetchJson('items.json', force).catch(() => ({}))
                 ]);
                 craftsData = crafts;
                 salesData = sales;
+                catalogData = catalog && typeof catalog === 'object' && !Array.isArray(catalog) ? catalog : {};
+                ingestCatalog();
                 ingestCrafts();
                 ingestRecipes(recipes);
                 buildItemsCache();
@@ -598,22 +608,33 @@
         }
 
         function buildItemsCache() {
-            itemsCache = Object.keys(allData).map(id => {
+            const ids = new Set(Object.keys(allData));
+            Object.keys(catalogData).forEach(id => {
+                const row = catalogData[id];
+                if (row && row.tradable !== false) ids.add(id);
+            });
+            itemsCache = [...ids].map(id => {
                 const hist = allData[id];
-                if (!hist || !hist.length) return null;
-                const last = hist[hist.length - 1];
-                const cur = last.price;
-                const avg = typicalSale(id) || (hist.reduce((sum, h) => sum + h.price, 0) / hist.length);
-                const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
+                const last = hist && hist.length ? hist[hist.length - 1] : null;
+                const meta = catalogData[id] || {};
+                const cur = last ? (last.price || 0) : 0;
+                const avg = typicalSale(id) || (hist && hist.length ? hist.reduce((sum, h) => sum + h.price, 0) / hist.length : 0);
+                const priced = cur > 0;
+                const dev = priced && avg > 0 ? ((cur - avg) / avg) * 100 : 0;
                 return {
-                    id, name: last.name || id, icon: resolveIcon(last.icon || ''),
-                    category: last.category || 'other',
-                    price: cur, avg, deviation: dev,
-                    total_amount: last.total_amount || 0,
-                    lots_count: last.lots_count || 0,
+                    id,
+                    name: humanName(id, last && last.name, meta.name),
+                    icon: humanIcon(id, last && last.icon, meta.icon),
+                    category: (last && last.category) || meta.category || 'other',
+                    price: cur,
+                    priced,
+                    avg,
+                    deviation: dev,
+                    total_amount: (last && last.total_amount) || 0,
+                    lots_count: (last && last.lots_count) || 0,
                     lastRecord: last
                 };
-            }).filter(Boolean);
+            }).filter(item => item.id);
         }
 
         function populateCategories() {
@@ -724,16 +745,17 @@
                 ? `<img class="card-icon" src="${item.icon}" alt="" loading="lazy" decoding="async" draggable="false" onerror="this.outerHTML='<div class=&quot;card-icon-empty&quot;>?</div>'">`
                 : `<div class="card-icon-empty">?</div>`;
             let devClass = 'neutral', devText = '—';
-            if (item.deviation > 0.5) { devClass = 'red'; devText = '+' + item.deviation.toFixed(1) + '%'; }
-            else if (item.deviation < -0.5) { devClass = 'green'; devText = item.deviation.toFixed(1) + '%'; }
-            else { devText = '0%'; }
+            if (item.priced && item.deviation > 0.5) { devClass = 'red'; devText = '+' + item.deviation.toFixed(1) + '%'; }
+            else if (item.priced && item.deviation < -0.5) { devClass = 'green'; devText = item.deviation.toFixed(1) + '%'; }
+            else if (item.priced) { devText = '0%'; }
+            const priceText = item.priced ? `${item.price.toLocaleString('ru-RU')} ₽` : 'нет лотов';
             const fav = isFavorite(item.id);
             card.innerHTML = `
                 <button class="card-star ${fav ? 'active' : ''}" data-star="${item.id}" title="${fav ? 'Убрать из избранного' : 'В избранное'}">★</button>
                 ${iconHtml}
                 <div class="card-body">
                     <div class="card-name">${escapeHtml(item.name)}</div>
-                    <div class="card-price">${item.price.toLocaleString('ru-RU')} ₽</div>
+                    <div class="card-price">${priceText}</div>
                     <div class="card-meta">
                         <span class="card-dev ${devClass}">${devText}</span>
                         <span>· ${item.total_amount.toLocaleString('ru-RU')} шт</span>
@@ -750,10 +772,10 @@
         function openModal(id) {
             const item = itemsCache.find(i => i.id === id);
             if (!item) return;
-            const hist = allData[id];
+            const hist = allData[id] || [];
             const sales = (salesData[id] || []).slice();
-            const last = hist[hist.length - 1];
-            const cur = last.price;
+            const last = hist.length ? hist[hist.length - 1] : {};
+            const cur = last.price || 0;
             const avg = typicalSale(id) || item.avg;
             const dev = avg > 0 ? ((cur - avg) / avg) * 100 : 0;
             const fav = isFavorite(id);
@@ -817,13 +839,13 @@
                     <button id="modalFavBtn" class="card-star ${fav ? 'active' : ''}" style="position:static; font-size:32px; padding:0 12px;" title="В избранное">★</button>
                 </div>
                 <div class="stats">
-                    <div class="stat-item"><div class="stat-value">${cur.toLocaleString('ru-RU')} ₽</div><div class="stat-label">Цена за 1 шт</div><div class="stat-sub">${bestLotInfo}</div></div>
+                    <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : 'нет лотов'}</div><div class="stat-label">Цена за 1 шт</div><div class="stat-sub">${bestLotInfo}</div></div>
                     <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя сделок (14 дней)</div></div>
-                    <div class="stat-item"><div class="stat-value ${devClass}">${(dev > 0 ? '+' : '') + dev.toFixed(1)}%</div><div class="stat-label">Отклонение</div></div>
+                    <div class="stat-item"><div class="stat-value ${cur && avg ? devClass : ''}">${cur && avg ? ((dev > 0 ? '+' : '') + dev.toFixed(1) + '%') : '—'}</div><div class="stat-label">Отклонение</div></div>
                     <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div></div>
                     <div class="stat-item"><div class="stat-value">${hist.length}</div><div class="stat-label">Точек истории</div></div>
                 </div>
-                <div class="chart-container"><canvas id="modalChart"></canvas></div>
+                ${(hist.length || sales.length) ? '<div class="chart-container"><canvas id="modalChart"></canvas></div>' : '<div style="margin-top:16px;color:#a394bc;font-size:13px;">Лотов пока нет. Цена появится после опроса аукциона.</div>'}
                 ${lotsHtml}
                 ${salesHtml}
             `;
@@ -840,7 +862,9 @@
             els.modalOverlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             requestAnimationFrame(() => {
-                const ctx = document.getElementById('modalChart').getContext('2d');
+                const canvas = document.getElementById('modalChart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
                 if (currentChart) currentChart.destroy();
                 const salePoints = sales.filter(s => s.avg > 0);
                 const useSales = salePoints.length > 0;
