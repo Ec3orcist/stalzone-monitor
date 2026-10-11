@@ -190,17 +190,16 @@ def fetch_lots_for_item(token, item_id):
 
 
 def parse_sales_response(item_id, data):
-    """Агрегирует сделки по дням."""
+    """Агрегирует сделки по дням с учётом количества."""
     global DEBUG_SHOWN
 
     if not DEBUG_SHOWN and data:
         print("\n" + "=" * 60)
         print(f"🔍 ПРИМЕР ОТВЕТА /history для {item_id}:")
-        print(json.dumps(data, ensure_ascii=False)[:800])
+        print(json.dumps(data, ensure_ascii=False)[:1500])
         print("=" * 60 + "\n")
         DEBUG_SHOWN = True
 
-    # API возвращает {"total": N, "prices": [...]}
     if isinstance(data, list):
         raw = data
     elif isinstance(data, dict):
@@ -208,7 +207,6 @@ def parse_sales_response(item_id, data):
     else:
         raw = []
 
-    # Агрегируем по дням
     days = {}
     for entry in raw:
         if not isinstance(entry, dict):
@@ -219,30 +217,30 @@ def parse_sales_response(item_id, data):
         if not t or not price:
             continue
         try:
-            day = t[:10]  # "2026-10-09"
+            day = t[:10]
             price = int(price)
             amount = int(amount)
         except Exception:
             continue
         if day not in days:
-            days[day] = {"prices": [], "amount": 0}
-        days[day]["prices"].append(price)
-        days[day]["amount"] += amount
+            days[day] = {"deals": [], "total_amount": 0, "total_sum": 0}
+        days[day]["deals"].append({"price": price, "amount": amount})
+        days[day]["total_amount"] += amount
+        days[day]["total_sum"] += price * amount
 
-    # Собираем результат
     result = []
     for day in sorted(days.keys()):
         d = days[day]
-        prices = d["prices"]
+        prices = [x["price"] for x in d["deals"]]
+        avg_weighted = round(d["total_sum"] / d["total_amount"]) if d["total_amount"] > 0 else 0
         result.append({
             "t": day + "T00:00:00Z",
-            "a": d["amount"],
+            "a": d["total_amount"],
             "min": min(prices),
             "max": max(prices),
-            "avg": round(sum(prices) / len(prices)),
+            "avg": avg_weighted,
         })
 
-    # Обрезаем до последних N дней
     if len(result) > SALES_MAX_DAYS:
         result = result[-SALES_MAX_DAYS:]
     return result
@@ -250,7 +248,7 @@ def parse_sales_response(item_id, data):
 
 def fetch_sales_for_item(token, item_id):
     session = get_session(token)
-    url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history"
+    url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history?limit=100"
     try:
         r = session.get(url, timeout=15)
         if r.status_code != 200:
