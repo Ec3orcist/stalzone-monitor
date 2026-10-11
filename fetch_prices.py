@@ -12,8 +12,10 @@ TOKEN_URL = "https://exbo.net/oauth/token"
 DATA_FILE = "prices.json"
 RECIPES_FILE = "recipes.json"
 ACTIVE_ITEMS_FILE = "active_items.json"
-HISTORY_FILE = "sales_history.json"
-HISTORY_MAX_AGE_HOURS = 6
+SALES_FILE = "sales_history.json"
+
+SALES_REFRESH_HOURS = 6       # как часто обновлять историю продаж
+SALES_MAX_PERIODS = 200       # максимум периодов на предмет (обрезка)
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
 WORKERS = 10
@@ -23,6 +25,7 @@ CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 EXISTING_ICONS = None
 SESSION = None
+DEBUG_SHOWN = False
 
 
 def get_session(token):
@@ -186,8 +189,79 @@ def fetch_lots_for_item(token, item_id):
         return item_id, []
 
 
-def fetch_history_for_item(token, item_id):
-    """Запрашивает историю продаж предмета за последние ~30 дней."""
+def parse_sales_response(item_id, data):
+    """Гибкий парсинг ответа от /auction/{item}/history."""
+    global DEBUG_SHOWN
+
+    # Первый успешный ответ печатаем в лог — чтобы понять формат
+    if not DEBUG_SHOWN and data:
+        print("\n" + "=" * 60)
+        print(f"🔍 ПРИМЕР ОТВЕТА /history для {item_id}:")
+        print(json.dumps(data, ensure_ascii=False)[:800])
+        print("=" * 60 + "\n")
+        DEBUG_SHOWN = True
+
+    # API может вернуть список или словарь
+    if isinstance(data, list):
+        raw = data
+    elif isinstance(data, dict):
+        raw = (data.get("history") or data.get("prices")
+               or data.get("sales") or data.get("items") or [])
+    else:
+        raw = []
+
+    result = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+
+        # Время
+        t = (entry.get("time") or entry.get("timestamp")
+             or entry.get("date") or entry.get("t") or "")
+
+        # Цены
+        prices = entry.get("prices") or entry.get("buyoutPrices") or []
+        if not isinstance(prices, list):
+            prices = [prices] if prices else []
+        single = (entry.get("price") or entry.get("buyoutPrice")
+                  or entry.get("avg_price") or entry.get("p"))
+        if not prices and single:
+            prices = [single]
+        if not prices:
+            continue
+
+        # Количество
+        amount = entry.get("amount") or entry.get("quantity") or entry.get("count")
+        if amount is None:
+            amount = len(prices)
+        try:
+            amount = int(amount)
+        except Exception:
+            amount = 1
+
+        try:
+            min_p = int(min(prices))
+            max_p = int(max(prices))
+            avg_p = int(round(sum(prices) / len(prices)))
+        except Exception:
+            continue
+
+        result.append({
+            "t": t,
+            "a": amount,
+            "min": min_p,
+            "max": max_p,
+            "avg": avg_p,
+        })
+
+    # Сортируем и обрезаем
+    result.sort(key=lambda x: x["t"])
+    if len(result) > SALES_MAX_PERIODS:
+        result = result[-SALES_MAX_PERIODS:]
+    return result
+
+
+def fetch_sales_for_item(token, item_id):
     session = get_session(token)
     url = f"https://eapi.stalcraft.net/{REGION}/auction/{item_id}/history"
     try:
@@ -195,37 +269,7 @@ def fetch_history_for_item(token, item_id):
         if r.status_code != 200:
             return item_id, []
         data = r.json()
-        # API может возвращать list или dict
-        if isinstance(data, list):
-            raw = data
-        elif isinstance(data, dict):
-            raw = data.get("history") or data.get("prices") or data.get("sales") or []
-        else:
-            raw = []
-
-        processed = []
-        for entry in raw:
-            time_str = entry.get("time") or entry.get("timestamp") or ""
-            prices = entry.get("prices") or []
-            amount = entry.get("amount")
-            if amount is None:
-                amount = len(prices) if prices else 1
-            if not prices:
-                # Попробуем альтернативные поля
-                single_price = entry.get("price") or entry.get("buyoutPrice")
-                if single_price:
-                    prices = [single_price]
-            if not prices:
-                continue
-            processed.append({
-                "time": time_str,
-                "amount": int(amount),
-                "min_price": min(prices),
-                "max_price": max(prices),
-                "avg_price": round(sum(prices) / len(prices)),
-            })
-        processed.sort(key=lambda x: x["time"])
-        return item_id, processed
+        return item_id, parse_sales_response(item_id, data)
     except Exception:
         return item_id, []
 
@@ -242,36 +286,35 @@ def save_history(history):
         json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
 
 
-def load_sales_history():
-    if os.path.exists(HISTORY_FILE):
+def sales_needs_refresh():
+    if not os.path.exists(SALES_FILE):
+        return True
+    try:
+        with open(SALES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        ts_str = data.get("_updated_at", "")
+        if not ts_str:
+            return True
+        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        age = datetime.now(timezone.utc) - ts
+        return age.total_seconds() >= SALES_REFRESH_HOURS * 3600
+    except Exception:
+        return True
+
+
+def load_sales():
+    if os.path.exists(SALES_FILE):
         try:
-            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            with open(SALES_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return {}
     return {}
 
 
-def save_sales_history(data):
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+def save_sales(data):
+    with open(SALES_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-
-
-def sales_history_is_fresh():
-    """Проверяет, обновлялась ли история меньше N часов назад."""
-    if not os.path.exists(HISTORY_FILE):
-        return False
-    try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        updated_at = data.get("_updated_at")
-        if not updated_at:
-            return False
-        ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-        age = datetime.now(timezone.utc) - ts
-        return age.total_seconds() < HISTORY_MAX_AGE_HOURS * 3600
-    except Exception:
-        return False
 
 
 def load_active_items():
@@ -284,9 +327,9 @@ def load_active_items():
     return None
 
 
-def save_active_items(active_ids):
+def save_active_items(ids):
     with open(ACTIVE_ITEMS_FILE, "w", encoding="utf-8") as f:
-        json.dump(sorted(active_ids), f, ensure_ascii=False, indent=2)
+        json.dump(sorted(ids), f, ensure_ascii=False, indent=2)
 
 
 def load_recipes():
@@ -374,25 +417,20 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
     if item_id in visited:
         return None
     visited.add(item_id)
-
     price_info = prices.get(item_id, {})
     sell_price = price_info.get("price", 0)
     recipe = recipes.get(item_id)
-
     node = {
         "id": item_id,
         "name": price_info.get("name") or (recipe or {}).get("name", item_id),
         "icon": price_info.get("icon") or "",
         "sell_price": sell_price,
         "craftable": bool(recipe and recipe.get("ingredients")),
-        "ingredients": [],
-        "cost": 0, "profit": 0, "roi": 0,
+        "ingredients": [], "cost": 0, "profit": 0, "roi": 0,
     }
-
     if not recipe:
         node["cost"] = sell_price
         return node
-
     node["energy"] = recipe.get("energy", 0)
     node["craftAmount"] = recipe.get("craftAmount", 1)
     node["station"] = recipe.get("station", "")
@@ -403,7 +441,6 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
     node["stations"] = recipe.get("stations", [])
     node["category"] = recipe.get("category", "")
     node["subcategory"] = recipe.get("subcategory", "")
-
     total_cost = 0
     for ing in recipe.get("ingredients", []):
         sub = build_craft_tree(recipes, prices, ing["id"], visited.copy())
@@ -413,7 +450,6 @@ def build_craft_tree(recipes, prices, item_id, visited=None):
         sub["total_cost"] = sub["cost"] * ing["amount"]
         node["ingredients"].append(sub)
         total_cost += sub["total_cost"]
-
     craft_amount = recipe.get("craftAmount", 1) or 1
     node["total_cost_batch"] = total_cost
     node["cost"] = total_cost / craft_amount
@@ -428,10 +464,10 @@ def main():
     EXISTING_ICONS = load_existing_icons()
     token = get_access_token()
     print("✅ Токен получен.")
+
     all_items = discover_tradable_items()
     if not all_items:
         return
-
     all_meta = build_all_items_meta()
 
     active_ids = load_active_items()
@@ -446,6 +482,7 @@ def main():
 
     meta_map = {item["id"]: item for item in items_to_process}
 
+    # --- ЦЕНЫ (лоты) ---
     history = load_history()
     now = datetime.now(timezone.utc).isoformat()
     updated = 0
@@ -473,35 +510,39 @@ def main():
                 history[item_id] = aggregate_history(history[item_id])
                 updated += 1
             if n % 200 == 0:
-                print(f"  обработано {n}/{len(items_to_process)}")
+                print(f"  цены: {n}/{len(items_to_process)}")
     save_history(history)
     print(f"✅ Цены обновлены. Предметов: {updated}")
-
-    # --- ИСТОРИЯ ПРОДАЖ ---
-    sales_history = load_sales_history()
-    if sales_history_is_fresh():
-        print(f"💤 История продаж свежая (обновлялась < {HISTORY_MAX_AGE_HOURS} ч назад), пропускаем.")
-    else:
-        print(f"📊 Загружаем историю продаж для {len(items_to_process)} предметов...")
-        sales_updated = 0
-        new_sales = {"_updated_at": datetime.now(timezone.utc).isoformat()}
-        with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-            futures = {executor.submit(fetch_history_for_item, token, item["id"]): item["id"]
-                       for item in items_to_process}
-            for n, fut in enumerate(as_completed(futures), 1):
-                item_id, entries = fut.result()
-                if entries:
-                    new_sales[item_id] = entries
-                    sales_updated += 1
-                if n % 200 == 0:
-                    print(f"  история: {n}/{len(items_to_process)}")
-        save_sales_history(new_sales)
-        print(f"✅ История продаж сохранена для {sales_updated} предметов")
 
     active_now = {iid for iid, rec in history.items() if rec}
     save_active_items(active_now)
     print(f"💾 Активных предметов: {len(active_now)}")
 
+    # --- ИСТОРИЯ ПРОДАЖ (раз в N часов, отдельный файл) ---
+    if not sales_needs_refresh():
+        print(f"💤 История продаж свежая (< {SALES_REFRESH_HOURS} ч), пропускаем.")
+    else:
+        print(f"📊 Тянем историю продаж для {len(items_to_process)} предметов...")
+        sales = {"_updated_at": datetime.now(timezone.utc).isoformat()}
+        got = 0
+        empty = 0
+        with ThreadPoolExecutor(max_workers=WORKERS) as executor:
+            futures = {executor.submit(fetch_sales_for_item, token, item["id"]): item["id"]
+                       for item in items_to_process}
+            for n, fut in enumerate(as_completed(futures), 1):
+                item_id, entries = fut.result()
+                if entries:
+                    sales[item_id] = entries
+                    got += 1
+                else:
+                    empty += 1
+                if n % 200 == 0:
+                    print(f"  продажи: {n}/{len(items_to_process)} (есть: {got}, пусто: {empty})")
+        save_sales(sales)
+        size_kb = os.path.getsize(SALES_FILE) / 1024
+        print(f"✅ sales_history.json: {got} предметов с данными, {empty} без ({size_kb:.0f} КБ)")
+
+    # --- КРАФТЫ ---
     recipes = load_recipes()
     if recipes:
         current_prices = {}
