@@ -22,13 +22,6 @@ jobs:
       - name: Clone item database
         run: git clone --depth 1 https://github.com/EXBO-Studio/stalzone-database.git itemdb
 
-      - name: Debug
-        env:
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          REGION: EU
-        run: python debug.py
-
       - name: Fetch data
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -39,5 +32,5 @@ jobs:
       - name: Commit and push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto-update auction prices"
+          commit_message: "Auto-update auction prices (EU)"
           file_pattern: prices.json
