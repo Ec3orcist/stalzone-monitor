@@ -317,6 +317,7 @@
             <section class="night-card bag-box">
                 <h2>План на вечер</h2>
                 <div id="eveningPlan"></div>
+                <div id="bottlenecks"></div>
             </section>
             <div class="controls">
                 <input type="text" id="lootSearch" placeholder="У меня есть... предмет или крафт">
@@ -769,6 +770,7 @@
             bagSuggest: document.getElementById('bagSuggest'),
             bagChips: document.getElementById('bagChips'),
             eveningPlan: document.getElementById('eveningPlan'),
+            bottlenecks: document.getElementById('bottlenecks'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
@@ -1427,10 +1429,15 @@
             return '<section class="night-card loot-box"><p class="night-hint">Такого предмета в ценах и рецептах нет.</p></section>';
         }
         function eveningActions(plan) {
-            const flips = plan.flips.slice(0, 3).map(row => ({
-                open: row.item.id,
-                text: `Купить «${row.item.name}» не дороже ${money(row.item.price)} — лот на ${row.dev.toFixed(0)}% ниже средней ${money(row.item.avg)}.`
-            }));
+            const flips = plan.flips.slice(0, 3).map(row => {
+                const daily = Math.max(1, Math.ceil(row.item.sold14 / 14));
+                const stack = Math.max(1, Math.min(row.item.total_amount || 1, daily));
+                const need = Math.max(1, Math.ceil((row.item.price * stack) / row.item.avg));
+                return {
+                    open: row.item.id,
+                    text: `Купить ${stack.toLocaleString('ru-RU')} шт «${row.item.name}» по ${money(row.item.price)}. Затраты вернутся, если продать ${need.toLocaleString('ru-RU')} шт по средней ${money(row.item.avg)}.`
+                };
+            });
             const farms = plan.farms
                 .filter(row => row.craftScore > 0 && !owns(row.id))
                 .sort((a, b) => b.craftScore - a.craftScore)
@@ -1456,6 +1463,28 @@
             }
             return [...ready, ...mixed].slice(0, 5);
         }
+        function renderBottlenecks(plan) {
+            const seen = new Set();
+            const rows = [];
+            plan.farms
+                .filter(row => row.best && row.best.share >= 0.55 && row.best.profitBuy >= 1000)
+                .sort((a, b) => b.best.share - a.best.share || b.best.profitBuy - a.best.profitBuy)
+                .forEach(row => {
+                    if (seen.has(row.best.id)) return;
+                    seen.add(row.best.id);
+                    rows.push(row);
+                });
+            const top = rows.slice(0, 3);
+            els.bottlenecks.innerHTML = top.length
+                ? `<div class="night-sub" style="padding-top:8px">Упирается в одно сырьё</div>` + top.map(row => {
+                    const share = Math.round(row.best.share * 100);
+                    const text = owns(row.id)
+                        ? `«${row.best.name}» можно закрывать: «${row.name}» уже в рюкзаке и это ${share}% себестоимости.`
+                        : `«${row.best.name}» упирается в «${row.name}»: ${share}% себестоимости, плюс ${money(row.best.profitBuy)} если докупить остальное.`;
+                    return `<div class="night-row plan-row" data-loot="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">${escapeHtml(text)}</div></div></div>`;
+                }).join('')
+                : '';
+        }
         function renderEvening(plan) {
             const actions = eveningActions(plan);
             els.eveningPlan.innerHTML = actions.length
@@ -1475,6 +1504,7 @@
             }
             const plan = planTonight();
             renderEvening(plan);
+            renderBottlenecks(plan);
             const query = els.lootSearch.value.trim().toLowerCase();
             els.lootAdvice.innerHTML = query ? lootAdviceHtml(query, plan) : '';
             els.flipList.innerHTML = plan.flips.length
