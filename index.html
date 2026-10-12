@@ -384,6 +384,31 @@
         .station-actions { display: flex; gap: 6px; }
         .ghost-btn { padding: 7px 12px; font-size: 12px; font-family: var(--hud); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: rgba(139,108,240,.12); border: 1px solid rgba(167,139,250,.4); color: var(--accent); border-radius: 0; clip-path: var(--cut); }
         .ghost-btn:hover { background: rgba(139,108,240,.28); color: #fff; }
+        .top-side { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .account-btn { flex-shrink: 0; padding: 9px 14px; font-family: var(--hud); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; background: rgba(139,108,240,.12); border: 1px solid rgba(167,139,250,.4); color: var(--accent); border-radius: 0; clip-path: var(--cut); }
+        .account-btn:hover { background: rgba(139,108,240,.28); color: #fff; }
+        .account-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 190px; padding: 12px; background: #141020; border: 1px solid rgba(150,120,255,.35); box-shadow: 0 16px 40px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 8px; }
+        .account-menu[hidden] { display: none; }
+        .account-menu div { font-family: var(--hud); font-weight: 700; letter-spacing: .04em; }
+        .auth-modal { max-width: 420px; }
+        .auth-modal h2 { margin: 0 0 8px; font-family: var(--hud); letter-spacing: .12em; text-transform: uppercase; font-size: 18px; }
+        .auth-form { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+        .auth-submit { align-self: flex-start; background: linear-gradient(180deg, #7a56e6, #4c2f96); color: #fff; font-family: var(--hud); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border: none; border-radius: 0; clip-path: var(--cut); }
+        #authSwitch { background: transparent; border: 0; color: var(--accent); padding: 10px 0 0; text-align: left; }
+        .loot-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+        .loot-strip div { background: linear-gradient(180deg, rgba(31,24,48,.9), rgba(17,13,28,.9)); border: 1px solid var(--edge); padding: 10px 12px; clip-path: var(--cut); }
+        .loot-strip b { display: block; font-family: var(--mono); font-size: 16px; color: var(--accent); }
+        .loot-strip span { color: var(--muted); font-size: 11px; font-family: var(--hud); letter-spacing: .08em; text-transform: uppercase; }
+        .loot-strip .night-sub { grid-column: 1 / -1; margin: 2px 0 0; }
+        .loot-line { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+        .loot-line img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; background: radial-gradient(circle at 50% 40%, #241a3a, #0a0812 75%); border: 1px solid rgba(139,108,240,.18); flex-shrink: 0; }
+        .loot-line input { width: 72px; font-family: var(--mono); text-align: center; padding: 6px 8px; }
+        .loot-run { border-top: 1px solid var(--line); }
+        .loot-run > summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 0; list-style: none; }
+        .loot-run > summary::-webkit-details-marker { display: none; }
+        .loot-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+        .loot-drop { background: transparent; border: 0; color: var(--muted); font-size: 18px; padding: 0 6px; }
+        .loot-drop:hover { color: var(--danger); }
         #clearBuiltBtn { background: transparent; border-color: var(--line); color: var(--muted); }
         #clearBuiltBtn:hover { color: var(--danger); border-color: rgba(251,113,133,.5); }
         .unlock-meter { margin: 10px 0; }
@@ -456,6 +481,9 @@
             .variant > summary > span, .variant-head > span { min-width: 0; overflow-wrap: anywhere; }
             body { padding: 0 10px 32px; }
             .topbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 2px; margin-bottom: 10px; }
+            .top-side { width: 100%; flex-wrap: wrap; }
+            .account-btn { margin-left: auto; }
+            .loot-strip { grid-template-columns: 1fr 1fr; }
             h1 { font-size: 20px; }
             .tabs { width: 100%; }
             .tab { flex: 1 0 auto; }
@@ -503,12 +531,20 @@
                     <p class="price-stamp" id="priceStamp"></p>
                 </div>
             </div>
+            <div class="top-side">
             <div class="tabs">
                 <button class="tab active" data-tab="market">Аукцион</button>
                 <button class="tab" data-tab="crafts">Крафты</button>
                 <button class="tab" data-tab="tonight">Наводки</button>
                 <button class="tab" data-tab="inventory">Инвентарь</button>
                 <button class="tab" data-tab="shelter">Убежище</button>
+                <button class="tab" data-tab="loot">Лут</button>
+            </div>
+            <button type="button" class="account-btn" id="accountBtn">Войти</button>
+            <div class="account-menu" id="accountMenu" hidden>
+                <div id="accountMenuName"></div>
+                <button type="button" class="ghost-btn" id="logoutBtn">Выйти</button>
+            </div>
             </div>
         </header>
 
@@ -713,6 +749,34 @@
             </div>
         </div>
 
+        <div id="tab-loot" style="display:none;">
+            <div class="hq-head">
+                <div>
+                    <h2 class="hq-title">Лут</h2>
+                    <p class="night-lead">Запиши, что вынес из тайников. Сумма считается по самому дешёвому лоту на аукционе.</p>
+                </div>
+            </div>
+            <div id="lootStrip"></div>
+            <section class="night-card bag-box">
+                <h2>Эта вылазка</h2>
+                <input type="text" id="haulNote" placeholder="Пометка, если нужна: тайники, север..." maxlength="40" autocomplete="off">
+                <input type="text" id="haulSearch" placeholder="Добавить предмет..." autocomplete="off">
+                <div id="haulSuggest" class="bag-suggest"></div>
+                <div id="haulDraft"></div>
+                <div class="loot-foot">
+                    <div class="night-sub" id="haulTotal"></div>
+                    <button type="button" class="auth-submit" id="haulSave">Записать</button>
+                </div>
+            </section>
+            <section class="night-card bag-box">
+                <div class="bench-head">
+                    <h2>Вылазки</h2>
+                    <button type="button" class="ghost-btn" id="haulClear">Очистить</button>
+                </div>
+                <div id="haulHistory"></div>
+            </section>
+        </div>
+
         <div id="tab-shelter" style="display:none;">
             <div class="hq-head">
                 <div>
@@ -758,6 +822,22 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="authOverlay" style="display:none;">
+        <div class="modal auth-modal">
+            <button class="modal-close" id="authClose" type="button">×</button>
+            <h2 id="authTitle">Вход</h2>
+            <p class="night-sub" id="authLead">Аккаунт хранится в этом браузере. В нём остаются инвентарь, убежище, избранное, бюджет и лут.</p>
+            <form class="auth-form" id="authForm">
+                <input type="text" id="authName" placeholder="Имя" maxlength="24" autocomplete="username" required>
+                <input type="password" id="authPass" placeholder="Пароль" maxlength="80" autocomplete="current-password" required>
+                <p class="night-sub" id="authHint"></p>
+                <p class="red" id="authError"></p>
+                <button type="submit" class="auth-submit" id="authSubmit">Войти</button>
+            </form>
+            <button type="button" id="authSwitch">Нет аккаунта? Регистрация</button>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="craftModalOverlay" style="display:none;">
         <div class="modal" style="max-width: 950px;">
             <button class="modal-close" id="craftModalClose">×</button>
@@ -784,6 +864,14 @@
         const BAG_KEY = 'sz_backpack';
         const BUDGET_KEY = 'sz_budget';
         const TARGET_KEY = 'sz_craft_target';
+        const LOOT_KEY = 'sz_loot';
+        const DRAFT_KEY = 'sz_haul_draft';
+        const ACCOUNTS_KEY = 'sz_accounts';
+        const SESSION_KEY = 'sz_session';
+        const USER_DATA_KEYS = ['sz_favorites', 'sz_skill_levels', 'sz_skill_xp', 'sz_backpack', 'sz_budget', 'sz_craft_target', 'sz_built', 'sz_shelter_skill', 'sz_built_only', 'sz_loot', 'sz_haul_draft'];
+        let sessionUser = '';
+        let haulDraft = [];
+        let authMode = 'login';
         const OUTING_CATS = new Set(['bullet', 'ammo', 'medicine', 'meds', 'supply', 'supplies']);
         let craftTarget = { id: '', count: 1 };
         let backpack = new Map();
@@ -1099,11 +1187,109 @@
             return { bonusLevels, chance, guaranteed, fractional, multiplier };
         }
 
+        function readAccounts() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '{}');
+                return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+            } catch {
+                return {};
+            }
+        }
+        function writeAccounts(accounts) {
+            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        }
+        function bootSession() {
+            const saved = localStorage.getItem(SESSION_KEY) || '';
+            sessionUser = saved && readAccounts()[saved] ? saved : '';
+            if (saved && !sessionUser) localStorage.removeItem(SESSION_KEY);
+        }
+        function userGet(key) {
+            if (!sessionUser) return localStorage.getItem(key);
+            const account = readAccounts()[sessionUser];
+            if (!account || !account.data || account.data[key] == null) return null;
+            return String(account.data[key]);
+        }
+        function userSet(key, value) {
+            if (!sessionUser) {
+                localStorage.setItem(key, value);
+                return;
+            }
+            const accounts = readAccounts();
+            const account = accounts[sessionUser];
+            if (!account) return;
+            account.data = account.data || {};
+            account.data[key] = value;
+            writeAccounts(accounts);
+        }
+        function accountKey(name) {
+            return name.trim().toLocaleLowerCase('ru');
+        }
+        function bytesToB64(bytes) {
+            let bin = '';
+            bytes.forEach(byte => { bin += String.fromCharCode(byte); });
+            return btoa(bin);
+        }
+        function b64ToBytes(text) {
+            const bin = atob(text);
+            return Uint8Array.from(bin, ch => ch.charCodeAt(0));
+        }
+        async function deriveHash(password, salt) {
+            const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, key, 256);
+            return bytesToB64(new Uint8Array(bits));
+        }
+        function takeGuestData() {
+            const data = {};
+            USER_DATA_KEYS.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value != null) data[key] = value;
+            });
+            USER_DATA_KEYS.forEach(key => localStorage.removeItem(key));
+            return data;
+        }
+        async function registerAccount(name, password) {
+            const key = accountKey(name);
+            if (!/^[\p{L}\p{N}][\p{L}\p{N} _.-]{1,22}[\p{L}\p{N}]$/u.test(name.trim())) {
+                throw new Error('Имя: 3–24 символа, буквы и цифры');
+            }
+            if (password.length < 6) throw new Error('Пароль от 6 символов');
+            const accounts = readAccounts();
+            if (accounts[key]) throw new Error('Такое имя уже есть в этом браузере');
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            accounts[key] = {
+                name: name.trim(),
+                salt: bytesToB64(salt),
+                hash: await deriveHash(password, salt),
+                data: takeGuestData()
+            };
+            writeAccounts(accounts);
+            sessionUser = key;
+            localStorage.setItem(SESSION_KEY, key);
+        }
+        async function loginAccount(name, password) {
+            const key = accountKey(name);
+            const account = readAccounts()[key];
+            if (!account) throw new Error('Неверное имя или пароль');
+            const hash = await deriveHash(password, b64ToBytes(account.salt));
+            if (hash !== account.hash) throw new Error('Неверное имя или пароль');
+            sessionUser = key;
+            localStorage.setItem(SESSION_KEY, key);
+        }
+        function logoutAccount() {
+            sessionUser = '';
+            localStorage.removeItem(SESSION_KEY);
+        }
+        function currentAccountName() {
+            const account = sessionUser ? readAccounts()[sessionUser] : null;
+            return account ? account.name : '';
+        }
+        bootSession();
+
         function loadSkillLevels() {
-            try { return JSON.parse(localStorage.getItem(SKILL_LEVELS_KEY) || '{}'); } catch { return {}; }
+            try { return JSON.parse(userGet(SKILL_LEVELS_KEY) || '{}'); } catch { return {}; }
         }
         function saveSkillLevels(levels) {
-            localStorage.setItem(SKILL_LEVELS_KEY, JSON.stringify(levels));
+            userSet(SKILL_LEVELS_KEY, JSON.stringify(levels));
         }
         function getMyLevel(skill) {
             const levels = loadSkillLevels();
@@ -1116,7 +1302,7 @@
             saveSkillLevels(levels);
         }
         function loadSkillXp() {
-            try { return JSON.parse(localStorage.getItem(SKILL_XP_KEY) || '{}'); } catch { return {}; }
+            try { return JSON.parse(userGet(SKILL_XP_KEY) || '{}'); } catch { return {}; }
         }
         function getMyXp(skill) {
             const value = Math.floor(Number(loadSkillXp()[skill]) || 0);
@@ -1127,7 +1313,7 @@
             const value = Math.max(0, Math.floor(Number(xp) || 0));
             if (value > 0) stored[skill] = value;
             else delete stored[skill];
-            localStorage.setItem(SKILL_XP_KEY, JSON.stringify(stored));
+            userSet(SKILL_XP_KEY, JSON.stringify(stored));
         }
         function levelSpan(level) {
             return shelter.xp[`${level}-${level + 1}`] || 0;
@@ -1140,9 +1326,9 @@
         }
 
         function loadFavorites() {
-            try { return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]'); } catch { return []; }
+            try { return JSON.parse(userGet(FAV_STORAGE_KEY) || '[]'); } catch { return []; }
         }
-        function saveFavorites() { localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify(favorites)); }
+        function saveFavorites() { userSet(FAV_STORAGE_KEY, JSON.stringify(favorites)); }
         function isFavorite(id) { return favorites.includes(id); }
         function toggleFavorite(id) {
             const idx = favorites.indexOf(id);
@@ -1154,7 +1340,7 @@
         function loadBackpack() {
             backpack = new Map();
             try {
-                const raw = JSON.parse(localStorage.getItem(BAG_KEY) || '{}');
+                const raw = JSON.parse(userGet(BAG_KEY) || '{}');
                 if (Array.isArray(raw)) {
                     raw.forEach(id => { if (typeof id === 'string' && id) backpack.set(id, 1); });
                     saveBackpack();
@@ -1171,7 +1357,7 @@
         function saveBackpack() {
             const stored = {};
             backpack.forEach((count, id) => { if (count > 0) stored[id] = count; });
-            localStorage.setItem(BAG_KEY, JSON.stringify(stored));
+            userSet(BAG_KEY, JSON.stringify(stored));
         }
         function ownedCount(id) {
             return backpack.get(id) || 0;
@@ -1467,6 +1653,30 @@
             invQty: document.getElementById('invQty'),
             invClearBtn: document.getElementById('invClearBtn'),
             clearBuiltBtn: document.getElementById('clearBuiltBtn'),
+            accountBtn: document.getElementById('accountBtn'),
+            accountMenu: document.getElementById('accountMenu'),
+            accountMenuName: document.getElementById('accountMenuName'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            authOverlay: document.getElementById('authOverlay'),
+            authTitle: document.getElementById('authTitle'),
+            authLead: document.getElementById('authLead'),
+            authForm: document.getElementById('authForm'),
+            authName: document.getElementById('authName'),
+            authPass: document.getElementById('authPass'),
+            authHint: document.getElementById('authHint'),
+            authError: document.getElementById('authError'),
+            authSubmit: document.getElementById('authSubmit'),
+            authSwitch: document.getElementById('authSwitch'),
+            authClose: document.getElementById('authClose'),
+            lootStrip: document.getElementById('lootStrip'),
+            haulNote: document.getElementById('haulNote'),
+            haulSearch: document.getElementById('haulSearch'),
+            haulSuggest: document.getElementById('haulSuggest'),
+            haulDraftBox: document.getElementById('haulDraft'),
+            haulTotal: document.getElementById('haulTotal'),
+            haulSave: document.getElementById('haulSave'),
+            haulClear: document.getElementById('haulClear'),
+            haulHistory: document.getElementById('haulHistory'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
@@ -1479,11 +1689,13 @@
                 document.getElementById('tab-tonight').style.display = tabName === 'tonight' ? 'block' : 'none';
                 document.getElementById('tab-shelter').style.display = tabName === 'shelter' ? 'block' : 'none';
                 document.getElementById('tab-inventory').style.display = tabName === 'inventory' ? 'block' : 'none';
+                document.getElementById('tab-loot').style.display = tabName === 'loot' ? 'block' : 'none';
                 if (tabName !== 'inventory') closeInvEditor();
                 if (tabName === 'inventory') renderInventory();
                 if (tabName === 'crafts') renderCraftList();
                 if (tabName === 'tonight') renderTonight();
                 if (tabName === 'shelter') renderShelter();
+                if (tabName === 'loot') renderLoot();
             });
         });
 
@@ -2261,7 +2473,7 @@
                 : '<div class="night-sub">Сейчас нет дешёвых патронов, еды или медикаментов в этом бюджете.</div>';
         }
         function saveCraftTarget() {
-            localStorage.setItem(TARGET_KEY, JSON.stringify({ id: craftTarget.id, count: craftTarget.count }));
+            userSet(TARGET_KEY, JSON.stringify({ id: craftTarget.id, count: craftTarget.count }));
         }
         function renderTargetSuggest() {
             const query = els.targetSearch.value.trim().toLowerCase();
@@ -3555,19 +3767,19 @@
         const STATION_AREAS = ['Мастерская', 'Кухня', 'Лаборатория', 'Хранилище', 'Базовое оборудование'];
         let shelter = { recipes: [], xp: {}, stations: new Map(), builders: new Map() };
         let builtStations = new Set(['workbench']);
-        let shelterSkill = localStorage.getItem(SHELTER_SKILL_KEY) || '';
+        let shelterSkill = userGet(SHELTER_SKILL_KEY) || '';
         let unlockNews = null;
 
         function loadBuilt() {
             try {
-                const raw = JSON.parse(localStorage.getItem(BUILT_KEY) || 'null');
+                const raw = JSON.parse(userGet(BUILT_KEY) || 'null');
                 return new Set(Array.isArray(raw) ? raw : ['workbench']);
             } catch {
                 return new Set(['workbench']);
             }
         }
         function saveBuilt() {
-            localStorage.setItem(BUILT_KEY, JSON.stringify([...builtStations]));
+            userSet(BUILT_KEY, JSON.stringify([...builtStations]));
         }
         function ingestShelter(data) {
             const recipes = (data && data.recipes) || [];
@@ -3853,7 +4065,7 @@
                 els.levelPlan.innerHTML = '<div class="night-sub">Загрузка рецептов…</div>';
                 return;
             }
-            els.shelterBuiltOnly.checked = localStorage.getItem(BUILT_ONLY_KEY) === '1';
+            els.shelterBuiltOnly.checked = userGet(BUILT_ONLY_KEY) === '1';
             renderLevelPlan();
             renderStations();
         }
@@ -4209,7 +4421,7 @@
             const chip = e.target.closest('[data-skill]');
             if (!chip) return;
             shelterSkill = chip.dataset.skill;
-            localStorage.setItem(SHELTER_SKILL_KEY, shelterSkill);
+            userSet(SHELTER_SKILL_KEY, shelterSkill);
             renderLevelPlan();
         });
         els.shelterLevel.addEventListener('change', () => {
@@ -4230,7 +4442,7 @@
             if (document.getElementById('tab-inventory').style.display !== 'none') renderInvAdvice();
         });
         els.shelterBuiltOnly.addEventListener('change', () => {
-            localStorage.setItem(BUILT_ONLY_KEY, els.shelterBuiltOnly.checked ? '1' : '0');
+            userSet(BUILT_ONLY_KEY, els.shelterBuiltOnly.checked ? '1' : '0');
             renderLevelPlan();
         });
         els.stationList.addEventListener('change', (e) => {
@@ -4316,6 +4528,7 @@
             if (e.key === 'Escape') {
                 if (els.modalOverlay.style.display !== 'none') closeModal();
                 if (els.craftModalOverlay.style.display !== 'none') closeCraftModal();
+                if (els.authOverlay.style.display !== 'none') closeAuth();
             }
         });
 
@@ -4400,9 +4613,9 @@
             clearTimeout(bagTimer);
             bagTimer = setTimeout(renderBagSuggest, 150);
         });
-        els.budgetInput.value = localStorage.getItem(BUDGET_KEY) || '';
+        els.budgetInput.value = userGet(BUDGET_KEY) || '';
         try {
-            const savedTarget = JSON.parse(localStorage.getItem(TARGET_KEY) || '{}');
+            const savedTarget = JSON.parse(userGet(TARGET_KEY) || '{}');
             if (savedTarget && typeof savedTarget.id === 'string') craftTarget.id = savedTarget.id;
             const savedCount = Math.floor(Number(savedTarget && savedTarget.count));
             if (savedCount > 0) craftTarget.count = savedCount;
@@ -4410,7 +4623,7 @@
         els.targetCount.value = String(craftTarget.count || 1);
         let budgetTimer = null;
         els.budgetInput.addEventListener('input', () => {
-            localStorage.setItem(BUDGET_KEY, els.budgetInput.value.trim());
+            userSet(BUDGET_KEY, els.budgetInput.value.trim());
             clearTimeout(budgetTimer);
             budgetTimer = setTimeout(() => {
                 if (document.getElementById('tab-tonight').style.display !== 'none') renderTonight();
@@ -4492,8 +4705,283 @@
         els.craftModalClose.addEventListener('click', closeCraftModal);
         els.craftModalOverlay.addEventListener('click', (e) => { if (e.target === els.craftModalOverlay) closeCraftModal(); });
 
+        function minMarket(id) {
+            const listing = lastListing(id);
+            if (listing && listing.price > 0) return { price: listing.price, source: 'lot' };
+            const sale = typicalSale(id);
+            if (sale > 0) return { price: sale, source: 'sale' };
+            return { price: 0, source: 'none' };
+        }
+        function priceTag(source) {
+            if (source === 'lot') return 'мин. лот';
+            if (source === 'sale') return 'по продажам';
+            return 'нет цены';
+        }
+        function newId() {
+            return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+        }
+        function loadRuns() {
+            try {
+                const raw = JSON.parse(userGet(LOOT_KEY) || '[]');
+                return Array.isArray(raw) ? raw : [];
+            } catch { return []; }
+        }
+        function saveRuns(runs) {
+            userSet(LOOT_KEY, JSON.stringify(runs.slice(0, 200)));
+        }
+        function loadDraft() {
+            try {
+                const raw = JSON.parse(userGet(DRAFT_KEY) || '{}');
+                if (Array.isArray(raw)) return { note: '', lines: raw };
+                return {
+                    note: typeof raw.note === 'string' ? raw.note : '',
+                    lines: Array.isArray(raw.lines) ? raw.lines : []
+                };
+            } catch { return { note: '', lines: [] }; }
+        }
+        function saveDraft() {
+            userSet(DRAFT_KEY, JSON.stringify({
+                note: els.haulNote.value.trim().slice(0, 40),
+                lines: haulDraft.filter(row => row.qty > 0).map(row => ({ id: row.id, qty: row.qty }))
+            }));
+        }
+        function applyDraft() {
+            const draft = loadDraft();
+            haulDraft = draft.lines.filter(row => row && typeof row.id === 'string' && Math.floor(Number(row.qty)) > 0)
+                .map(row => ({ id: row.id, qty: Math.floor(Number(row.qty)) }));
+            els.haulNote.value = draft.note.slice(0, 40);
+        }
+        function lineValue(line) {
+            return (line.qty || 0) * (line.unit || 0);
+        }
+        function runTotal(run) {
+            return (run.lines || []).reduce((sum, line) => sum + lineValue(line), 0);
+        }
+        function haulWhen(iso) {
+            const stamp = Date.parse(iso);
+            if (!Number.isFinite(stamp)) return '';
+            return new Date(stamp).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+        function renderHaulSuggest() {
+            const query = els.haulSearch.value.trim().toLowerCase();
+            if (query.length < 2) {
+                els.haulSuggest.innerHTML = '';
+                return;
+            }
+            const rows = itemsCache.filter(item => item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query)).slice(0, 8);
+            els.haulSuggest.innerHTML = rows.length
+                ? rows.map(item => {
+                    const price = minMarket(item.id);
+                    return `<button type="button" data-haul-pick="${escapeHtml(item.id)}">${nightIcon(item.icon)} ${escapeHtml(item.name)} · ${price.price ? money(price.price) : 'нет цены'}</button>`;
+                }).join('')
+                : '<div class="night-sub">Ничего не нашлось</div>';
+        }
+        function renderLoot() {
+            const runs = loadRuns();
+            const sum = runs.reduce((acc, run) => acc + runTotal(run), 0);
+            const best = runs.reduce((acc, run) => Math.max(acc, runTotal(run)), 0);
+            const avg = runs.length ? Math.round(sum / runs.length) : 0;
+            const byItem = new Map();
+            runs.forEach(run => (run.lines || []).forEach(line => {
+                const row = byItem.get(line.id) || { id: line.id, qty: 0, value: 0 };
+                row.qty += line.qty || 0;
+                row.value += lineValue(line);
+                byItem.set(line.id, row);
+            }));
+            const top = [...byItem.values()].filter(row => row.value > 0).sort((a, b) => b.value - a.value).slice(0, 4);
+            const topText = top.length
+                ? 'Чаще в цене: ' + top.map(row => `${escapeHtml(humanName(row.id))} ×${row.qty.toLocaleString('ru-RU')} · ${money(row.value)}`).join(' · ')
+                : 'Сводка появится после первой вылазки.';
+            els.lootStrip.innerHTML = `<div><b>${runs.length.toLocaleString('ru-RU')}</b><span>${ruForm(runs.length, 'вылазка', 'вылазки', 'вылазок')}</span></div>
+                <div><b>${money(sum)}</b><span>всего</span></div>
+                <div><b>${money(avg)}</b><span>в среднем</span></div>
+                <div><b>${money(best)}</b><span>лучшая</span></div>
+                <p class="night-sub">${topText}</p>`;
+            els.haulDraftBox.innerHTML = haulDraft.length ? haulDraft.map(row => {
+                const price = minMarket(row.id);
+                const icon = humanIcon(row.id);
+                return `<div class="loot-line">
+                    ${icon ? `<img src="${icon}" alt="" draggable="false">` : ''}
+                    <div class="night-main"><div class="night-name">${escapeHtml(humanName(row.id))}</div><div class="night-sub">${priceTag(price.source)}${price.price ? ' · ' + money(price.price) : ''}</div></div>
+                    <input type="text" inputmode="numeric" data-haul-qty="${escapeHtml(row.id)}" value="${row.qty}">
+                    <div class="night-side">${price.price ? money(price.price * row.qty) : '—'}</div>
+                    <button type="button" class="loot-drop" data-haul-drop="${escapeHtml(row.id)}" aria-label="Убрать">×</button>
+                </div>`;
+            }).join('') : '<div class="night-sub">Найди предмет и добавь, сколько вынес.</div>';
+            const draftSum = haulDraft.reduce((acc, row) => acc + minMarket(row.id).price * row.qty, 0);
+            const missing = haulDraft.filter(row => !minMarket(row.id).price).length;
+            els.haulTotal.textContent = haulDraft.length ? `Сейчас ${money(draftSum)}${missing ? ` · ${ruCount(missing, 'позиция', 'позиции', 'позиций')} без цены` : ''}` : '';
+            els.haulHistory.innerHTML = runs.length ? runs.map(run => {
+                const lines = (run.lines || []).map(line => `<div class="night-sub">${escapeHtml(humanName(line.id))} ×${(line.qty || 0).toLocaleString('ru-RU')} · ${line.unit ? money(lineValue(line)) : 'без цены'}</div>`).join('');
+                const head = [haulWhen(run.at), run.note ? escapeHtml(run.note) : '', `${(run.lines || []).length} поз.`, money(runTotal(run))].filter(Boolean).join(' · ');
+                return `<details class="loot-run"><summary><span>${head}</span><button type="button" class="loot-drop" data-run-drop="${escapeHtml(run.id)}" aria-label="Удалить">×</button></summary>${lines}</details>`;
+            }).join('') : '<div class="night-sub">Вылазок ещё нет.</div>';
+        }
+        function addHaul(id) {
+            const row = haulDraft.find(item => item.id === id);
+            if (row) row.qty += 1;
+            else haulDraft.push({ id, qty: 1 });
+            saveDraft();
+            els.haulSearch.value = '';
+            els.haulSuggest.innerHTML = '';
+            renderLoot();
+        }
+        function recordHaul() {
+            const lines = haulDraft.filter(row => row.qty > 0).map(row => {
+                const price = minMarket(row.id);
+                return { id: row.id, qty: row.qty, unit: price.price, source: price.source };
+            });
+            if (!lines.length) return;
+            const runs = loadRuns();
+            runs.unshift({ id: newId(), at: new Date().toISOString(), note: els.haulNote.value.trim().slice(0, 40), lines });
+            saveRuns(runs);
+            haulDraft = [];
+            els.haulNote.value = '';
+            saveDraft();
+            renderLoot();
+        }
+        function setAuthMode(mode) {
+            authMode = mode;
+            const register = mode === 'register';
+            els.authTitle.textContent = register ? 'Регистрация' : 'Вход';
+            els.authSubmit.textContent = register ? 'Создать' : 'Войти';
+            els.authSwitch.textContent = register ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Регистрация';
+            els.authHint.textContent = register ? 'Что уже введено в этом браузере без аккаунта, перейдёт в новый.' : '';
+            els.authPass.setAttribute('autocomplete', register ? 'new-password' : 'current-password');
+            els.authError.textContent = '';
+        }
+        function openAuth() {
+            setAuthMode('login');
+            els.authOverlay.style.display = 'flex';
+            els.authName.focus();
+        }
+        function closeAuth() {
+            els.authOverlay.style.display = 'none';
+            els.authError.textContent = '';
+            els.authForm.reset();
+        }
+        function renderAccountBtn() {
+            const name = currentAccountName();
+            els.accountBtn.textContent = name || 'Войти';
+            els.accountMenuName.textContent = name;
+            if (!name) els.accountMenu.hidden = true;
+        }
+        function refreshAfterAccount() {
+            favorites = loadFavorites();
+            loadBackpack();
+            if (shelter.recipes.length) builtStations = loadBuilt();
+            shelterSkill = userGet(SHELTER_SKILL_KEY) || '';
+            els.budgetInput.value = userGet(BUDGET_KEY) || '';
+            els.shelterBuiltOnly.checked = userGet(BUILT_ONLY_KEY) === '1';
+            craftTarget = { id: '', count: 1 };
+            try {
+                const saved = JSON.parse(userGet(TARGET_KEY) || '{}');
+                if (saved && typeof saved.id === 'string') craftTarget.id = saved.id;
+                const count = Math.floor(Number(saved && saved.count));
+                if (count > 0) craftTarget.count = count;
+            } catch { /* пустой выбор */ }
+            els.targetCount.value = String(craftTarget.count || 1);
+            els.targetSearch.value = '';
+            els.targetSearch.dataset.touched = '';
+            applyDraft();
+            closeInvEditor();
+            renderAccountBtn();
+            if (itemsCache.length) {
+                populateCategories();
+                applyFilters();
+            }
+            renderBag();
+            const active = document.querySelector('.tab.active');
+            const tabName = active ? active.dataset.tab : '';
+            if (tabName === 'inventory') renderInventory();
+            if (tabName === 'crafts') renderCraftList();
+            if (tabName === 'tonight') renderTonight();
+            if (tabName === 'shelter' && shelter.recipes.length) renderShelter();
+            if (tabName === 'loot') renderLoot();
+        }
+        els.accountBtn.addEventListener('click', () => {
+            if (!sessionUser) { openAuth(); return; }
+            els.accountMenu.hidden = !els.accountMenu.hidden;
+        });
+        els.logoutBtn.addEventListener('click', () => {
+            logoutAccount();
+            els.accountMenu.hidden = true;
+            refreshAfterAccount();
+        });
+        document.addEventListener('click', (e) => {
+            if (!els.accountMenu.hidden && !e.target.closest('#accountMenu') && !e.target.closest('#accountBtn')) els.accountMenu.hidden = true;
+        });
+        els.authClose.addEventListener('click', closeAuth);
+        els.authOverlay.addEventListener('click', (e) => { if (e.target === els.authOverlay) closeAuth(); });
+        els.authSwitch.addEventListener('click', () => setAuthMode(authMode === 'login' ? 'register' : 'login'));
+        els.authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            els.authError.textContent = '';
+            els.authSubmit.disabled = true;
+            try {
+                const name = els.authName.value.trim();
+                const password = els.authPass.value;
+                if (authMode === 'register') await registerAccount(name, password);
+                else await loginAccount(name.trim(), password);
+                closeAuth();
+                refreshAfterAccount();
+            } catch (err) {
+                els.authError.textContent = err && err.message ? err.message : 'Не вышло';
+            } finally {
+                els.authSubmit.disabled = false;
+            }
+        });
+        let haulTimer = null;
+        els.haulSearch.addEventListener('input', () => {
+            clearTimeout(haulTimer);
+            haulTimer = setTimeout(renderHaulSuggest, 150);
+        });
+        els.haulSuggest.addEventListener('click', (e) => {
+            const pick = e.target.closest('[data-haul-pick]');
+            if (pick) addHaul(pick.dataset.haulPick);
+        });
+        els.haulNote.addEventListener('input', saveDraft);
+        els.haulDraftBox.addEventListener('input', (e) => {
+            const input = e.target.closest('[data-haul-qty]');
+            if (!input) return;
+            input.value = input.value.replace(/[^\d]/g, '');
+            const row = haulDraft.find(item => item.id === input.dataset.haulQty);
+            if (!row) return;
+            row.qty = Math.max(0, Math.floor(Number(input.value) || 0));
+            saveDraft();
+            const price = minMarket(row.id).price;
+            const side = input.parentElement.querySelector('.night-side');
+            if (side) side.textContent = price && row.qty ? money(price * row.qty) : '—';
+            const draftSum = haulDraft.reduce((acc, item) => acc + minMarket(item.id).price * item.qty, 0);
+            const missing = haulDraft.filter(item => !minMarket(item.id).price).length;
+            els.haulTotal.textContent = `Сейчас ${money(draftSum)}${missing ? ` · ${ruCount(missing, 'позиция', 'позиции', 'позиций')} без цены` : ''}`;
+        });
+        els.haulDraftBox.addEventListener('click', (e) => {
+            const drop = e.target.closest('[data-haul-drop]');
+            if (!drop) return;
+            haulDraft = haulDraft.filter(row => row.id !== drop.dataset.haulDrop);
+            saveDraft();
+            renderLoot();
+        });
+        els.haulSave.addEventListener('click', recordHaul);
+        els.haulHistory.addEventListener('click', (e) => {
+            const drop = e.target.closest('[data-run-drop]');
+            if (!drop) return;
+            e.preventDefault();
+            e.stopPropagation();
+            saveRuns(loadRuns().filter(run => run.id !== drop.dataset.runDrop));
+            renderLoot();
+        });
+        els.haulClear.addEventListener('click', () => {
+            if (!loadRuns().length || !confirm('Удалить все записанные вылазки?')) return;
+            saveRuns([]);
+            renderLoot();
+        });
+
         favorites = loadFavorites();
         loadBackpack();
+        applyDraft();
+        renderAccountBtn();
         renderBag();
         setupInfiniteScroll();
         loadData();
