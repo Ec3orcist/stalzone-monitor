@@ -202,6 +202,7 @@
         .night-sub { color: var(--muted); font-size: 12px; line-height: 1.35; }
         .night-side { text-align: right; font-weight: 700; font-size: 13px; flex-shrink: 0; }
         .night-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); color: var(--warn); }
+        .night-tag.buy { color: var(--muted); }
         .loot-box { margin-bottom: 14px; padding-bottom: 12px; }
         .warn { color: var(--warn); }
         @media (max-width: 760px) {
@@ -1624,10 +1625,16 @@
             if (items.length === 0) {
                 return '<div class="empty-state" style="padding:20px;">Нет сырьевых материалов</div>';
             }
+            const pricedTotal = items.reduce((sum, item) => sum + (item.unit_price > 0 ? item.total_cost : 0), 0);
+            const showPath = items.filter(item => item.unit_price > 0).length > 1;
             let totalCost = 0;
             const rows = items.map(item => {
                 const hasPrice = item.unit_price > 0;
                 if (hasPrice) totalCost += item.total_cost;
+                const share = hasPrice && pricedTotal > 0 ? item.total_cost / pricedTotal : 0;
+                const pathTag = !showPath || !hasPrice
+                    ? ''
+                    : `<span class="night-tag${share >= 0.18 ? '' : ' buy'}">${share >= 0.18 ? 'фармить' : 'купить'}</span>`;
                 const priceText = hasPrice
                     ? `${Math.round(item.unit_price).toLocaleString('ru-RU')} ₽${item.price_source === 'sale' ? ' <span style="color:#8b7da3;font-size:11px;">продажа</span>' : ''}`
                     : '<span class="no-price">—</span>';
@@ -1639,7 +1646,7 @@
                     ? item.quantity.toLocaleString('ru-RU')
                     : item.quantity.toFixed(2).replace('.', ',');
                 return `<tr data-item="${escapeHtml(item.id)}">
-                    <td>${iconHtml}${escapeHtml(item.name)}</td>
+                    <td>${iconHtml}${escapeHtml(item.name)}${pathTag}</td>
                     <td style="text-align:right;font-weight:bold;">${qtyText}</td>
                     <td style="text-align:right;">${priceText}</td>
                     <td style="text-align:right;" class="price-cell">${costText}</td>
