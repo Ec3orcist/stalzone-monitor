@@ -24,16 +24,17 @@ CLOCK_FILE = Path("sale_clock.json")
 CRAFTS_FILE = Path("crafts.json")
 ITEMS_FILE = Path("items.json")
 
-SALES_REFRESH_HOURS = 6
 SALES_MAX_DAYS = 60
 SALES_MAX_PAGES = 8
 SALES_PAGE_SIZE = 200
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
-RESCAN_BATCH = 200
+PRICE_BUDGET = 460
+DISCOVERY_SLOTS = 140
+SALES_SLICE_ITEMS = 16
+SALES_SLICE_PAGES = 2
 WORKERS = 4
 MAX_LOTS_PER_ITEM = 10
-GEAR_CATS = {"weapon", "armor", "armour", "attachment", "weapon_modules"}
 ALWAYS_PRICE_CATS = {"weapon", "armor", "armour", "weapon_modules"}
 RANK_CODES = {
     "RANK_NEWBIE": "newbie",
@@ -252,6 +253,29 @@ def scan_item_database(item_db_dir, existing_icons):
     return tradable, meta
 
 
+def tradable_from_catalog():
+    catalog = load_json(ITEMS_FILE, {})
+    tradable = []
+    meta = {}
+    if not isinstance(catalog, dict):
+        return tradable, meta
+    for item_id, row in catalog.items():
+        if not isinstance(row, dict) or not row.get("name"):
+            continue
+        info = {
+            "id": item_id,
+            "name": row.get("name") or item_id,
+            "icon": row.get("icon") or "",
+            "category": row.get("category") or "other",
+            "rank": row.get("rank") or "",
+        }
+        meta[item_id] = info
+        if row.get("tradable"):
+            tradable.append(info)
+    print(f"📚 Каталог с диска: {len(tradable)} торгуемых, без клона базы")
+    return tradable, meta
+
+
 def recipe_item_ids(recipes):
     ids = set(recipes)
     for recipe in recipes.values():
@@ -262,52 +286,70 @@ def recipe_item_ids(recipes):
 def load_scan_state():
     raw = load_json(ACTIVE_ITEMS_FILE, None)
     if isinstance(raw, list):
-        return set(raw), 0
+        return set(raw), 0, 0
     if isinstance(raw, dict):
-        return set(raw.get("items") or []), int(raw.get("cursor") or 0)
-    return None, 0
+        items = set(raw.get("items") or [])
+        if "sales_cursor" not in raw:
+            return items, 0, 0
+        return items, int(raw.get("cursor") or 0), int(raw.get("sales_cursor") or 0)
+    return set(), 0, 0
 
 
-def pick_items(tradable, active_ids, priority_ids, cursor):
-    if active_ids is None:
-        chosen = tradable[:MAX_ITEMS]
-        print(f"🐌 Первый запуск: {len(chosen)}")
-        return chosen, chosen, 0
+def discovery_rank(item, priority_ids):
+    category = item.get("category")
+    if category == "weapon":
+        return 0
+    if category in {"armor", "armour"}:
+        return 1
+    if category == "weapon_modules":
+        return 2
+    if item["id"] in priority_ids:
+        return 3
+    if category == "attachment":
+        return 4
+    return 5
 
-    known = {item["id"] for item in tradable}
-    live_active = active_ids & known
+
+def pick_price_items(tradable, history, hot_ids, cursor, priority_ids):
     by_id = {item["id"]: item for item in tradable}
-    primary = [by_id[item_id] for item_id in sorted(live_active)]
-    covered = set(live_active)
-    priority = [
-        by_id[item_id]
-        for item_id in sorted(priority_ids)
-        if item_id in by_id and item_id not in covered
-    ]
-    covered.update(item["id"] for item in priority)
-    rest = [item for item in tradable if item["id"] not in covered]
-    gear = [item for item in rest if item.get("category") in GEAR_CATS]
-    other = [item for item in rest if item.get("category") not in GEAR_CATS]
-    rest = gear + other
-    if not rest:
+    hot = []
+    for item_id in hot_ids:
+        item = by_id.get(item_id)
+        if not item:
+            continue
+        records = history.get(item_id) or []
+        seen = _parse_ts(records[-1]) if records else None
+        hot.append((seen or datetime.min.replace(tzinfo=timezone.utc), item))
+    hot.sort(key=lambda row: (0 if row[1].get("category") in ALWAYS_PRICE_CATS else 1, row[0]))
+    discover_slots = min(DISCOVERY_SLOTS, PRICE_BUDGET)
+    refresh_slots = PRICE_BUDGET - discover_slots
+    if len(hot) < refresh_slots:
+        discover_slots += refresh_slots - len(hot)
+        refresh_slots = len(hot)
+    chosen = [item for _, item in hot[:refresh_slots]]
+    ordered = sorted(tradable, key=lambda item: (discovery_rank(item, priority_ids), item["id"]))
+    if not ordered:
         window = []
         next_cursor = 0
     else:
-        start = cursor % len(rest)
-        window = (rest[start:] + rest[:start])[:RESCAN_BATCH]
-        next_cursor = (start + len(window)) % len(rest)
-    covered_now = set(live_active) | {item["id"] for item in priority} | {item["id"] for item in window}
-    always = [
-        item for item in tradable
-        if item.get("category") in ALWAYS_PRICE_CATS and item["id"] not in covered_now
-    ]
-    weapons = sum(1 for item in always if item.get("category") == "weapon")
-    armor = sum(1 for item in always if item.get("category") in {"armor", "armour"})
+        start = cursor % len(ordered)
+        rotated = ordered[start:] + ordered[:start]
+        window = []
+        seen = 0
+        for item in rotated:
+            seen += 1
+            if item["id"] in hot_ids:
+                continue
+            window.append(item)
+            if len(window) >= discover_slots:
+                break
+        next_cursor = (start + seen) % len(ordered)
+    weapons = sum(1 for item in window if item.get("category") == "weapon")
     print(
-        f"⚡ Активных: {len(primary)}, рецепты без цены: {len(priority)}, "
-        f"оружие и броня: {len(always)} (пушек {weapons}, брони {armor}), рескан: {len(window)}"
+        f"⚡ Живые лоты: {len(chosen)} из {len(hot)}, поиск новых: {len(window)} "
+        f"(пушек в поиске {weapons})"
     )
-    return primary + priority + always + window, primary + priority + window, next_cursor
+    return chosen + window, next_cursor
 
 
 def bounded_int(extra, keys, low, high):
@@ -355,9 +397,9 @@ def keep_lots(lots):
 
 def fetch_lots(api, item_id):
     data = api.get(f"{API_BASE}/{REGION}/auction/{item_id}/lots?limit=200&additional=true")
-    if not data:
-        return item_id, []
-    raw_lots = data.get("lots", []) if isinstance(data, dict) else data
+    if not isinstance(data, dict) or not isinstance(data.get("lots"), list):
+        return item_id, None
+    raw_lots = data["lots"]
     processed = []
     for lot in raw_lots:
         buyout = lot.get("buyoutPrice") or 0
@@ -442,12 +484,14 @@ def parse_sales(raw_entries):
     return result[-SALES_MAX_DAYS:]
 
 
-def fetch_sales(api, item_id):
+def fetch_sales(api, item_id, max_pages=SALES_MAX_PAGES):
     base = f"{API_BASE}/{REGION}/auction/{item_id}/history"
     collected = []
     total_available = None
-    for page in range(SALES_MAX_PAGES):
+    used = 0
+    for page in range(max_pages):
         offset = page * SALES_PAGE_SIZE
+        used += 1
         data = api.get(f"{base}?limit={SALES_PAGE_SIZE}&offset={offset}")
         if not isinstance(data, dict):
             break
@@ -461,18 +505,19 @@ def fetch_sales(api, item_id):
             break
         if len(prices) < SALES_PAGE_SIZE:
             break
-    return item_id, parse_sales(collected), clock_from_entries(collected)
+    return item_id, parse_sales(collected), clock_from_entries(collected), used
 
 
-def sales_needs_refresh(sales):
-    ts_str = sales.get("_updated_at", "")
-    if not ts_str:
-        return True
-    try:
-        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-    except ValueError:
-        return True
-    return (utc_now() - ts).total_seconds() >= SALES_REFRESH_HOURS * 3600
+def merge_sales(previous_rows, fresh_rows):
+    by_day = {}
+    for row in previous_rows or []:
+        if isinstance(row, dict) and row.get("t"):
+            by_day[str(row["t"])[:10]] = row
+    for row in fresh_rows or []:
+        if isinstance(row, dict) and row.get("t"):
+            by_day[str(row["t"])[:10]] = row
+    merged = [by_day[day] for day in sorted(by_day)]
+    return merged[-SALES_MAX_DAYS:]
 
 
 def _parse_ts(record):
@@ -726,14 +771,19 @@ def run_pool(ids, worker, label):
 def update_prices(api, items, history):
     now = utc_now().isoformat()
     meta_map = {item["id"]: item for item in items}
-    updated = 0
+    found = set()
+    failed = set()
     for item_id, lots in run_pool(
         [item["id"] for item in items],
         lambda item_id: fetch_lots(api, item_id),
         "цены",
     ):
+        if lots is None:
+            failed.add(item_id)
+            continue
         if not lots:
             continue
+        found.add(item_id)
         best = lots[0]
         meta = meta_map.get(item_id, {})
         history.setdefault(item_id, []).append({
@@ -749,10 +799,9 @@ def update_prices(api, items, history):
             "category": meta.get("category", "other"),
         })
         history[item_id] = compact_history(history[item_id])
-        updated += 1
     save_json(DATA_FILE, history)
-    print(f"✅ Цены: {updated} предметов")
-    return history
+    print(f"✅ Цены: {len(found)} с лотами, {len(failed)} сбоев, пустых {len(items) - len(found) - len(failed)}")
+    return history, found, failed
 
 
 def save_clock(clock):
@@ -765,38 +814,36 @@ def save_clock(clock):
     })
 
 
-def update_sales(api, item_ids, previous):
-    if not sales_needs_refresh(previous):
-        print(f"💤 История продаж свежая (< {SALES_REFRESH_HOURS} ч)")
-        return previous
-
-    print(f"📊 История продаж: {len(item_ids)} предметов, до {SALES_MAX_PAGES} стр.")
+def update_sales_slice(api, item_ids, previous, cursor):
+    ordered = sorted({item_id for item_id in item_ids if item_id})
     sales = {
         key: value
         for key, value in previous.items()
         if key != "_updated_at"
     }
+    if not ordered:
+        return sales, cursor
     clock = load_json(CLOCK_FILE, {})
     if not isinstance(clock, dict):
         clock = {}
-    got = empty = 0
-    for item_id, entries, slots in run_pool(
-        item_ids,
-        lambda item_id: fetch_sales(api, item_id),
-        "продажи",
-    ):
-        if entries:
-            sales[item_id] = entries
-            clock[item_id] = slots
-            got += 1
-        else:
-            empty += 1
+    start = cursor % len(ordered)
+    rotated = ordered[start:] + ordered[:start]
+    done = 0
+    for item_id in rotated[:SALES_SLICE_ITEMS]:
+        item_id, fresh, slots, _used = fetch_sales(api, item_id, SALES_SLICE_PAGES)
+        if fresh:
+            sales[item_id] = merge_sales(sales.get(item_id), fresh)
+            fresh_amount = sum(int(slot.get("a") or 0) for slot in slots if isinstance(slot, dict))
+            stored = clock.get(item_id) if isinstance(clock.get(item_id), list) else []
+            stored_amount = sum(int(slot.get("a") or 0) for slot in stored if isinstance(slot, dict))
+            if fresh_amount and fresh_amount >= stored_amount:
+                clock[item_id] = slots
+        done += 1
     sales["_updated_at"] = utc_now().isoformat()
     save_json(SALES_FILE, sales)
     save_clock(clock)
-    size_kb = SALES_FILE.stat().st_size / 1024
-    print(f"✅ Продажи: {got} с данными, {empty} пусто ({size_kb:.0f} КБ)")
-    return sales
+    print(f"📊 Продажи: {done} из {len(ordered)}, по {SALES_SLICE_PAGES} стр.")
+    return sales, (start + done) % len(ordered)
 
 
 def save_item_catalog(meta, tradable):
@@ -860,32 +907,43 @@ def main():
     print(f"Запуск (регион: {REGION})")
     item_db_dir = find_item_db_dir()
     if item_db_dir is None:
-        raise SystemExit("Нет itemdb — сначала клонируй EXBO-Studio/stalzone-database")
-
-    existing_icons = load_existing_icons()
-    print(f"🖼️ Иконок: {len(existing_icons)}")
-    tradable, all_meta = scan_item_database(item_db_dir, existing_icons)
+        tradable, all_meta = tradable_from_catalog()
+    else:
+        existing_icons = load_existing_icons()
+        print(f"🖼️ Иконок: {len(existing_icons)}")
+        tradable, all_meta = scan_item_database(item_db_dir, existing_icons)
+        save_item_catalog(all_meta, tradable)
     if not tradable:
         raise SystemExit("В базе нет торгуемых предметов")
-    save_item_catalog(all_meta, tradable)
 
     token = get_access_token(os.environ.get("CLIENT_ID"), os.environ.get("CLIENT_SECRET"))
     print("✅ Токен получен")
     api = StalcraftApi(token)
 
     recipes = load_recipes()
-    active_ids, cursor = load_scan_state()
-    priced = set(load_json(DATA_FILE, {}))
-    missing_recipe_ids = recipe_item_ids(recipes) - priced
-    price_items, sales_items, cursor = pick_items(tradable, active_ids, missing_recipe_ids, cursor)
-
+    hot_ids, cursor, sales_cursor = load_scan_state()
     history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
-    history = update_prices(api, price_items, history)
-    active_now = {item_id for item_id, records in history.items() if records}
-    save_json(ACTIVE_ITEMS_FILE, {"items": sorted(active_now), "cursor": cursor}, compact=False)
-    print(f"💾 Активных: {len(active_now)}")
+    priced = set(history)
+    missing_recipe_ids = recipe_item_ids(recipes) - priced
+    price_items, cursor = pick_price_items(tradable, history, hot_ids, cursor, missing_recipe_ids)
 
-    sales = update_sales(api, [item["id"] for item in sales_items], load_json(SALES_FILE, {}))
+    history, found, failed = update_prices(api, price_items, history)
+    scanned = {item["id"] for item in price_items}
+    known = {item["id"] for item in tradable}
+    hot_next = ((hot_ids - scanned) | found | failed) & known
+    save_json(
+        ACTIVE_ITEMS_FILE,
+        {"items": sorted(hot_next), "cursor": cursor, "sales_cursor": sales_cursor},
+        compact=False,
+    )
+    print(f"💾 Живых лотов: {len(hot_next)}")
+
+    sales, sales_cursor = update_sales_slice(api, sorted(hot_next), load_json(SALES_FILE, {}), sales_cursor)
+    save_json(
+        ACTIVE_ITEMS_FILE,
+        {"items": sorted(hot_next), "cursor": cursor, "sales_cursor": sales_cursor},
+        compact=False,
+    )
     update_crafts(recipes, history, all_meta, sales)
 
 

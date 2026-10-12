@@ -2,7 +2,8 @@ name: Update Auction Data
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/15 * * * *'
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -12,7 +13,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +26,10 @@ jobs:
         run: pip install requests
 
       - name: Clone item database
-        run: git clone --depth 1 https://github.com/EXBO-Studio/stalzone-database.git itemdb
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 3 * * *'
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/EXBO-Studio/stalzone-database.git itemdb
+          git -C itemdb sparse-checkout set ru/items
 
       - name: Fetch data
         env:
