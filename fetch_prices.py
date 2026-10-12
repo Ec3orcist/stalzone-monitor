@@ -25,14 +25,22 @@ CRAFTS_FILE = Path("crafts.json")
 ITEMS_FILE = Path("items.json")
 
 SALES_MAX_DAYS = 60
-SALES_MAX_PAGES = 8
 SALES_PAGE_SIZE = 200
+RECENT_SALE_DAYS = 30
+LIQUID_SOLD14 = 20
+PROBE_STALE_DAYS = 7
+BACKFILL_PAGES = 4
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
-PRICE_BUDGET = 460
-DISCOVERY_SLOTS = 140
-SALES_SLICE_ITEMS = 16
-SALES_SLICE_PAGES = 2
+PRICE_BUDGET = 340
+LIQUID_PRICE_SLOTS = 240
+QUIET_PRICE_SLOTS = 15
+WARM_PRICE_SLOTS = 15
+SALES_REQUEST_BUDGET = 120
+LIQUID_SALES_CAP = 12
+RARE_SALES_CAP = 4
+CLASSIFY_CAP = 16
+BACKFILL_REQUEST_CAP = 12
 WORKERS = 4
 MAX_LOTS_PER_ITEM = 10
 ALWAYS_PRICE_CATS = {"weapon", "armor", "armour", "weapon_modules"}
@@ -283,16 +291,55 @@ def recipe_item_ids(recipes):
     return ids
 
 
+def empty_scan_state():
+    return {
+        "hot": set(),
+        "warm": set(),
+        "probed": {},
+        "deep": set(),
+        "cursor": 0,
+        "quiet_cursor": 0,
+        "warm_cursor": 0,
+        "probe_cursor": 0,
+        "sales_cursor": 0,
+        "rare_cursor": 0,
+    }
+
+
 def load_scan_state():
     raw = load_json(ACTIVE_ITEMS_FILE, None)
+    state = empty_scan_state()
     if isinstance(raw, list):
-        return set(raw), 0, 0
-    if isinstance(raw, dict):
-        items = set(raw.get("items") or [])
-        if "sales_cursor" not in raw:
-            return items, 0, 0
-        return items, int(raw.get("cursor") or 0), int(raw.get("sales_cursor") or 0)
-    return set(), 0, 0
+        state["hot"] = set(raw)
+        return state
+    if not isinstance(raw, dict):
+        return state
+    state["hot"] = set(raw.get("items") or [])
+    state["warm"] = set(raw.get("warm") or [])
+    probed = raw.get("probed") or {}
+    if isinstance(probed, dict):
+        state["probed"] = {str(item_id): str(day) for item_id, day in probed.items()}
+    state["deep"] = set(raw.get("deep") or [])
+    for key in ("cursor", "quiet_cursor", "warm_cursor", "probe_cursor", "sales_cursor", "rare_cursor"):
+        state[key] = int(raw.get(key) or 0)
+    if "warm" not in raw:
+        state["cursor"] = 0
+    return state
+
+
+def save_scan_state(state):
+    save_json(ACTIVE_ITEMS_FILE, {
+        "items": sorted(state["hot"]),
+        "warm": sorted(state["warm"]),
+        "probed": state["probed"],
+        "deep": sorted(state["deep"]),
+        "cursor": state["cursor"],
+        "quiet_cursor": state["quiet_cursor"],
+        "warm_cursor": state["warm_cursor"],
+        "probe_cursor": state["probe_cursor"],
+        "sales_cursor": state["sales_cursor"],
+        "rare_cursor": state["rare_cursor"],
+    }, compact=False)
 
 
 def discovery_rank(item, priority_ids):
@@ -310,46 +357,110 @@ def discovery_rank(item, priority_ids):
     return 5
 
 
-def pick_price_items(tradable, history, hot_ids, cursor, priority_ids):
+def day_cutoff(days):
+    return (utc_now() - timedelta(days=days)).date().isoformat()
+
+
+def sale_bounds(rows):
+    days = []
+    sold14 = 0
+    recent_from = day_cutoff(14)
+    if not isinstance(rows, list):
+        return "", "", 0
+    for row in rows:
+        if not isinstance(row, dict) or not row.get("t"):
+            continue
+        day = str(row["t"])[:10]
+        days.append(day)
+        if day >= recent_from:
+            sold14 += int(row.get("a") or 0)
+    if not days:
+        return "", "", 0
+    return min(days), max(days), sold14
+
+
+def is_liquid(sales, item_id):
+    rows = sales.get(item_id)
+    if not isinstance(rows, list):
+        return True
+    _, _, sold14 = sale_bounds(rows)
+    return sold14 >= LIQUID_SOLD14
+
+
+def sold_this_month(sales, item_id):
+    rows = sales.get(item_id)
+    if not isinstance(rows, list):
+        return False
+    _, newest, _ = sale_bounds(rows)
+    return bool(newest) and newest >= day_cutoff(RECENT_SALE_DAYS)
+
+
+def rotate_ids(ids, cursor, slots):
+    ordered = sorted(ids)
+    if not ordered or slots <= 0:
+        return [], 0
+    start = cursor % len(ordered)
+    window = (ordered[start:] + ordered[:start])[:slots]
+    return window, (start + len(window)) % len(ordered)
+
+
+def price_age(history, item_id):
+    records = history.get(item_id) or []
+    seen = _parse_ts(records[-1]) if records else None
+    return seen or datetime.min.replace(tzinfo=timezone.utc)
+
+
+def pick_price_items(tradable, history, sales, hot_ids, warm_ids, cursors, priority_ids):
     by_id = {item["id"]: item for item in tradable}
-    hot = []
+    liquid = []
+    quiet = []
     for item_id in hot_ids:
         item = by_id.get(item_id)
         if not item:
             continue
-        records = history.get(item_id) or []
-        seen = _parse_ts(records[-1]) if records else None
-        hot.append((seen or datetime.min.replace(tzinfo=timezone.utc), item))
-    hot.sort(key=lambda row: (0 if row[1].get("category") in ALWAYS_PRICE_CATS else 1, row[0]))
-    discover_slots = min(DISCOVERY_SLOTS, PRICE_BUDGET)
-    refresh_slots = PRICE_BUDGET - discover_slots
-    if len(hot) < refresh_slots:
-        discover_slots += refresh_slots - len(hot)
-        refresh_slots = len(hot)
-    chosen = [item for _, item in hot[:refresh_slots]]
+        if is_liquid(sales, item_id):
+            liquid.append(item)
+        else:
+            quiet.append(item)
+    liquid.sort(key=lambda item: (
+        price_age(history, item["id"]),
+        0 if item.get("category") in ALWAYS_PRICE_CATS else 1,
+    ))
+    budget = PRICE_BUDGET
+    liquid_take = liquid[:min(len(liquid), LIQUID_PRICE_SLOTS, budget)]
+    budget -= len(liquid_take)
+    quiet_ids, quiet_cursor = rotate_ids(
+        [item["id"] for item in quiet], cursors["quiet_cursor"], min(QUIET_PRICE_SLOTS, budget)
+    )
+    budget -= len(quiet_ids)
+    warm_ids_take, warm_cursor = rotate_ids(
+        [item_id for item_id in warm_ids if item_id in by_id],
+        cursors["warm_cursor"],
+        min(WARM_PRICE_SLOTS, budget),
+    )
+    budget -= len(warm_ids_take)
+    skip = set(hot_ids) | set(warm_ids) | {item["id"] for item in liquid_take} | set(quiet_ids) | set(warm_ids_take)
     ordered = sorted(tradable, key=lambda item: (discovery_rank(item, priority_ids), item["id"]))
-    if not ordered:
-        window = []
-        next_cursor = 0
-    else:
-        start = cursor % len(ordered)
+    window = []
+    next_cursor = cursors["cursor"]
+    if ordered and budget > 0:
+        start = cursors["cursor"] % len(ordered)
         rotated = ordered[start:] + ordered[:start]
-        window = []
         seen = 0
         for item in rotated:
             seen += 1
-            if item["id"] in hot_ids:
+            if item["id"] in skip:
                 continue
             window.append(item)
-            if len(window) >= discover_slots:
+            if len(window) >= budget:
                 break
         next_cursor = (start + seen) % len(ordered)
-    weapons = sum(1 for item in window if item.get("category") == "weapon")
+    items = liquid_take + [by_id[item_id] for item_id in quiet_ids] + [by_id[item_id] for item_id in warm_ids_take] + window
     print(
-        f"⚡ Живые лоты: {len(chosen)} из {len(hot)}, поиск новых: {len(window)} "
-        f"(пушек в поиске {weapons})"
+        f"⚡ Ходовые лоты: {len(liquid_take)} из {len(liquid)}, тихие: {len(quiet_ids)} из {len(quiet)}, "
+        f"без лота за месяц: {len(warm_ids_take)} из {len(warm_ids)}, поиск лотов: {len(window)}"
     )
-    return chosen + window, next_cursor
+    return items, next_cursor, quiet_cursor, warm_cursor
 
 
 def bounded_int(extra, keys, low, high):
@@ -484,28 +595,34 @@ def parse_sales(raw_entries):
     return result[-SALES_MAX_DAYS:]
 
 
-def fetch_sales(api, item_id, max_pages=SALES_MAX_PAGES):
+def fetch_sales(api, item_id, max_pages):
     base = f"{API_BASE}/{REGION}/auction/{item_id}/history"
     collected = []
     total_available = None
     used = 0
+    exhausted = False
     for page in range(max_pages):
         offset = page * SALES_PAGE_SIZE
         used += 1
         data = api.get(f"{base}?limit={SALES_PAGE_SIZE}&offset={offset}")
         if not isinstance(data, dict):
-            break
+            if collected:
+                break
+            return item_id, None, [], used, False
         prices = data.get("prices") or []
         if total_available is None:
             total_available = data.get("total", 0)
         if not prices:
+            exhausted = True
             break
         collected.extend(prices)
         if total_available and len(collected) >= total_available:
+            exhausted = True
             break
         if len(prices) < SALES_PAGE_SIZE:
+            exhausted = True
             break
-    return item_id, parse_sales(collected), clock_from_entries(collected), used
+    return item_id, parse_sales(collected), clock_from_entries(collected), used, exhausted
 
 
 def merge_sales(previous_rows, fresh_rows):
@@ -814,36 +931,175 @@ def save_clock(clock):
     })
 
 
-def update_sales_slice(api, item_ids, previous, cursor):
-    ordered = sorted({item_id for item_id in item_ids if item_id})
-    sales = {
-        key: value
-        for key, value in previous.items()
-        if key != "_updated_at"
-    }
-    if not ordered:
-        return sales, cursor
+def trim_sales(sales):
+    cutoff = day_cutoff(SALES_MAX_DAYS)
+    trimmed = {}
+    for item_id, rows in sales.items():
+        if str(item_id).startswith("_") or not isinstance(rows, list):
+            continue
+        kept = [
+            row for row in rows
+            if isinstance(row, dict) and str(row.get("t") or "")[:10] >= cutoff
+        ]
+        if kept:
+            trimmed[item_id] = kept
+    return trimmed
+
+
+def probe_due(item_id, probed):
+    stamp = probed.get(item_id)
+    if not stamp:
+        return True
+    return stamp < day_cutoff(PROBE_STALE_DAYS)
+
+
+def needs_probe(item_id, sales, hot_ids, probed):
+    if item_id in hot_ids:
+        return False
+    if sold_this_month(sales, item_id):
+        return False
+    return probe_due(item_id, probed)
+
+
+def remember_sales(item_id, fresh, sales):
+    if not fresh:
+        return False
+    _, newest, _ = sale_bounds(fresh)
+    if not newest or newest < day_cutoff(RECENT_SALE_DAYS):
+        return False
+    sales[item_id] = merge_sales(sales.get(item_id), fresh)
+    return True
+
+
+def note_depth(item_id, fresh, exhausted, pages_requested, sales, deep):
+    if fresh is None:
+        return
+    oldest, newest, _ = sale_bounds(sales.get(item_id) or fresh or [])
+    if not newest:
+        deep.discard(item_id)
+        return
+    if oldest <= day_cutoff(RECENT_SALE_DAYS) or exhausted:
+        deep.discard(item_id)
+        return
+    if pages_requested >= BACKFILL_PAGES:
+        deep.add(item_id)
+
+
+def store_clock(clock, item_id, slots):
+    fresh_amount = sum(int(slot.get("a") or 0) for slot in slots if isinstance(slot, dict))
+    stored = clock.get(item_id) if isinstance(clock.get(item_id), list) else []
+    stored_amount = sum(int(slot.get("a") or 0) for slot in stored if isinstance(slot, dict))
+    if fresh_amount and fresh_amount >= stored_amount:
+        clock[item_id] = slots
+
+
+def pull_history(api, item_id, pages, sales, clock, deep):
+    _item_id, fresh, slots, used, exhausted = fetch_sales(api, item_id, pages)
+    if fresh is not None:
+        remember_sales(item_id, fresh, sales)
+        store_clock(clock, item_id, slots)
+        note_depth(item_id, fresh, exhausted, pages, sales, deep)
+    return fresh, used
+
+
+def walk_ids(ordered, cursor, limit, accept):
+    if not ordered or limit <= 0:
+        return [], cursor
+    start = cursor % len(ordered)
+    rotated = ordered[start:] + ordered[:start]
+    chosen = []
+    seen = 0
+    for item_id in rotated:
+        seen += 1
+        if accept(item_id):
+            chosen.append(item_id)
+            if len(chosen) >= limit:
+                break
+    return chosen, (start + seen) % len(ordered)
+
+
+def update_sales_budget(api, tradable, hot_ids, warm_ids, previous, state, priority_ids):
+    sales = trim_sales(previous if isinstance(previous, dict) else {})
     clock = load_json(CLOCK_FILE, {})
     if not isinstance(clock, dict):
         clock = {}
-    start = cursor % len(ordered)
-    rotated = ordered[start:] + ordered[:start]
-    done = 0
-    for item_id in rotated[:SALES_SLICE_ITEMS]:
-        item_id, fresh, slots, _used = fetch_sales(api, item_id, SALES_SLICE_PAGES)
-        if fresh:
-            sales[item_id] = merge_sales(sales.get(item_id), fresh)
-            fresh_amount = sum(int(slot.get("a") or 0) for slot in slots if isinstance(slot, dict))
-            stored = clock.get(item_id) if isinstance(clock.get(item_id), list) else []
-            stored_amount = sum(int(slot.get("a") or 0) for slot in stored if isinstance(slot, dict))
-            if fresh_amount and fresh_amount >= stored_amount:
-                clock[item_id] = slots
-        done += 1
+    budget = SALES_REQUEST_BUDGET
+    stats = {"backfill": 0, "classify": 0, "probe": 0, "liquid": 0, "rare": 0, "requests": 0}
+    known = {item["id"] for item in tradable}
+
+    def spend(item_ids, pages, bucket, request_cap):
+        nonlocal budget
+        spent = 0
+        for item_id in item_ids:
+            if budget <= 0 or spent >= request_cap:
+                break
+            fresh, used = pull_history(
+                api, item_id, min(pages, budget, request_cap - spent), sales, clock, state["deep"]
+            )
+            budget -= used
+            spent += used
+            stats["requests"] += used
+            stats[bucket] += 1
+            if bucket == "probe" and fresh is not None:
+                if sold_this_month(sales, item_id):
+                    state["warm"].add(item_id)
+                    state["probed"].pop(item_id, None)
+                else:
+                    state["probed"][item_id] = utc_now().date().isoformat()
+
+    unsettled = [
+        item_id for item_id in sorted((hot_ids | warm_ids) & known)
+        if item_id not in state["deep"] and isinstance(sales.get(item_id), list)
+        and (sale_bounds(sales[item_id])[0] or "9999") > day_cutoff(RECENT_SALE_DAYS)
+    ]
+    liquid_ids = [
+        item_id for item_id in (hot_ids | warm_ids) & known
+        if isinstance(sales.get(item_id), list) and is_liquid(sales, item_id)
+    ]
+    rare_ids = [
+        item_id for item_id in (hot_ids | warm_ids) & known
+        if isinstance(sales.get(item_id), list) and not is_liquid(sales, item_id)
+    ]
+    liquid_take, state["sales_cursor"] = rotate_ids(
+        liquid_ids, state["sales_cursor"], min(LIQUID_SALES_CAP, budget)
+    )
+    spend(liquid_take, 1, "liquid", budget)
+    rare_take, state["rare_cursor"] = rotate_ids(rare_ids, state["rare_cursor"], min(RARE_SALES_CAP, budget))
+    spend(rare_take, 1, "rare", budget)
+    spend(unsettled, BACKFILL_PAGES, "backfill", min(BACKFILL_REQUEST_CAP, budget))
+
+    missing = [item_id for item_id in sorted(hot_ids & known) if not isinstance(sales.get(item_id), list)]
+    spend(missing, 1, "classify", min(CLASSIFY_CAP, budget))
+
+    probe_order = [
+        item["id"] for item in sorted(tradable, key=lambda item: (item["id"] not in priority_ids, item["id"]))
+    ]
+    probes, state["probe_cursor"] = walk_ids(
+        probe_order,
+        state["probe_cursor"],
+        budget,
+        lambda item_id: needs_probe(item_id, sales, hot_ids, state["probed"]),
+    )
+    spend(probes, 1, "probe", budget)
+
+    state["warm"] = {
+        item_id for item_id in (state["warm"] | set(sales)) & known
+        if item_id not in hot_ids and sold_this_month(sales, item_id)
+    }
+    state["probed"] = {
+        item_id: day
+        for item_id, day in state["probed"].items()
+        if item_id in known and item_id not in hot_ids and item_id not in state["warm"]
+    }
     sales["_updated_at"] = utc_now().isoformat()
     save_json(SALES_FILE, sales)
     save_clock(clock)
-    print(f"📊 Продажи: {done} из {len(ordered)}, по {SALES_SLICE_PAGES} стр.")
-    return sales, (start + done) % len(ordered)
+    print(
+        f"📊 История: добор {stats['backfill']}, новые лоты {stats['classify']}, "
+        f"проба каталога {stats['probe']}, ходовые {stats['liquid']}, тихие {stats['rare']}, "
+        f"запросов {stats['requests']}"
+    )
+    return sales
 
 
 def save_item_catalog(meta, tradable):
@@ -921,29 +1177,37 @@ def main():
     api = StalcraftApi(token)
 
     recipes = load_recipes()
-    hot_ids, cursor, sales_cursor = load_scan_state()
+    state = load_scan_state()
+    known = {item["id"] for item in tradable}
+    sales_raw = load_json(SALES_FILE, {})
+    state["hot"] &= known
+    state["warm"] = {
+        item_id for item_id in (state["warm"] | set(sales_raw))
+        if item_id in known and item_id not in state["hot"] and sold_this_month(sales_raw, item_id)
+    }
     history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
-    priced = set(history)
-    missing_recipe_ids = recipe_item_ids(recipes) - priced
-    price_items, cursor = pick_price_items(tradable, history, hot_ids, cursor, missing_recipe_ids)
+    missing_recipe_ids = recipe_item_ids(recipes) - set(history)
+    price_items, state["cursor"], state["quiet_cursor"], state["warm_cursor"] = pick_price_items(
+        tradable, history, sales_raw, state["hot"], state["warm"], state, missing_recipe_ids
+    )
 
     history, found, failed = update_prices(api, price_items, history)
     scanned = {item["id"] for item in price_items}
-    known = {item["id"] for item in tradable}
-    hot_next = ((hot_ids - scanned) | found | failed) & known
-    save_json(
-        ACTIVE_ITEMS_FILE,
-        {"items": sorted(hot_next), "cursor": cursor, "sales_cursor": sales_cursor},
-        compact=False,
-    )
-    print(f"💾 Живых лотов: {len(hot_next)}")
+    previous_hot = set(state["hot"])
+    state["hot"] = ((previous_hot - scanned) | found | (failed & previous_hot)) & known
+    dropped = (previous_hot & scanned) - found - failed
+    state["warm"] = ((state["warm"] - found) | {
+        item_id for item_id in dropped if sold_this_month(sales_raw, item_id)
+    }) - state["hot"]
+    state["warm"] &= known
+    save_scan_state(state)
+    print(f"💾 Живых лотов: {len(state['hot'])}, за месяц без лота: {len(state['warm'])}")
 
-    sales, sales_cursor = update_sales_slice(api, sorted(hot_next), load_json(SALES_FILE, {}), sales_cursor)
-    save_json(
-        ACTIVE_ITEMS_FILE,
-        {"items": sorted(hot_next), "cursor": cursor, "sales_cursor": sales_cursor},
-        compact=False,
+    sales = update_sales_budget(
+        api, tradable, state["hot"], state["warm"], sales_raw, state, missing_recipe_ids
     )
+    save_scan_state(state)
+    print(f"💾 После истории без лота: {len(state['warm'])}")
     update_crafts(recipes, history, all_meta, sales)
 
 
