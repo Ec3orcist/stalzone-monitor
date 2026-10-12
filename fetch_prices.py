@@ -34,6 +34,7 @@ RESCAN_BATCH = 200
 WORKERS = 4
 MAX_LOTS_PER_ITEM = 10
 GEAR_CATS = {"weapon", "armor", "armour", "attachment", "weapon_modules"}
+ALWAYS_PRICE_CATS = {"weapon", "armor", "armour", "weapon_modules"}
 RANK_CODES = {
     "RANK_NEWBIE": "newbie",
     "RANK_STALKER": "stalker",
@@ -271,7 +272,7 @@ def pick_items(tradable, active_ids, priority_ids, cursor):
     if active_ids is None:
         chosen = tradable[:MAX_ITEMS]
         print(f"🐌 Первый запуск: {len(chosen)}")
-        return chosen, 0
+        return chosen, chosen, 0
 
     known = {item["id"] for item in tradable}
     live_active = active_ids & known
@@ -295,8 +296,18 @@ def pick_items(tradable, active_ids, priority_ids, cursor):
         start = cursor % len(rest)
         window = (rest[start:] + rest[:start])[:RESCAN_BATCH]
         next_cursor = (start + len(window)) % len(rest)
-    print(f"⚡ Активных: {len(primary)}, рецепты без цены: {len(priority)}, рескан: {len(window)}")
-    return primary + priority + window, next_cursor
+    covered_now = set(live_active) | {item["id"] for item in priority} | {item["id"] for item in window}
+    always = [
+        item for item in tradable
+        if item.get("category") in ALWAYS_PRICE_CATS and item["id"] not in covered_now
+    ]
+    weapons = sum(1 for item in always if item.get("category") == "weapon")
+    armor = sum(1 for item in always if item.get("category") in {"armor", "armour"})
+    print(
+        f"⚡ Активных: {len(primary)}, рецепты без цены: {len(priority)}, "
+        f"оружие и броня: {len(always)} (пушек {weapons}, брони {armor}), рескан: {len(window)}"
+    )
+    return primary + priority + always + window, primary + priority + window, next_cursor
 
 
 def bounded_int(extra, keys, low, high):
@@ -866,15 +877,15 @@ def main():
     active_ids, cursor = load_scan_state()
     priced = set(load_json(DATA_FILE, {}))
     missing_recipe_ids = recipe_item_ids(recipes) - priced
-    items, cursor = pick_items(tradable, active_ids, missing_recipe_ids, cursor)
+    price_items, sales_items, cursor = pick_items(tradable, active_ids, missing_recipe_ids, cursor)
 
     history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
-    history = update_prices(api, items, history)
+    history = update_prices(api, price_items, history)
     active_now = {item_id for item_id, records in history.items() if records}
     save_json(ACTIVE_ITEMS_FILE, {"items": sorted(active_now), "cursor": cursor}, compact=False)
     print(f"💾 Активных: {len(active_now)}")
 
-    sales = update_sales(api, [item["id"] for item in items], load_json(SALES_FILE, {}))
+    sales = update_sales(api, [item["id"] for item in sales_items], load_json(SALES_FILE, {}))
     update_crafts(recipes, history, all_meta, sales)
 
 

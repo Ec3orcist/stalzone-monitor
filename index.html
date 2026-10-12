@@ -1862,6 +1862,7 @@
                     lots_count: (last && last.lots_count) || 0,
                     lots: (last && last.lots) || [],
                     rank: meta.rank || '',
+                    salesKnown: Array.isArray(salesData[id]),
                     lastRecord: last
                 };
             }).filter(item => item.id);
@@ -2124,7 +2125,9 @@
                 ? `${item.trend7 > 0 ? '+' : ''}${item.trend7.toFixed(0)}% 7д`
                 : '';
             const trendClass = !trendText ? '' : (item.trend7 < 0 ? 'green' : (item.trend7 > 0 ? 'red' : 'neutral'));
-            const soldText = item.sold14 > 0 ? `продано ${ruPieces(item.sold14)}` : (item.showTraits ? 'за 14д не продавалось' : '');
+            const soldText = item.sold14 > 0
+                ? `продано ${ruPieces(item.sold14)}`
+                : (item.showTraits && item.salesKnown ? 'за 14д не продавалось' : '');
             const amountText = item.listed
                 ? ruPieces(item.total_amount)
                 : (item.avg ? 'нет лотов' : '');
