@@ -855,6 +855,48 @@
             if (!(sane.price > 0)) return { price: 0, stale: Boolean(sane.stale), absurd: false, quoted, quotedLot: false, source: sane.source };
             return { price: sane.price, stale: sane.stale, absurd, quoted, quotedLot, source: sane.source };
         }
+        let ownedCraftKey = '';
+        let ownedCraftPick = null;
+        function bestOwnedCraft() {
+            const key = [...backpack.entries()].filter(([, count]) => count > 0).map(([id, count]) => `${id}:${count}`).sort().join('|');
+            if (!key) {
+                ownedCraftKey = '';
+                ownedCraftPick = null;
+                return null;
+            }
+            if (!recipeIds().length) return null;
+            if (key === ownedCraftKey) return ownedCraftPick;
+            ownedCraftKey = key;
+            ownedCraftPick = null;
+            recipeIds().forEach(id => {
+                const craft = resolveNode(id);
+                const econ = craftEconomics(craft);
+                if (!(econ.profitBuy > 0) || econ.buy.missing) return;
+                if (econ.sellSource === 'sale' && saleIsStale(id)) return;
+                const per = craft.craftAmount || 1;
+                let runs = 0;
+                const used = [];
+                (craft.ingredients || []).forEach(ing => {
+                    const qty = (ing.amount || 0) / per;
+                    const have = ownedCount(ing.id);
+                    if (!(qty > 0) || !(have > 0)) return;
+                    used.push({ id: ing.id, qty, have });
+                    runs = Math.max(runs, Math.floor(have / qty + 1e-9));
+                });
+                if (!used.length) return;
+                if (runs < 1) runs = 1;
+                const extra = runs * econ.profitBuy;
+                if (ownedCraftPick && extra <= ownedCraftPick.extra) return;
+                let rest = 0;
+                (craft.ingredients || []).forEach(ing => {
+                    const qty = (ing.amount || 0) / per;
+                    const unit = ingredientUnit(ing.id).price || 0;
+                    rest += bagTake(ing.id, qty * runs, unit).rest;
+                });
+                ownedCraftPick = { id, name: craft.name, extra, rest, runs, used };
+            });
+            return ownedCraftPick;
+        }
         function renderBagWorth() {
             if (!els.bagWorth) return;
             if (!backpack.size) {
@@ -863,9 +905,6 @@
             }
             let sell = 0;
             let staleValue = 0;
-            let bestExtra = 0;
-            let bestName = '';
-            let bestRest = 0;
             backpack.forEach((count, id) => {
                 if (!(count > 0)) return;
                 const priced = saneSale(id);
@@ -873,34 +912,10 @@
                 if (priced.stale) staleValue += priced.price * count;
                 else sell += priced.price * count;
             });
-            if (recipeIds().length) {
-                recipeIds().forEach(id => {
-                    const craft = resolveNode(id);
-                    const econ = craftEconomics(craft);
-                    if (!(econ.profitBuy > 0) || econ.buy.missing) return;
-                    if (econ.sellSource === 'sale' && saleIsStale(id)) return;
-                    const per = craft.craftAmount || 1;
-                    let runs = 0;
-                    (craft.ingredients || []).forEach(ing => {
-                        const qty = (ing.amount || 0) / per;
-                        const have = ownedCount(ing.id);
-                        if (!(qty > 0) || !(have > 0)) return;
-                        runs = Math.max(runs, Math.floor(have / qty + 1e-9));
-                    });
-                    if (runs < 1) return;
-                    const extra = runs * econ.profitBuy;
-                    if (extra <= bestExtra) return;
-                    let rest = 0;
-                    (craft.ingredients || []).forEach(ing => {
-                        const qty = (ing.amount || 0) / per;
-                        const unit = ingredientUnit(ing.id).price || 0;
-                        rest += bagTake(ing.id, qty * runs, unit).rest;
-                    });
-                    bestExtra = extra;
-                    bestName = craft.name;
-                    bestRest = rest;
-                });
-            }
+            const pick = bestOwnedCraft();
+            const bestExtra = pick ? pick.extra : 0;
+            const bestName = pick ? pick.name : '';
+            const bestRest = pick ? pick.rest : 0;
             if (!(sell > 0) && !(staleValue > 0)) {
                 els.bagWorth.innerHTML = '';
                 return;
@@ -1486,6 +1501,7 @@
                 if (dev === null || dev > -15) return false;
                 if ((item.sold14 || 0) < 20) return false;
                 if (saleIsStale(item.id)) return false;
+                if (isTrap(item)) return false;
                 return true;
             }).map(item => {
                 const dev = fairDeviation(item);
@@ -1537,7 +1553,8 @@
                         profitCraft: econ.profitCraft,
                         sell: econ.sell,
                         outSold,
-                        missing: econ.buy.missing
+                        missing: econ.buy.missing,
+                        staleOut: econ.sellSource === 'sale' && saleIsStale(rid)
                     });
                 });
             });
@@ -1545,7 +1562,7 @@
             const materials = [...bucket.values()].map(row => {
                 const daily = row.sold14 / 14;
                 const scarce = !row.listed || (daily >= 4 && row.lots < daily * 2);
-                const profitable = row.crafts.filter(craft => craft.profitBuy > 0 && craft.share >= 0.15 && craft.outSold >= 5 && !craft.missing);
+                const profitable = row.crafts.filter(craft => craft.profitBuy > 0 && craft.share >= 0.15 && craft.outSold >= 5 && !craft.missing && !craft.staleOut);
                 const best = profitable.slice().sort((a, b) => (b.profitBuy * b.share) - (a.profitBuy * a.share))[0] || null;
                 const maxShare = row.crafts.reduce((bestShare, craft) => Math.max(bestShare, craft.share), 0);
                 const craftScore = best
@@ -1580,6 +1597,10 @@
             const budget = readBudget();
             return plan.flips.filter(row => budget === null || buySpend(row) <= budget);
         }
+        function isTrap(item) {
+            const dev = fairDeviation(item);
+            return dev !== null && dev >= 20 && (item.sold14 || 0) >= 20;
+        }
         function priceIsFalling(item) {
             return typeof item.trend7 === 'number' && item.trend7 <= -15;
         }
@@ -1599,10 +1620,7 @@
         function renderTraps() {
             if (!els.trapList) return;
             const budget = readBudget();
-            const rows = itemsCache.filter(item => {
-                const dev = fairDeviation(item);
-                return dev !== null && dev >= 20 && (item.sold14 || 0) >= 20;
-            }).map(item => ({ item, dev: fairDeviation(item) }))
+            const rows = itemsCache.filter(isTrap).map(item => ({ item, dev: fairDeviation(item) }))
                 .sort((a, b) => b.dev - a.dev)
                 .slice(0, 8);
             els.trapList.innerHTML = rows.length
@@ -1761,13 +1779,26 @@
             els.targetList.innerHTML = `<div class="night-sub">«${escapeHtml(craft.name)}». Докупка ${money(spend)}. ${profitText}${budgetText}</div>${rows}`;
         }
         function farmRow(row) {
-            const why = row.best
-                ? `в ${row.profitable.length} выгодных · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
-                : `продаётся само · ${row.sold14.toLocaleString('ru-RU')} шт за 14д`;
+            const pick = bestOwnedCraft();
+            const have = ownedCount(row.id);
+            const part = pick && pick.used.find(used => used.id === row.id);
+            const sellOwned = have > 0 && !pick;
+            const otherCraft = have > 0 && pick && !part;
+            const why = sellOwned
+                ? 'в рюкзаке это выгоднее продать'
+                : (otherCraft
+                    ? `в рюкзаке выгоднее «${pick.name}»`
+                    : (part
+                        ? (part.have + 1e-9 >= part.qty * pick.runs
+                            ? `для «${pick.name}» уже хватает`
+                            : `для «${pick.name}» · в рюкзаке ${fmtQty(part.have)} из ${fmtQty(part.qty * pick.runs)}`)
+                        : (row.best
+                            ? `в ${row.profitable.length} выгодных · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
+                            : `продаётся само · ${row.sold14.toLocaleString('ru-RU')} шт за 14д`)));
             const stock = row.listed ? `лотов ${row.lots.toLocaleString('ru-RU')}` : 'лотов нет';
             const tight = row.listed && row.scarce ? ' · запас < 2 дней' : '';
             const staleNote = row.stalePrice ? ' · давно не продавалось' : '';
-            const verdict = row.best ? 'в крафт' : 'продать';
+            const verdict = sellOwned ? 'продать' : (otherCraft ? 'другой' : (row.best || part ? 'в крафт' : 'продать'));
             const absurdNote = row.absurd ? ` · ${row.quotedLot ? 'лот' : 'продажа'} ${money(row.quoted)} не берём` : '';
             return `<div class="night-row" data-open-item="${escapeHtml(row.id)}">
                 ${nightIcon(row.icon)}
@@ -1775,7 +1806,7 @@
                     <div class="night-name">${escapeHtml(row.name)}</div>
                     <div class="night-sub">${money(row.unit)}${row.source === 'sale' && !row.absurd ? ' продажа' : ''}${absurdNote} · ${stock}${tight}${staleNote} · ${why}</div>
                 </div>
-                <div class="night-side ${row.best ? 'green' : 'warn'}">${verdict}</div>
+                <div class="night-side ${verdict === 'в крафт' ? 'green' : 'warn'}">${verdict}</div>
             </div>`;
         }
         function matchScore(name, id, query) {
@@ -1908,21 +1939,35 @@
                 };
             });
             const farms = plan.farms
-                .filter(row => row.craftScore > 0 && ownedCount(row.id) + 1e-9 < (row.best.qty || 0))
+                .filter(row => {
+                    if (!(row.craftScore > 0) || !row.best) return false;
+                    const pick = bestOwnedCraft();
+                    const have = ownedCount(row.id);
+                    if (have > 0 && !pick) return false;
+                    const part = pick && pick.used.find(used => used.id === row.id);
+                    if (part) return part.have + 1e-9 < part.qty * pick.runs;
+                    if (have > 0 && pick) return false;
+                    return have + 1e-9 < (row.best.qty || 0);
+                })
                 .sort((a, b) => b.craftScore - a.craftScore)
                 .slice(0, 3)
-                .map(row => ({
-                    loot: row.id,
-                    text: `Добыть «${row.name}»: это ${Math.round(row.best.share * 100)}% выгодного крафта «${row.best.name}».`
-                }));
-            const ready = plan.farms
-                .filter(row => row.best && ownedCount(row.id) + 1e-9 >= (row.best.qty || 0) && row.best.qty > 0)
-                .sort((a, b) => b.craftScore - a.craftScore)
-                .slice(0, 1)
-                .map(row => ({
-                    loot: row.id,
-                    text: `Пустить «${row.name}» в «${row.best.name}» — оно уже в рюкзаке и это ${Math.round(row.best.share * 100)}% крафта.`
-                }));
+                .map(row => {
+                    const pick = bestOwnedCraft();
+                    const part = pick && pick.used.find(used => used.id === row.id);
+                    return {
+                        loot: row.id,
+                        text: part
+                            ? `Добыть «${row.name}» для «${pick.name}»: в рюкзаке ${fmtQty(part.have)} из ${fmtQty(part.qty * pick.runs)}.`
+                            : `Добыть «${row.name}»: это ${Math.round(row.best.share * 100)}% выгодного крафта «${row.best.name}».`
+                    };
+                });
+            const pick = bestOwnedCraft();
+            const ready = pick
+                ? pick.used.filter(part => part.have + 1e-9 >= part.qty * pick.runs).slice(0, 1).map(part => ({
+                    loot: part.id,
+                    text: `Пустить «${humanName(part.id)}» в «${pick.name}» — оно уже в рюкзаке.`
+                }))
+                : [];
             const mixed = [];
             const left = flips.slice();
             const right = farms.slice();
@@ -1936,7 +1981,14 @@
             const seen = new Set();
             const rows = [];
             plan.farms
-                .filter(row => row.best && row.best.share >= 0.55 && row.best.profitBuy >= 1000)
+                .filter(row => {
+                    if (!row.best || row.best.share < 0.55 || !(row.best.profitBuy >= 1000)) return false;
+                    const have = ownedCount(row.id);
+                    const pick = bestOwnedCraft();
+                    if (have > 0 && !pick) return false;
+                    if (have > 0 && pick && !pick.used.some(used => used.id === row.id)) return false;
+                    return true;
+                })
                 .sort((a, b) => b.best.share - a.best.share || b.best.profitBuy - a.best.profitBuy)
                 .forEach(row => {
                     if (seen.has(row.best.id)) return;
@@ -1946,13 +1998,16 @@
             const top = rows.slice(0, 3);
             els.bottlenecks.innerHTML = top.length
                 ? `<div class="night-sub" style="padding-top:8px">Упирается в одно сырьё</div>` + top.map(row => {
-                    const share = Math.round(row.best.share * 100);
+                    const pick = bestOwnedCraft();
+                    const part = pick && pick.used.find(used => used.id === row.id);
+                    const craftName = part ? pick.name : row.best.name;
                     const have = ownedCount(row.id);
-                    const need = row.best.qty || 0;
+                    const need = part ? part.qty * pick.runs : (row.best.qty || 0);
+                    const share = Math.round(row.best.share * 100);
                     const text = have + 1e-9 >= need && need > 0
-                        ? `«${row.best.name}» можно закрывать: «${row.name}» уже в рюкзаке (${fmtQty(have)} шт) и это ${share}% себестоимости.`
+                        ? `«${craftName}» можно закрывать: «${row.name}» уже в рюкзаке (${fmtQty(have)} шт).`
                         : (have > 0
-                            ? `«${row.best.name}» упирается в «${row.name}»: в рюкзаке ${fmtQty(have)} из ${fmtQty(need)}, плюс ${money(row.best.profitBuy)} если докупить остальное.`
+                            ? `«${craftName}» упирается в «${row.name}»: в рюкзаке ${fmtQty(have)} из ${fmtQty(need)}.`
                             : `«${row.best.name}» упирается в «${row.name}»: ${share}% себестоимости, плюс ${money(row.best.profitBuy)} если докупить остальное.`);
                     return `<div class="night-row plan-row" data-loot="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">${escapeHtml(text)}</div></div></div>`;
                 }).join('')
