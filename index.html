@@ -226,15 +226,23 @@
         .warn { color: var(--warn); }
         @media (max-width: 760px) {
             .variant > summary, .variant-head { grid-template-columns: 1fr 1fr; }
-            body { padding: 10px; }
-            .topbar { flex-direction: column; align-items: stretch; }
+            body { padding: 8px 10px 32px; }
+            .topbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 6px 0 8px; }
+            h1 { font-size: 20px; }
             .tabs { width: 100%; }
-            .tab { flex: 1; }
+            .tab { flex: 1; padding: 8px 8px; }
             .items-grid { grid-template-columns: 1fr; }
             .night-grid { grid-template-columns: 1fr; }
             .controls select, #refreshBtn { flex: 1 1 140px; }
             .modal { padding: 16px; }
             .craft-list-profit { min-width: 0; }
+            .night-card, .night-fold, #eveningPlan, #craftTargetCard, #bagCard { scroll-margin-top: 132px; }
+            .night-name, .plan-row .night-name { overflow-wrap: anywhere; }
+            .bag-chip { max-width: 100%; padding: 4px 4px 4px 12px; }
+            .bag-chip button { min-width: 40px; min-height: 40px; padding: 0; font-size: 20px; }
+            .night-fold > summary { min-height: 44px; display: flex; align-items: center; }
+            .bench-head input, #targetSearch, #targetCount, #budgetInput { min-height: 40px; }
+            #targetCount { max-width: 64px; }
         }
     </style>
 </head>
