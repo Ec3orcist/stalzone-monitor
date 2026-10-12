@@ -210,8 +210,12 @@
         .bag-qty { min-width: 1.2em; text-align: center; color: var(--accent); }
         .bag-suggest { display: flex; flex-direction: column; }
         .bag-suggest button { text-align: left; background: transparent; border: 0; border-top: 1px solid var(--line); color: var(--text); border-radius: 0; padding: 8px 2px; }
-        .bench-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .bench-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+        .bench-head h2 { margin: 0; }
         .bench-head input { max-width: 220px; }
+        #targetSearch { flex: 1 1 180px; max-width: none; }
+        .bag-worth { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+        .bag-worth b { color: var(--text); }
         .night-fold { background: rgba(22,18,33,.72); border: 1px solid var(--line); border-radius: 14px; padding: 0 14px 6px; margin-bottom: 14px; }
         .night-fold > summary { cursor: pointer; list-style: none; padding: 12px 0 8px; font-weight: 700; font-size: 16px; }
         .night-fold > summary::-webkit-details-marker { display: none; }
@@ -341,6 +345,7 @@
                 <input type="text" id="bagSearch" placeholder="Добавить по названию..." autocomplete="off">
                 <div id="bagSuggest" class="bag-suggest"></div>
                 <div id="bagChips" class="bag-chips"></div>
+                <div id="bagWorth"></div>
                 <div id="bagReady"></div>
             </section>
             <div class="controls">
@@ -821,7 +826,77 @@
                 `<div class="bag-chip"><span>${escapeHtml(humanName(id))}</span><button type="button" data-bag-dec="${escapeHtml(id)}" aria-label="меньше">−</button><span class="bag-qty">${count}</span><button type="button" data-bag-inc="${escapeHtml(id)}" aria-label="больше">+</button><button type="button" data-bag-drop="${escapeHtml(id)}" aria-label="убрать">×</button></div>`
             ).join('');
             els.bagChips.innerHTML = chips || '<span class="night-sub">Пока пусто.</span>';
+            renderBagWorth();
             renderBagReady();
+        }
+        function saneSale(id) {
+            const node = resolveNode(id);
+            const quoted = node.sell_price || 0;
+            const typical = typicalSale(id);
+            const outlier = quoted > 0 && typical > 0 && (typical / quoted > 4 || typical / quoted < 0.25);
+            const price = outlier ? typical : quoted;
+            const source = outlier ? 'sale' : (node.price_source || 'none');
+            return { price, source, stale: source !== 'lot' && saleIsStale(id) };
+        }
+        function renderBagWorth() {
+            if (!els.bagWorth) return;
+            if (!backpack.size) {
+                els.bagWorth.innerHTML = '';
+                return;
+            }
+            let sell = 0;
+            let staleValue = 0;
+            let bestExtra = 0;
+            let bestName = '';
+            let bestRest = 0;
+            backpack.forEach((count, id) => {
+                if (!(count > 0)) return;
+                const priced = saneSale(id);
+                if (!(priced.price > 0)) return;
+                if (priced.stale) staleValue += priced.price * count;
+                else sell += priced.price * count;
+            });
+            if (recipeIds().length) {
+                recipeIds().forEach(id => {
+                    const craft = resolveNode(id);
+                    const econ = craftEconomics(craft);
+                    if (!(econ.profitBuy > 0) || econ.buy.missing) return;
+                    if (econ.sellSource === 'sale' && saleIsStale(id)) return;
+                    const per = craft.craftAmount || 1;
+                    let runs = 0;
+                    (craft.ingredients || []).forEach(ing => {
+                        const qty = (ing.amount || 0) / per;
+                        const have = ownedCount(ing.id);
+                        if (!(qty > 0) || !(have > 0)) return;
+                        runs = Math.max(runs, Math.floor(have / qty + 1e-9));
+                    });
+                    if (runs < 1) return;
+                    const extra = runs * econ.profitBuy;
+                    if (extra <= bestExtra) return;
+                    let rest = 0;
+                    (craft.ingredients || []).forEach(ing => {
+                        const qty = (ing.amount || 0) / per;
+                        const node = resolveNode(ing.id);
+                        const unit = node.sell_price || 0;
+                        rest += bagTake(ing.id, qty * runs, unit).rest;
+                    });
+                    bestExtra = extra;
+                    bestName = craft.name;
+                    bestRest = rest;
+                });
+            }
+            if (!(sell > 0) && !(staleValue > 0)) {
+                els.bagWorth.innerHTML = '';
+                return;
+            }
+            const saleBit = sell > 0
+                ? `<span>Продать <b>${money(sell)}</b></span>`
+                : '<span>Свежей цены продажи нет.</span>';
+            const staleBit = staleValue > 0 ? `<span class="warn">Цена старая: <b>${money(staleValue)}</b></span>` : '';
+            const craftBit = bestExtra > 0
+                ? `<span>В «${escapeHtml(bestName)}» выгоднее ещё на <b class="green">${money(bestExtra)}</b>, если докупить остальное на ${money(bestRest)}.</span>`
+                : (sell > 0 ? '<span>Сырьём выгоднее продать.</span>' : '');
+            els.bagWorth.innerHTML = `<div class="bag-worth">${saleBit}${staleBit}${craftBit}</div>`;
         }
         function renderBagReady() {
             if (!els.bagReady) return;
@@ -905,6 +980,7 @@
             bagSearch: document.getElementById('bagSearch'),
             bagSuggest: document.getElementById('bagSuggest'),
             bagChips: document.getElementById('bagChips'),
+            bagWorth: document.getElementById('bagWorth'),
             eveningPlan: document.getElementById('eveningPlan'),
             bottlenecks: document.getElementById('bottlenecks'),
             budgetInput: document.getElementById('budgetInput'),
@@ -1435,11 +1511,13 @@
                 const craftScore = best
                     ? best.profitBuy * best.share * (scarce ? 1.5 : 1) * (1 + Math.log10(1 + best.outSold))
                     : 0;
-                const stalePrice = row.source !== 'lot' && saleIsStale(row.id);
-                const sellScore = !best && !stalePrice && scarce && row.sold14 >= 30 && row.unit >= 500
-                    ? row.unit * Math.min(row.sold14 / 14, 20)
+                const sane = saneSale(row.id);
+                const unit = sane.price || row.unit;
+                const stalePrice = sane.stale;
+                const sellScore = !best && !stalePrice && scarce && row.sold14 >= 30 && unit >= 500
+                    ? unit * Math.min(row.sold14 / 14, 20)
                     : 0;
-                return { ...row, scarce, profitable, best, maxShare, craftScore, sellScore, stalePrice };
+                return { ...row, unit, source: unit ? sane.source : row.source, scarce, profitable, best, maxShare, craftScore, sellScore, stalePrice };
             });
             const farms = materials.filter(row => row.craftScore > 0 || row.sellScore > 0);
             nightPlan = { flips, farms, materials };
@@ -1538,7 +1616,15 @@
             const query = els.targetSearch.value.trim().toLowerCase();
             if (query.length < 2 || !recipeIds().length) {
                 els.targetSuggest.innerHTML = '';
+                if (!craftTarget.id) els.targetList.innerHTML = '<div class="night-sub">Начните вводить название и выберите рецепт из списка.</div>';
                 return;
+            }
+            if (craftTarget.id) {
+                const chosen = (resolveNode(craftTarget.id).name || '').toLowerCase();
+                if (chosen && chosen === query) {
+                    els.targetSuggest.innerHTML = '';
+                    return;
+                }
             }
             const rows = recipeIds().map(id => {
                 const craft = resolveNode(id);
@@ -1550,13 +1636,22 @@
             els.targetSuggest.innerHTML = rows.map(row =>
                 `<button type="button" data-target-pick="${escapeHtml(row.id)}">${escapeHtml(row.name)}</button>`
             ).join('');
+            if (!craftTarget.id) {
+                els.targetList.innerHTML = rows.length
+                    ? ''
+                    : '<div class="night-sub">Начните вводить название и выберите рецепт из списка.</div>';
+            }
         }
         function renderCraftTarget() {
             if (!els.targetList) return;
             const count = Math.max(1, Math.floor(Number(String(els.targetCount.value || '').replace(/\s/g, '')) || 1));
             craftTarget.count = count;
+            if (craftTarget.id && !els.targetSearch.dataset.touched && document.activeElement !== els.targetSearch) {
+                const chosen = resolveNode(craftTarget.id).name;
+                if (chosen && chosen !== craftTarget.id && !els.targetSearch.value) els.targetSearch.value = chosen;
+            }
             if (!craftTarget.id) {
-                els.targetList.innerHTML = '<div class="night-sub">Найдите рецепт по названию.</div>';
+                els.targetList.innerHTML = '<div class="night-sub">Начните вводить название и выберите рецепт из списка.</div>';
                 return;
             }
             if (!recipeIds().length) {
@@ -1625,7 +1720,7 @@
             const tight = row.listed && row.scarce ? ' · запас < 2 дней' : '';
             const staleNote = row.stalePrice ? ' · давно не продавалось' : '';
             const verdict = row.best ? 'в крафт' : 'продать';
-            return `<div class="night-row" data-loot="${escapeHtml(row.id)}">
+            return `<div class="night-row" data-open-item="${escapeHtml(row.id)}">
                 ${nightIcon(row.icon)}
                 <div class="night-main">
                     <div class="night-name">${escapeHtml(row.name)}</div>
@@ -2764,7 +2859,9 @@
             }, 200);
         });
         let targetTimer = null;
+        els.targetSearch.addEventListener('focus', () => els.targetSearch.select());
         els.targetSearch.addEventListener('input', () => {
+            els.targetSearch.dataset.touched = '1';
             clearTimeout(targetTimer);
             targetTimer = setTimeout(renderTargetSuggest, 150);
         });
@@ -2779,7 +2876,9 @@
             craftTarget.id = pick.dataset.targetPick;
             craftTarget.count = Math.max(1, Math.floor(Number(String(els.targetCount.value || '').replace(/\s/g, '')) || 1));
             saveCraftTarget();
-            els.targetSearch.value = '';
+            const picked = resolveNode(craftTarget.id);
+            els.targetSearch.value = picked.name && picked.name !== picked.id ? picked.name : '';
+            els.targetSearch.dataset.touched = '';
             els.targetSuggest.innerHTML = '';
             renderCraftTarget();
         });
@@ -2808,8 +2907,9 @@
             refreshOwnedViews();
         });
         document.getElementById('tab-tonight').addEventListener('click', (e) => {
+            if (e.target.closest('summary, button, input, a')) return;
             const open = e.target.closest('[data-open-item]');
-            if (open && !e.target.closest('[data-loot]')) {
+            if (open) {
                 openModal(open.dataset.openItem);
                 return;
             }
