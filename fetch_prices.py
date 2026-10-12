@@ -886,15 +886,16 @@ def run_pool(ids, worker, label):
 
 
 def update_prices(api, items, history):
-    now = utc_now().isoformat()
     meta_map = {item["id"]: item for item in items}
     found = set()
     failed = set()
-    for item_id, lots in run_pool(
+    fetched = run_pool(
         [item["id"] for item in items],
         lambda item_id: fetch_lots(api, item_id),
         "цены",
-    ):
+    )
+    now = utc_now().isoformat()
+    for item_id, lots in fetched:
         if lots is None:
             failed.add(item_id)
             continue
