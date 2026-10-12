@@ -211,7 +211,13 @@
         .bag-suggest { display: flex; flex-direction: column; }
         .bag-suggest button { text-align: left; background: transparent; border: 0; border-top: 1px solid var(--line); color: var(--text); border-radius: 0; padding: 8px 2px; }
         .bench-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .bench-head input { max-width: 150px; }
+        .bench-head input { max-width: 220px; }
+        .night-fold { background: rgba(22,18,33,.72); border: 1px solid var(--line); border-radius: 14px; padding: 0 14px 6px; margin-bottom: 14px; }
+        .night-fold > summary { cursor: pointer; list-style: none; padding: 12px 0 8px; font-weight: 700; font-size: 16px; }
+        .night-fold > summary::-webkit-details-marker { display: none; }
+        .night-fold > summary::before { content: "▸ "; color: var(--accent); }
+        .night-fold[open] > summary::before { content: "▾ "; }
+        #targetCount { max-width: 72px; }
         .warn { color: var(--warn); }
         @media (max-width: 760px) {
             .variant > summary, .variant-head { grid-template-columns: 1fr 1fr; }
@@ -311,14 +317,6 @@
 
         <div id="tab-tonight" style="display:none;">
             <p class="night-lead">Цены текущего аукциона: что выгодно купить, что имеет смысл фармить и куда деть уже добытое.</p>
-            <section class="night-card bag-box" id="bagCard">
-                <h2>Мой рюкзак</h2>
-                <p class="night-hint">Сколько уже есть. Списки закупки и «куда деть» вычтут это количество, а не всю строку.</p>
-                <input type="text" id="bagSearch" placeholder="Добавить по названию..." autocomplete="off">
-                <div id="bagSuggest" class="bag-suggest"></div>
-                <div id="bagChips" class="bag-chips"></div>
-                <div id="bagReady"></div>
-            </section>
             <section class="night-card bag-box">
                 <div class="bench-head">
                     <h2>План на вечер</h2>
@@ -326,6 +324,24 @@
                 </div>
                 <div id="eveningPlan"></div>
                 <div id="bottlenecks"></div>
+            </section>
+            <section class="night-card bag-box" id="craftTargetCard">
+                <h2>Хочу скрафтить</h2>
+                <p class="night-hint">Один рецепт и сколько крафтов. Рюкзак вычитается из списка.</p>
+                <div class="bench-head">
+                    <input type="text" id="targetSearch" placeholder="Название рецепта..." autocomplete="off">
+                    <input type="text" id="targetCount" inputmode="numeric" value="1" placeholder="шт" autocomplete="off">
+                </div>
+                <div id="targetSuggest" class="bag-suggest"></div>
+                <div id="targetList"></div>
+            </section>
+            <section class="night-card bag-box" id="bagCard">
+                <h2>Мой рюкзак</h2>
+                <p class="night-hint">Сколько уже есть. Списки закупки и «куда деть» вычтут это количество, а не всю строку.</p>
+                <input type="text" id="bagSearch" placeholder="Добавить по названию..." autocomplete="off">
+                <div id="bagSuggest" class="bag-suggest"></div>
+                <div id="bagChips" class="bag-chips"></div>
+                <div id="bagReady"></div>
             </section>
             <div class="controls">
                 <input type="text" id="lootSearch" placeholder="У меня есть... предмет или крафт">
@@ -343,16 +359,21 @@
                     <div id="farmList"></div>
                 </section>
             </div>
-            <section class="night-card bag-box">
-                <h2>Не бери</h2>
+            <details class="night-fold" id="outingFold">
+                <summary>На выход</summary>
+                <p class="night-hint">Патроны, еда и медикаменты дешевле недавней средней. Дороже бюджета не показываю.</p>
+                <div id="outingList"></div>
+            </details>
+            <details class="night-fold" id="trapFold">
+                <summary>Не бери</summary>
                 <p class="night-hint">Живой лот заметно дороже средней продажи. Это ловушка, не скупка.</p>
                 <div id="trapList"></div>
-            </section>
-            <section class="night-card bag-box">
-                <h2>Где крафтить</h2>
+            </details>
+            <details class="night-fold" id="benchFold">
+                <summary>Где крафтить</summary>
                 <p class="night-hint">Три верстака с самой большой суммой плюсовых рецептов.</p>
                 <div id="benchList"></div>
-            </section>
+            </details>
         </div>
     </div>
 
@@ -386,6 +407,9 @@
         const SKILL_LEVELS_KEY = 'sz_skill_levels';
         const BAG_KEY = 'sz_backpack';
         const BUDGET_KEY = 'sz_budget';
+        const TARGET_KEY = 'sz_craft_target';
+        const OUTING_CATS = new Set(['bullet', 'ammo', 'medicine', 'meds', 'supply', 'supplies']);
+        let craftTarget = { id: '', count: 1 };
         let backpack = new Map();
 
         const CATEGORY_NAMES = {
@@ -887,6 +911,11 @@
             benchList: document.getElementById('benchList'),
             bagReady: document.getElementById('bagReady'),
             trapList: document.getElementById('trapList'),
+            outingList: document.getElementById('outingList'),
+            targetSearch: document.getElementById('targetSearch'),
+            targetCount: document.getElementById('targetCount'),
+            targetSuggest: document.getElementById('targetSuggest'),
+            targetList: document.getElementById('targetList'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
@@ -1473,6 +1502,115 @@
                 }).join('')
                 : '<div class="night-sub">Нет жидких лотов, которые сильно дороже средней.</div>';
         }
+        function renderOuting() {
+            if (!els.outingList) return;
+            const budget = readBudget();
+            const rows = itemsCache.filter(item => {
+                if (!OUTING_CATS.has(item.category)) return false;
+                const dev = fairDeviation(item);
+                if (dev === null || dev > -15) return false;
+                if ((item.sold14 || 0) < 20) return false;
+                if (saleIsStale(item.id)) return false;
+                if (budget !== null && item.price > budget) return false;
+                return true;
+            }).map(item => ({ item, dev: fairDeviation(item) }))
+                .sort((a, b) => a.dev - b.dev)
+                .slice(0, 8);
+            els.outingList.innerHTML = rows.length
+                ? rows.map(row => {
+                    const item = row.item;
+                    const cheaper = Math.max(0, item.avg - item.price);
+                    return `<div class="night-row" data-open-item="${escapeHtml(item.id)}">
+                        ${nightIcon(item.icon)}
+                        <div class="night-main">
+                            <div class="night-name">${escapeHtml(item.name)}</div>
+                            <div class="night-sub">лот ${money(item.price)} · ${escapeHtml(categoryName(item.category))} · дешевле средней на ${money(cheaper)}</div>
+                        </div>
+                        <div class="night-side green">${row.dev.toFixed(0)}%</div>
+                    </div>`;
+                }).join('')
+                : '<div class="night-sub">Сейчас нет дешёвых патронов, еды или медикаментов в этом бюджете.</div>';
+        }
+        function saveCraftTarget() {
+            localStorage.setItem(TARGET_KEY, JSON.stringify({ id: craftTarget.id, count: craftTarget.count }));
+        }
+        function renderTargetSuggest() {
+            const query = els.targetSearch.value.trim().toLowerCase();
+            if (query.length < 2 || !recipeIds().length) {
+                els.targetSuggest.innerHTML = '';
+                return;
+            }
+            const rows = recipeIds().map(id => {
+                const craft = resolveNode(id);
+                const name = craft.name || '';
+                if (!name || name === id) return null;
+                if (!name.toLowerCase().includes(query) && id.toLowerCase() !== query) return null;
+                return { id, name };
+            }).filter(Boolean).sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name, 'ru')).slice(0, 6);
+            els.targetSuggest.innerHTML = rows.map(row =>
+                `<button type="button" data-target-pick="${escapeHtml(row.id)}">${escapeHtml(row.name)}</button>`
+            ).join('');
+        }
+        function renderCraftTarget() {
+            if (!els.targetList) return;
+            const count = Math.max(1, Math.floor(Number(String(els.targetCount.value || '').replace(/\s/g, '')) || 1));
+            craftTarget.count = count;
+            if (!craftTarget.id) {
+                els.targetList.innerHTML = '<div class="night-sub">Найдите рецепт по названию.</div>';
+                return;
+            }
+            if (!recipeIds().length) {
+                els.targetList.innerHTML = '<div class="night-sub">Рецепты ещё грузятся…</div>';
+                return;
+            }
+            const craft = resolveNode(craftTarget.id);
+            const econ = craftEconomics(craft);
+            const lines = (craft.ingredients || []).map(ing => {
+                const node = resolveNode(ing.id);
+                const need = (ing.amount || 0) * count;
+                const unit = node.sell_price || 0;
+                return {
+                    id: node.id,
+                    name: node.name,
+                    icon: node.icon,
+                    need,
+                    unit,
+                    source: node.price_source,
+                    take: bagTake(node.id, need, unit)
+                };
+            }).filter(row => row.name && row.name !== row.id);
+            const missing = lines.filter(row => row.take.left > 1e-6);
+            const output = (craft.craftAmount || 1) * count;
+            const revenue = (econ.sell || 0) * output;
+            const staleSell = econ.sellSource === 'sale' && saleIsStale(craft.id);
+            if (!missing.length) {
+                const profit = revenue > 0 ? ` Продажа ${output.toLocaleString('ru-RU')} шт даст ${money(revenue)}${staleSell ? ' · давно не продавалось' : ''}.` : '';
+                els.targetList.innerHTML = `<div class="night-sub">«${escapeHtml(craft.name)}» ×${count.toLocaleString('ru-RU')} уже можно скрафтить.${profit}</div>`;
+                return;
+            }
+            const priced = missing.filter(row => row.unit > 0);
+            const spend = priced.reduce((sum, row) => sum + row.take.rest, 0);
+            const known = missing.every(row => row.unit > 0);
+            const profit = known && revenue > 0 ? revenue - spend : null;
+            const profitText = profit === null
+                ? 'Прибыль не считаю: нет цены на всё недостающее.'
+                : `На ${count.toLocaleString('ru-RU')} крафт. выйдет ${output.toLocaleString('ru-RU')} шт, ${profit > 0 ? 'плюс' : 'минус'} ${money(Math.abs(profit))}${staleSell ? ' · давно не продавалось' : ''}.`;
+            const rows = missing.map(row => {
+                const share = row.unit > 0 && spend > 0 ? row.take.rest / spend : 0;
+                const farm = row.unit > 0 && share >= 0.18;
+                const tag = !(row.unit > 0) ? 'нет цены' : (farm ? 'фармить' : 'купить');
+                const tagClass = farm ? '' : ' buy';
+                const stale = row.source === 'sale' && saleIsStale(row.id) ? ' · давно не продавалось' : '';
+                return `<div class="night-row" data-open-item="${escapeHtml(row.id)}">
+                    ${nightIcon(row.icon)}
+                    <div class="night-main">
+                        <div class="night-name">${escapeHtml(row.name)}<span class="night-tag${tagClass}">${tag}</span></div>
+                        <div class="night-sub">ещё ${fmtQty(row.take.left)} из ${fmtQty(row.need)} · ${row.unit ? money(row.take.rest) : 'нет цены'}${stale}</div>
+                    </div>
+                </div>`;
+            }).join('');
+            els.targetList.innerHTML = `<div class="night-sub">«${escapeHtml(craft.name)}». Докупка ${money(spend)}. ${profitText}</div>${rows}`;
+        }
         function farmRow(row) {
             const why = row.best
                 ? `в ${row.profitable.length} выгодных · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
@@ -1687,6 +1825,8 @@
         }
         function renderTonight() {
             renderTraps();
+            renderOuting();
+            renderCraftTarget();
             if (!recipeIds().length) {
                 els.flipList.innerHTML = '';
                 els.farmList.innerHTML = '<div class="night-sub">Рецепты ещё грузятся…</div>';
@@ -2602,6 +2742,13 @@
             bagTimer = setTimeout(renderBagSuggest, 150);
         });
         els.budgetInput.value = localStorage.getItem(BUDGET_KEY) || '';
+        try {
+            const savedTarget = JSON.parse(localStorage.getItem(TARGET_KEY) || '{}');
+            if (savedTarget && typeof savedTarget.id === 'string') craftTarget.id = savedTarget.id;
+            const savedCount = Math.floor(Number(savedTarget && savedTarget.count));
+            if (savedCount > 0) craftTarget.count = savedCount;
+        } catch { /* пустой выбор */ }
+        els.targetCount.value = String(craftTarget.count || 1);
         let budgetTimer = null;
         els.budgetInput.addEventListener('input', () => {
             localStorage.setItem(BUDGET_KEY, els.budgetInput.value.trim());
@@ -2609,6 +2756,26 @@
             budgetTimer = setTimeout(() => {
                 if (document.getElementById('tab-tonight').style.display !== 'none') renderTonight();
             }, 200);
+        });
+        let targetTimer = null;
+        els.targetSearch.addEventListener('input', () => {
+            clearTimeout(targetTimer);
+            targetTimer = setTimeout(renderTargetSuggest, 150);
+        });
+        els.targetCount.addEventListener('input', () => {
+            craftTarget.count = Math.max(1, Math.floor(Number(String(els.targetCount.value || '').replace(/\s/g, '')) || 1));
+            saveCraftTarget();
+            renderCraftTarget();
+        });
+        document.getElementById('craftTargetCard').addEventListener('click', (e) => {
+            const pick = e.target.closest('[data-target-pick]');
+            if (!pick) return;
+            craftTarget.id = pick.dataset.targetPick;
+            craftTarget.count = Math.max(1, Math.floor(Number(String(els.targetCount.value || '').replace(/\s/g, '')) || 1));
+            saveCraftTarget();
+            els.targetSearch.value = '';
+            els.targetSuggest.innerHTML = '';
+            renderCraftTarget();
         });
         document.getElementById('bagCard').addEventListener('click', (e) => {
             const add = e.target.closest('[data-bag-add]');
