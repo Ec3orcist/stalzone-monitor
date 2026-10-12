@@ -303,6 +303,7 @@
 
         <div id="tab-tonight" style="display:none;">
             <p class="night-lead">Цены текущего аукциона: что выгодно купить, что имеет смысл фармить и куда деть уже добытое.</p>
+            <p id="nightPick" class="night-lead"></p>
             <div class="controls">
                 <input type="text" id="lootSearch" placeholder="У меня есть... предмет или крафт">
             </div>
@@ -697,6 +698,7 @@
             lootAdvice: document.getElementById('lootAdvice'),
             flipList: document.getElementById('flipList'),
             farmList: document.getElementById('farmList'),
+            nightPick: document.getElementById('nightPick'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
@@ -1352,6 +1354,12 @@
                 return;
             }
             const plan = planTonight();
+            const farmTop = plan.farms.filter(row => row.craftScore > 0).sort((a, b) => b.craftScore - a.craftScore)[0];
+            const flipTop = plan.flips[0];
+            const picks = [];
+            if (flipTop) picks.push(`Скупка: ${flipTop.item.name} на ${flipTop.dev.toFixed(0)}% ниже средней.`);
+            if (farmTop) picks.push(`Фарм: ${farmTop.name} — ${Math.round(farmTop.best.share * 100)}% крафта «${farmTop.best.name}».`);
+            els.nightPick.textContent = picks.join(' ');
             const query = els.lootSearch.value.trim().toLowerCase();
             els.lootAdvice.innerHTML = query ? lootAdviceHtml(query, plan) : '';
             els.flipList.innerHTML = plan.flips.length
