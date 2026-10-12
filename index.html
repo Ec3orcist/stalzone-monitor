@@ -918,6 +918,7 @@
                 const econ = craftEconomics(craft);
                 if (!(econ.profitBuy > 0) || econ.buy.missing) return;
                 if (econ.sellSource === 'sale' && saleIsStale(id)) return;
+                if (!(soldOut(id) > 0)) return;
                 const per = craft.craftAmount || 1;
                 let runs = 0;
                 const used = [];
@@ -1644,6 +1645,10 @@
             const count = Number(item && item.total_amount);
             return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
         }
+        function soldOut(id) {
+            const live = itemsCache.find(item => item.id === id);
+            return live ? (live.sold14 || 0) : 0;
+        }
         function salePace(sold14) {
             const sold = Number(sold14) || 0;
             if (!(sold > 0)) return 0;
@@ -1840,7 +1845,10 @@
             const revenue = (econ.sell || 0) * output;
             const staleSell = econ.sellSource === 'sale' && saleIsStale(craft.id);
             if (!missing.length) {
-                const profit = revenue > 0 ? ` Продажа ${ruPieces(output)} даст ${money(revenue)}${staleSell ? ' · давно не продавалось' : ''}.` : '';
+                const quiet = !(soldOut(craft.id) > 0);
+                const profit = quiet
+                    ? ' Выход почти не продаётся.'
+                    : (revenue > 0 ? ` Продажа ${ruPieces(output)} даст ${money(revenue)}${staleSell ? ' · давно не продавалось' : ''}.` : '');
                 els.targetList.innerHTML = `<div class="night-sub">«${escapeHtml(craft.name)}» ×${count.toLocaleString('ru-RU')} уже можно скрафтить.${profit}</div>`;
                 return;
             }
@@ -1874,15 +1882,18 @@
                 };
             });
             const shortBuy = rows.some(entry => entry.shortBuy);
+            const quietOut = !(soldOut(craft.id) > 0);
             const payable = rows.reduce((sum, entry) => sum + entry.payable, 0);
-            const profit = known && revenue > 0 && !shortBuy ? revenue - spend : null;
-            const profitText = shortBuy
-                ? 'На аукционе не всё, что нужно докупить.'
-                : (!known
-                    ? 'Нет цены на часть сырья, плюс не считаю.'
-                    : (profit === null
-                        ? 'Прибыль не считаю: нет цены на всё недостающее.'
-                        : `На ${ruCount(count, 'крафт', 'крафта', 'крафтов')} выйдет ${ruPieces(output)}, ${profit > 0 ? 'плюс' : 'минус'} ${money(Math.abs(profit))}${staleSell ? ' · давно не продавалось' : ''}.`));
+            const profit = known && revenue > 0 && !shortBuy && !quietOut ? revenue - spend : null;
+            const profitText = quietOut
+                ? 'Выход почти не продаётся.'
+                : (shortBuy
+                    ? 'На аукционе не всё, что нужно докупить.'
+                    : (!known
+                        ? 'Нет цены на часть сырья, плюс не считаю.'
+                        : (profit === null
+                            ? 'Прибыль не считаю: нет цены на всё недостающее.'
+                            : `На ${ruCount(count, 'крафт', 'крафта', 'крафтов')} выйдет ${ruPieces(output)}, ${profit > 0 ? 'плюс' : 'минус'} ${money(Math.abs(profit))}${staleSell ? ' · давно не продавалось' : ''}.`)));
             const budget = readBudget();
             const budgetText = shortBuy || budget === null || !(payable > 0)
                 ? ''
@@ -2388,7 +2399,8 @@
             const roi = scratchMode ? econ.roiCraft : econ.roiBuy;
             const other = scratchMode ? econ.profitBuy : econ.profitCraft;
             const hasProfit = typeof profit === 'number';
-            const profitClass = !hasProfit ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
+            const quietOut = !(soldOut(item.id) > 0);
+            const profitClass = quietOut || !hasProfit ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
             const profitSign = hasProfit && profit > 0 ? '+' : '';
             const roiLabel = scratchMode ? 'ROI с нуля' : 'ROI покупки';
             const otherLabel = scratchMode ? 'если купить' : 'с нуля';
@@ -2424,10 +2436,10 @@
                 ? (saleIsStale(item.id) ? 'По продажам · давно' : 'По продажам')
                 : 'Продажа';
             const roiText = typeof roi === 'number' ? roi.toFixed(1) + '%' : 'нет цены';
-            const gapText = hasProfit
-                ? `${roiLabel} ${roiText}`
-                : ((buy.missing > 0 || econ.base.missing > 0) && econ.sell > 0 ? 'нет цены на сырьё' : 'нет лотов / сырья');
-            const otherText = typeof other === 'number'
+            const gapText = !hasProfit
+                ? ((buy.missing > 0 || econ.base.missing > 0) && econ.sell > 0 ? 'нет цены на сырьё' : 'нет лотов / сырья')
+                : (quietOut ? 'за 14 дней продаж не было' : `${roiLabel} ${roiText}`);
+            const otherText = !quietOut && typeof other === 'number'
                 ? `${other > 0 ? '+' : ''}${Math.round(other).toLocaleString('ru-RU')} ₽ ${otherLabel}`
                 : '';
 
@@ -2443,7 +2455,7 @@
                     ${stationsHtml}
                 </div>
                 <div class="craft-list-profit ${profitClass}">
-                    ${hasProfit ? `${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽` : 'нет цены'}
+                    ${quietOut ? 'выход почти не продаётся' : (hasProfit ? `${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽` : 'нет цены')}
                     <div style="font-size:12px;font-weight:normal;color:#9a917c;">${gapText}</div>
                     ${otherText ? `<div style="font-size:11px;font-weight:normal;color:#8b7da3;">${otherText}</div>` : ''}
                 </div>
