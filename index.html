@@ -226,6 +226,7 @@
         .warn { color: var(--warn); }
         @media (max-width: 760px) {
             .variant > summary, .variant-head { grid-template-columns: 1fr 1fr; }
+            .variant > summary > span, .variant-head > span { min-width: 0; overflow-wrap: anywhere; }
             body { padding: 8px 10px 32px; }
             .topbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 6px 0 8px; }
             h1 { font-size: 20px; }
@@ -233,9 +234,26 @@
             .tab { flex: 1; padding: 8px 8px; }
             .items-grid { grid-template-columns: 1fr; }
             .night-grid { grid-template-columns: 1fr; }
-            .controls select, #refreshBtn { flex: 1 1 140px; }
-            .modal { padding: 16px; }
-            .craft-list-profit { min-width: 0; }
+            .controls select, .controls input, #refreshBtn { flex: 1 1 100%; max-width: 100%; min-width: 0; min-height: 40px; }
+            .modal-overlay { padding: 8px; }
+            .modal { padding: 16px 12px; }
+            .item-title { font-size: 20px; overflow-wrap: anywhere; }
+            .card-star { min-width: 40px; min-height: 40px; top: 4px; right: 2px; }
+            .craft-list-item { flex-wrap: wrap; align-items: flex-start; }
+            .craft-list-info { flex: 1 1 calc(100% - 68px); }
+            .craft-list-profit { flex: 1 1 100%; min-width: 0; text-align: left; margin-left: 56px; }
+            .craft-prices { gap: 8px 12px; }
+            .craft-ingredients { margin-left: 0; padding-left: 0; border-left: 0; }
+            .craft-ingredient { flex-wrap: wrap; }
+            .craft-ingredient-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+            .craft-ingredient-cost { margin-left: 0; }
+            details.craft-sub { max-width: 100%; }
+            details.craft-sub > summary { min-height: 44px; flex-wrap: wrap; }
+            details.craft-sub > summary::before { flex-shrink: 0; width: 28px; font-size: 18px; }
+            details.craft-sub .craft-sub-body { padding: 4px 0 8px; }
+            .shopping-table { table-layout: fixed; width: 100%; }
+            .shopping-table th, .shopping-table td { padding: 8px 4px; font-size: 12px; overflow-wrap: anywhere; }
+            .shopping-icon { width: 24px; height: 24px; margin-right: 4px; }
             .night-card, .night-fold, #eveningPlan, #craftTargetCard, #bagCard { scroll-margin-top: 132px; }
             .night-name, .plan-row .night-name { overflow-wrap: anywhere; }
             .bag-chip { max-width: 100%; padding: 4px 4px 4px 12px; }
