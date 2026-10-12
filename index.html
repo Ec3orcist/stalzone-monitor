@@ -270,10 +270,115 @@
         .night-fold[open] > summary::after { content: "−"; }
         #targetCount { max-width: 72px; }
         .warn { color: var(--warn); }
+        .market-layout { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 14px; align-items: start; }
+        .market-main { min-width: 0; }
+        .cat-rail { position: sticky; top: 96px; max-height: calc(100vh - 110px); overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding: 10px 8px;
+            background: linear-gradient(180deg, rgba(28,21,44,.88), rgba(14,11,23,.88)); border: 1px solid var(--edge); border-radius: 12px; }
+        .cat-rail::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, transparent, #8b6cf0, transparent); opacity: .6; }
+        .cat-title { font-family: var(--hud); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); padding: 2px 8px 8px; }
+        .cat-sep { height: 1px; margin: 6px 6px; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+        .cat-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); text-align: left; font-size: 13px; transition: .15s; }
+        .cat-btn:hover { color: var(--text); background: rgba(139,108,240,.1); border-color: rgba(139,108,240,.2); }
+        .cat-btn.active { color: #fff; background: linear-gradient(90deg, rgba(122,86,230,.45), rgba(76,47,150,.15)); border-color: rgba(167,139,250,.5); box-shadow: inset 2px 0 0 #c4b5fd, 0 0 18px rgba(124,92,191,.25); }
+        .cat-glyph { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; font-size: 13px; color: var(--accent); background: rgba(139,108,240,.12); border: 1px solid rgba(139,108,240,.25); border-radius: 6px; }
+        .cat-btn.active .cat-glyph { background: #6d4ad4; color: #fff; box-shadow: 0 0 10px var(--glow); }
+        .cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cat-count { font-family: var(--mono); font-size: 11px; color: #8b7da3; }
+        .cat-btn.active .cat-count { color: var(--accent); }
+        .shelter-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px; align-items: start; }
+        .skill-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+        .skill-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; font-size: 13px; border-radius: 8px; background: #0d0a16; border: 1px solid var(--line); color: var(--muted); }
+        .skill-chip b { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(139,108,240,.15); color: var(--accent); }
+        .skill-chip:hover { color: var(--text); border-color: rgba(167,139,250,.5); }
+        .skill-chip.active { color: #fff; background: linear-gradient(180deg, rgba(122,86,230,.55), rgba(76,47,150,.35)); border-color: rgba(196,181,253,.6); box-shadow: 0 0 16px rgba(124,92,191,.35); }
+        .shelter-opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+        .lvl-pick { display: inline-flex; align-items: center; gap: 8px; }
+        .lvl-pick select { padding: 6px 10px; font-family: var(--mono); }
+        .check-line { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+        .check-line input { width: 16px; height: 16px; accent-color: #8b6cf0; }
+        .lvl-summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding: 10px 12px; margin-bottom: 10px; background: #0b0914; border: 1px solid var(--edge); clip-path: var(--cut); }
+        .lvl-summary div { display: flex; flex-direction: column; }
+        .lvl-summary span { font-family: var(--hud); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+        .lvl-summary b { font-family: var(--mono); font-size: 16px; }
+        .lvl-note { margin: 4px 0 10px; }
+        .lvl-step { position: relative; border: 1px solid var(--edge); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: rgba(11,9,20,.6); }
+        .lvl-step.now { border-color: rgba(167,139,250,.7); box-shadow: 0 0 24px rgba(124,92,191,.28); }
+        .lvl-step.done { opacity: .5; }
+        .lvl-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .lvl-head .st-badge { margin-left: auto; }
+        .lvl-jump { display: flex; align-items: center; gap: 6px; font-family: var(--mono); }
+        .lvl-jump b { width: 30px; height: 30px; display: grid; place-items: center; font-size: 15px; background: linear-gradient(160deg, #6d4ad4, #3b2475); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); color: #fff; }
+        .lvl-jump i { color: var(--accent); font-style: normal; }
+        .lvl-best { cursor: pointer; border-radius: 8px; padding: 8px; margin: 0 -8px; transition: background .15s; }
+        .lvl-best:hover, .lvl-alt:hover, .lvl-row:hover { background: rgba(139,108,240,.09); }
+        .lvl-recipe { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .lvl-recipe img, .st-icon img { width: 40px; height: 40px; object-fit: contain; background: radial-gradient(circle at 50% 40%, #241a3a, #0a0812 75%); border: 1px solid rgba(139,108,240,.18); border-radius: 6px; flex-shrink: 0; }
+        .lvl-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; margin-bottom: 8px; }
+        .lvl-stats div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: #0b0914; border: 1px solid var(--edge); border-radius: 6px; }
+        .lvl-stats b { font-family: var(--mono); font-size: 14px; }
+        .lvl-stats span { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-family: var(--hud); }
+        .lvl-alt { cursor: pointer; font-size: 12px; color: var(--muted); padding: 6px 8px; margin: 4px -8px 0; border-radius: 6px; }
+        .lvl-alt b { color: var(--text); }
+        .lvl-row { cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 10px; align-items: center; font-size: 12px; padding: 6px 4px; border-top: 1px solid var(--line); font-family: var(--mono); }
+        .lvl-row-name { font-family: "Segoe UI", sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lvl-row-name i { font-style: normal; font-size: 11px; }
+        .st-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+        .st-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+        .st-pill.ok { color: var(--accent-2); border-color: rgba(134,239,172,.35); background: rgba(134,239,172,.06); }
+        .st-pill.no { color: var(--danger); border-color: rgba(251,113,133,.35); background: rgba(251,113,133,.06); }
+        .station-actions { display: flex; gap: 6px; }
+        .ghost-btn { padding: 7px 12px; font-size: 12px; font-family: var(--hud); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: rgba(139,108,240,.12); border: 1px solid rgba(167,139,250,.4); color: var(--accent); border-radius: 0; clip-path: var(--cut); }
+        .ghost-btn:hover { background: rgba(139,108,240,.28); color: #fff; }
+        #clearBuiltBtn { background: transparent; border-color: var(--line); color: var(--muted); }
+        #clearBuiltBtn:hover { color: var(--danger); border-color: rgba(251,113,133,.5); }
+        .unlock-meter { margin: 10px 0; }
+        .meter-line { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+        .meter-line b { font-family: var(--mono); color: var(--text); }
+        .meter-bar { height: 6px; background: #0b0914; border: 1px solid var(--edge); border-radius: 999px; overflow: hidden; margin-bottom: 6px; }
+        .meter-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6d4ad4, #c4b5fd); box-shadow: 0 0 12px var(--glow); transition: width .3s; }
+        .unlock-news { padding: 10px; margin-bottom: 10px; border: 1px solid rgba(167,139,250,.4); border-radius: 8px; background: rgba(76,47,150,.14); }
+        .news-head { font-weight: 700; font-size: 13px; margin: 6px 0 4px; }
+        .chip-wrap { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+        .recipe-chip { font-size: 11px; padding: 4px 8px; border-radius: 6px; background: #0d0a16; border: 1px solid var(--line); color: var(--text); }
+        .recipe-chip span { color: var(--muted); font-family: var(--mono); font-size: 10px; }
+        .recipe-chip:hover { border-color: rgba(167,139,250,.6); }
+        .st-group { margin-top: 8px; }
+        .st-area { font-family: var(--hud); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); padding: 8px 0 4px; border-bottom: 1px solid var(--line); }
+        .station-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid rgba(51,40,76,.6); }
+        .station-row.st-built .night-name { color: var(--accent-2); }
+        .st-check { position: relative; flex-shrink: 0; cursor: pointer; padding-top: 10px; }
+        .st-check input { position: absolute; opacity: 0; width: 22px; height: 22px; margin: 0; cursor: pointer; }
+        .st-box { display: block; width: 22px; height: 22px; border: 1px solid rgba(167,139,250,.5); background: #0b0914; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
+        .st-check input:checked + .st-box { background: linear-gradient(160deg, #8b6cf0, #4c2f96); box-shadow: 0 0 10px var(--glow); }
+        .st-check input:checked + .st-box::after { content: "✓"; display: grid; place-items: center; height: 100%; color: #fff; font-size: 13px; font-weight: 700; }
+        .st-check input:focus-visible + .st-box { outline: 2px solid #c4b5fd; }
+        .st-icon { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; color: var(--muted); }
+        .st-icon span { width: 40px; height: 40px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 6px; }
+        .st-badge { display: inline-block; font-size: 10px; font-family: var(--hud); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border-radius: 4px; margin-right: 4px; }
+        .st-badge.built { color: var(--accent-2); background: rgba(134,239,172,.1); }
+        .st-badge.ready { color: var(--warn); background: rgba(240,195,106,.12); }
+        .st-badge.blocked { color: var(--danger); background: rgba(251,113,133,.1); }
+        .st-badge.ext { color: var(--muted); background: rgba(163,148,188,.1); }
+        .st-more { margin-top: 6px; }
+        .st-more > summary { cursor: pointer; font-size: 12px; color: var(--accent); list-style: none; }
+        .st-more > summary::-webkit-details-marker { display: none; }
+        .st-more > summary::before { content: "▸ "; }
+        .st-more[open] > summary::before { content: "▾ "; }
         @media (max-width: 1100px) {
+            .shelter-layout { grid-template-columns: 1fr; }
             .hq-layout { grid-template-columns: 1fr; }
         }
         @media (max-width: 760px) {
+            .market-layout { grid-template-columns: 1fr; gap: 8px; }
+            .lvl-row { grid-template-columns: minmax(0, 1fr) auto; }
+            .lvl-stats { grid-template-columns: 1fr 1fr; }
+            .skill-chip { min-height: 40px; }
+            .st-check input, .st-box { width: 28px; height: 28px; }
+            .cat-rail { position: static; max-height: none; flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 6px; gap: 6px; scrollbar-width: none; }
+            .cat-rail::-webkit-scrollbar { display: none; }
+            .cat-rail::before, .cat-title, .cat-sep { display: none; }
+            .cat-btn { width: auto; flex-shrink: 0; padding: 8px 10px; min-height: 40px; }
+            .cat-name { overflow: visible; }
             .hq-folds { grid-template-columns: 1fr; }
             .hq-budget { width: 100%; }
             .hq-budget input { flex: 1; width: auto; min-height: 40px; }
@@ -335,12 +440,16 @@
                 <button class="tab active" data-tab="market">Аукцион</button>
                 <button class="tab" data-tab="crafts">Крафты</button>
                 <button class="tab" data-tab="tonight">Наводки</button>
+                <button class="tab" data-tab="shelter">Убежище</button>
             </div>
         </header>
 
         <div id="tab-market">
+            <div class="market-layout">
+            <aside class="cat-rail" id="catRail" aria-label="Категории"></aside>
+            <div class="market-main">
             <div class="controls">
-                <select id="categorySelect"><option value="">Все категории</option></select>
+                <select id="categorySelect" hidden><option value="">Все категории</option></select>
                 <select id="marketFilter">
                     <option value="">Все с рынком</option>
                     <option value="lots">Есть лоты</option>
@@ -370,6 +479,8 @@
             <div class="stats-bar"><span id="resultCount">Загрузка...</span></div>
             <div class="items-grid" id="itemsGrid"></div>
             <div id="sentinel" style="height: 20px;"></div>
+            </div>
+            </div>
         </div>
 
         <div id="tab-crafts" style="display:none;">
@@ -488,6 +599,42 @@
             </aside>
             </div>
         </div>
+
+        <div id="tab-shelter" style="display:none;">
+            <div class="hq-head">
+                <div>
+                    <h2 class="hq-title">Убежище</h2>
+                    <p class="night-lead">Прокачка навыков и пристройки. Цены — по текущему аукциону, выход крафта продаётся не больше, чем рынок купил за 14 дней.</p>
+                </div>
+            </div>
+            <div class="shelter-layout">
+                <div class="hq-main">
+                    <section class="night-card bag-box plan-card">
+                        <h2>Прокачка навыка</h2>
+                        <div class="skill-chips" id="skillChips"></div>
+                        <div class="shelter-opts">
+                            <label class="lvl-pick">Мой уровень <select id="shelterLevel"></select></label>
+                            <label class="check-line"><input type="checkbox" id="shelterBuiltOnly"> Только из построенного</label>
+                        </div>
+                        <div id="levelPlan"></div>
+                    </section>
+                </div>
+                <aside class="hq-side">
+                    <section class="night-card bag-box">
+                        <div class="bench-head">
+                            <h2>Пристройки</h2>
+                            <div class="station-actions">
+                                <button type="button" class="ghost-btn" id="buildAllBtn">Построить все</button>
+                                <button type="button" class="ghost-btn" id="clearBuiltBtn">Очистить</button>
+                            </div>
+                        </div>
+                        <div class="unlock-meter" id="unlockMeter"></div>
+                        <div id="unlockDiff"></div>
+                        <div id="stationList"></div>
+                    </section>
+                </aside>
+            </div>
+        </div>
     </div>
 
     <div class="modal-overlay" id="modalOverlay" style="display:none;">
@@ -541,6 +688,12 @@
             "supplies", "misc", "other"
         ];
         const FAVORITES_KEY = "__favorites__";
+        const CATEGORY_GLYPHS = {
+            weapon: '⌖', weapon_modules: '⚙', attachment: '⊕', ammo: '⁞', bullet: '⁞', armor: '⛨', armour: '⛨',
+            backpacks: '▣', backpack: '▣', artefact: '✦', artifact: '✦', containers: '⬡', container: '⬡',
+            medicine: '✚', meds: '✚', grenade: '◉', grenades: '◉', device: '⌁', devices: '⌁',
+            supply: '◈', supplies: '◈', misc: '⋯', other: '○'
+        };
 
         const SKILL_INFO = {
             "Боеприпасы":           { icon: "🎯", desc: "боеприпасы, заготовки",                        order: 1 },
@@ -1110,6 +1263,7 @@
 
         const els = {
             categorySelect: document.getElementById('categorySelect'),
+            catRail: document.getElementById('catRail'),
             marketFilter: document.getElementById('marketFilter'),
             signalFilter: document.getElementById('signalFilter'),
             searchInput: document.getElementById('searchInput'),
@@ -1152,6 +1306,15 @@
             targetCount: document.getElementById('targetCount'),
             targetSuggest: document.getElementById('targetSuggest'),
             targetList: document.getElementById('targetList'),
+            skillChips: document.getElementById('skillChips'),
+            shelterLevel: document.getElementById('shelterLevel'),
+            shelterBuiltOnly: document.getElementById('shelterBuiltOnly'),
+            levelPlan: document.getElementById('levelPlan'),
+            stationList: document.getElementById('stationList'),
+            unlockMeter: document.getElementById('unlockMeter'),
+            unlockDiff: document.getElementById('unlockDiff'),
+            buildAllBtn: document.getElementById('buildAllBtn'),
+            clearBuiltBtn: document.getElementById('clearBuiltBtn'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
@@ -1162,8 +1325,10 @@
                 document.getElementById('tab-market').style.display = tabName === 'market' ? 'block' : 'none';
                 document.getElementById('tab-crafts').style.display = tabName === 'crafts' ? 'block' : 'none';
                 document.getElementById('tab-tonight').style.display = tabName === 'tonight' ? 'block' : 'none';
+                document.getElementById('tab-shelter').style.display = tabName === 'shelter' ? 'block' : 'none';
                 if (tabName === 'crafts') renderCraftList();
                 if (tabName === 'tonight') renderTonight();
+                if (tabName === 'shelter') renderShelter();
             });
         });
 
@@ -1219,6 +1384,7 @@
                 ingestCatalog();
                 ingestCrafts();
                 ingestRecipes(recipes);
+                ingestShelter(recipes);
                 econCache.clear();
                 nightPlan = null;
                 buildItemsCache();
@@ -1227,6 +1393,7 @@
                 applyFilters();
                 if (document.getElementById('tab-crafts').style.display !== 'none') renderCraftList();
                 if (document.getElementById('tab-tonight').style.display !== 'none') renderTonight();
+                if (document.getElementById('tab-shelter').style.display !== 'none') renderShelter();
                 renderBag();
                 els.craftResultCount.textContent = `Рецептов: ${recipeIds().length}`;
             } catch (e) {
@@ -1299,6 +1466,26 @@
             });
             if (current) els.categorySelect.value = current;
             else els.categorySelect.value = '';
+            renderCatRail(counts, sortedCats);
+        }
+        function renderCatRail(counts, cats) {
+            const active = els.categorySelect.value;
+            const total = itemsCache.length;
+            const btn = (value, label, count, glyph) => `<button type="button" class="cat-btn${value === active ? ' active' : ''}" data-cat="${escapeHtml(value)}">
+                <span class="cat-glyph">${glyph}</span><span class="cat-name">${escapeHtml(label)}</span><span class="cat-count">${count}</span></button>`;
+            els.catRail.innerHTML = [
+                '<div class="cat-title">Категории</div>',
+                btn('', 'Все предметы', total, '◆'),
+                btn(FAVORITES_KEY, 'Избранное', favorites.length, '★'),
+                '<div class="cat-sep"></div>',
+                ...cats.map(cat => btn(cat, categoryName(cat), counts[cat], CATEGORY_GLYPHS[cat] || '•'))
+            ].join('');
+        }
+        function syncCatRail() {
+            const active = els.categorySelect.value;
+            els.catRail.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === active));
+            const fav = els.catRail.querySelector(`.cat-btn[data-cat="${FAVORITES_KEY}"] .cat-count`);
+            if (fav) fav.textContent = favorites.length;
         }
 
         function populateCraftSkills() {
@@ -1550,6 +1737,7 @@
                 modalFavBtn.classList.toggle('active', nowFav);
                 const favOpt = els.categorySelect.querySelector(`option[value="${FAVORITES_KEY}"]`);
                 if (favOpt) favOpt.textContent = `⭐ Избранное (${favorites.length})`;
+                syncCatRail();
                 document.querySelectorAll(`[data-star="${id}"]`).forEach(btn => btn.classList.toggle('active', nowFav));
                 if (els.categorySelect.value === FAVORITES_KEY) applyFilters();
             });
@@ -3106,6 +3294,294 @@
         }
 
         let observer = null;
+        const BUILT_KEY = 'sz_built';
+        const SHELTER_SKILL_KEY = 'sz_shelter_skill';
+        const BUILT_ONLY_KEY = 'sz_built_only';
+        const STATION_AREAS = ['Мастерская', 'Кухня', 'Лаборатория', 'Хранилище', 'Базовое оборудование'];
+        let shelter = { recipes: [], xp: {}, stations: new Map(), builders: new Map() };
+        let builtStations = new Set(['workbench']);
+        let shelterSkill = localStorage.getItem(SHELTER_SKILL_KEY) || '';
+        let unlockNews = null;
+
+        function loadBuilt() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(BUILT_KEY) || 'null');
+                return new Set(Array.isArray(raw) ? raw : ['workbench']);
+            } catch {
+                return new Set(['workbench']);
+            }
+        }
+        function saveBuilt() {
+            localStorage.setItem(BUILT_KEY, JSON.stringify([...builtStations]));
+        }
+        function ingestShelter(data) {
+            const recipes = (data && data.recipes) || [];
+            const xp = (data && data.meta && data.meta.experienceTable) || {};
+            const builders = recipes.filter(r => r.providesFeature).reduce((map, r) =>
+                map.set(r.providesFeature, [...(map.get(r.providesFeature) || []), r]), new Map());
+            const stations = recipes.reduce((map, r) => {
+                (r.stations || []).forEach(s => { if (!map.has(s.id)) map.set(s.id, { id: s.id, name: s.name }); });
+                return map;
+            }, new Map());
+            builders.forEach((list, id) => {
+                if (!stations.has(id)) stations.set(id, { id, name: list[0].name });
+            });
+            shelter = { recipes, xp, stations, builders };
+            builtStations = loadBuilt();
+        }
+        const stationName = (id) => (shelter.stations.get(id) || {}).name || id;
+        const stationArea = (id) => {
+            const list = shelter.builders.get(id);
+            return list ? (list[0].subcategory || 'Мастерская') : 'Базовое оборудование';
+        };
+        const isUnlocked = (r, built) => (r.requiredStations || []).every(s => built.has(s));
+        const shelterCrafts = () => shelter.recipes.filter(r => !r.providesFeature);
+        const unlockedIds = (built) => new Set(shelterCrafts().filter(r => isUnlocked(r, built)).map(r => r.id));
+
+        function recipeBill(r) {
+            return (r.resources || []).reduce((acc, res) => {
+                const unit = ingredientUnit(res.itemId).price;
+                return unit > 0
+                    ? { cost: acc.cost + unit * (res.amount || 0), missing: acc.missing }
+                    : { cost: acc.cost, missing: acc.missing + 1 };
+            }, { cost: 0, missing: 0 });
+        }
+        function stationState(id, built, engLevel) {
+            if (built.has(id)) return { kind: 'built' };
+            const variants = shelter.builders.get(id) || [];
+            if (!variants.length) return { kind: 'external' };
+            const options = variants.map(r => ({
+                r,
+                missing: (r.requiredStations || []).filter(s => !built.has(s)),
+                lowSkill: engLevel !== null && engLevel < r.skillLevel,
+                bill: recipeBill(r)
+            }));
+            const ready = options.find(o => !o.missing.length && !o.lowSkill);
+            const closest = options.slice().sort((a, b) => (a.missing.length + a.lowSkill) - (b.missing.length + b.lowSkill))[0];
+            return { kind: ready ? 'ready' : 'blocked', option: ready || closest };
+        }
+        function stationOpens(id, built) {
+            const need = shelterCrafts().filter(r => (r.requiredStations || []).includes(id));
+            const withIt = new Set([...built, id]);
+            return { total: need.length, now: need.filter(r => isUnlocked(r, withIt)) };
+        }
+        function billText(bill) {
+            if (bill.cost > 0 && !bill.missing) return money(bill.cost);
+            if (bill.cost > 0) return `от ${money(bill.cost)} · ${bill.missing} без цены`;
+            return 'нет цен на сырьё';
+        }
+        function recipeChip(r) {
+            return `<button type="button" class="recipe-chip" data-craft-open="${escapeHtml(r.itemId)}">${escapeHtml(r.name)} <span>${escapeHtml(r.skill)} ${r.skillLevel}</span></button>`;
+        }
+
+        function changeBuilt(nextSet, label) {
+            const before = unlockedIds(builtStations);
+            builtStations = nextSet;
+            saveBuilt();
+            const after = unlockedIds(builtStations);
+            const byId = new Map(shelterCrafts().map(r => [r.id, r]));
+            unlockNews = {
+                label,
+                added: [...after].filter(id => !before.has(id)).map(id => byId.get(id)),
+                removed: [...before].filter(id => !after.has(id)).map(id => byId.get(id))
+            };
+            renderShelter();
+        }
+
+        function renderStations() {
+            const engLevel = getMyLevel('Инженерия');
+            const total = shelterCrafts().length;
+            const open = unlockedIds(builtStations).size;
+            const pct = total ? Math.round(open / total * 100) : 0;
+            els.unlockMeter.innerHTML = `<div class="meter-line"><span>Доступно рецептов</span><b>${open} / ${total}</b></div>
+                <div class="meter-bar"><i style="width:${pct}%"></i></div>
+                <div class="night-sub">Построено ${builtStations.size} из ${shelter.stations.size}.${engLevel ? ` Инженерия ${engLevel}.` : ' Уровень Инженерии не задан — проверка навыка для пристроек отключена.'}</div>`;
+
+            const news = unlockNews;
+            const newsList = (list) => list.slice(0, 14).map(recipeChip).join('') + (list.length > 14 ? `<span class="night-sub">ещё ${list.length - 14}</span>` : '');
+            els.unlockDiff.innerHTML = news && (news.added.length || news.removed.length)
+                ? `<div class="unlock-news">
+                    <div class="night-sub">${escapeHtml(news.label)}</div>
+                    ${news.added.length ? `<div class="news-head green">Открылось: ${ruCount(news.added.length, 'рецепт', 'рецепта', 'рецептов')}</div><div class="chip-wrap">${newsList(news.added)}</div>` : ''}
+                    ${news.removed.length ? `<div class="news-head red">Закрылось: ${ruCount(news.removed.length, 'рецепт', 'рецепта', 'рецептов')}</div><div class="chip-wrap">${newsList(news.removed)}</div>` : ''}
+                  </div>`
+                : (news ? `<div class="unlock-news"><div class="night-sub">${escapeHtml(news.label)}: новых рецептов не открылось — не хватает других пристроек.</div></div>` : '');
+
+            const ids = [...shelter.stations.keys()];
+            const groups = STATION_AREAS.map(area => ({ area, ids: ids.filter(id => stationArea(id) === area) }))
+                .filter(g => g.ids.length);
+            els.stationList.innerHTML = groups.map(group => {
+                const rows = group.ids.map(id => ({ id, state: stationState(id, builtStations, engLevel), opens: stationOpens(id, builtStations) }))
+                    .sort((a, b) => ['built', 'ready', 'blocked', 'external'].indexOf(a.state.kind) - ['built', 'ready', 'blocked', 'external'].indexOf(b.state.kind)
+                        || stationName(a.id).localeCompare(stationName(b.id), 'ru'))
+                    .map(({ id, state, opens }) => {
+                        const builder = (shelter.builders.get(id) || [])[0];
+                        const icon = builder ? humanIcon(builder.itemId, builder.icon) : '';
+                        const status = {
+                            built: '<span class="st-badge built">построено</span>',
+                            ready: `<span class="st-badge ready">можно построить</span> ${state.option ? billText(state.option.bill) : ''}`,
+                            blocked: state.option
+                                ? `<span class="st-badge blocked">нельзя</span> ${state.option.missing.length ? 'нужно: ' + state.option.missing.map(s => escapeHtml(stationName(s))).join(', ') : ''}${state.option.lowSkill ? `${state.option.missing.length ? ' · ' : ''}Инженерия ${state.option.r.skillLevel}` : ''}`
+                                : '',
+                            external: '<span class="st-badge ext">не крафтится</span> отметь, если уже есть'
+                        }[state.kind];
+                        const gain = state.kind === 'built'
+                            ? `нужна для ${ruCount(opens.total, 'рецепта', 'рецептов', 'рецептов')}`
+                            : `откроет сразу ${opens.now.length} из ${opens.total}`;
+                        const list = opens.now.length && state.kind !== 'built'
+                            ? `<details class="st-more"><summary>Что откроется</summary><div class="chip-wrap">${opens.now.map(recipeChip).join('')}</div></details>`
+                            : '';
+                        return `<div class="station-row st-${state.kind}">
+                            <label class="st-check"><input type="checkbox" data-station="${escapeHtml(id)}" ${builtStations.has(id) ? 'checked' : ''}><span class="st-box"></span></label>
+                            <div class="st-icon">${icon ? nightIcon(icon) : '<span>⬡</span>'}</div>
+                            <div class="night-main">
+                                <div class="night-name">${escapeHtml(stationName(id))}</div>
+                                <div class="night-sub">${status}</div>
+                                <div class="night-sub">${gain}</div>
+                                ${list}
+                            </div>
+                        </div>`;
+                    }).join('');
+                return `<div class="st-group"><div class="st-area">${escapeHtml(group.area)}</div>${rows}</div>`;
+            }).join('');
+        }
+
+        function levelOption(r, level, need, bill) {
+            const crafts = Math.ceil(need / r.experience);
+            const spend = crafts * bill.cost;
+            const out = crafts * (r.craftAmount || 1) * computeBonus(r.skillLevel, level).multiplier;
+            const sale = saneSale(r.itemId);
+            const sold14 = saleStats(r.itemId).sold14 || 0;
+            const sellable = sale.stale ? 0 : Math.min(out, sold14);
+            const back = sellable * (sale.price || 0);
+            const net = spend - back;
+            return {
+                r, crafts, spend, back, net, out, sellable,
+                perXp: net / need,
+                energy: crafts * (r.energy || 0),
+                priced: !bill.missing && bill.cost > 0,
+                missingPrices: bill.missing,
+                built: isUnlocked(r, builtStations),
+                lacks: (r.requiredStations || []).filter(s => !builtStations.has(s))
+            };
+        }
+        function levelPlans(skill) {
+            const bills = new Map();
+            const bill = (r) => {
+                if (!bills.has(r.id)) bills.set(r.id, recipeBill(r));
+                return bills.get(r.id);
+            };
+            const pool = shelter.recipes.filter(r => (r.experienceSkill || r.skill) === skill && r.experience > 0 && !r.oneTime);
+            return [1, 2, 3, 4].map(level => {
+                const need = shelter.xp[`${level}-${level + 1}`] || 0;
+                const options = pool.filter(r => r.skillLevel <= level).map(r => levelOption(r, level, need, bill(r)));
+                const ranked = options.filter(o => o.priced).sort((a, b) => a.net - b.net);
+                return {
+                    level, need, ranked,
+                    unpriced: options.length - ranked.length,
+                    bestAny: ranked[0] || null,
+                    bestBuilt: ranked.find(o => o.built) || null
+                };
+            });
+        }
+        function stationBadges(r) {
+            return (r.requiredStations || []).map(id => {
+                const built = builtStations.has(id);
+                const builder = (shelter.builders.get(id) || [])[0];
+                const cost = !built && builder ? ` · ${billText(recipeBill(builder))}` : '';
+                return `<span class="st-pill ${built ? 'ok' : 'no'}">${built ? '✓' : '✕'} ${escapeHtml(stationName(id))}${cost}</span>`;
+            }).join('');
+        }
+        function netText(net) {
+            return net <= 0 ? `<span class="green">+${money(-net)}</span>` : `<span class="red">−${money(net)}</span>`;
+        }
+        function perXpText(perXp) {
+            const value = Math.abs(perXp).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+            return perXp <= 0 ? `<span class="green">+${value} ₽</span>` : `<span class="red">−${value} ₽</span>`;
+        }
+        function levelOptionHtml(o) {
+            const icon = humanIcon(o.r.itemId, o.r.icon);
+            return `<div class="lvl-best" data-craft-open="${escapeHtml(o.r.itemId)}">
+                <div class="lvl-recipe">${nightIcon(icon)}<div class="night-main">
+                    <div class="night-name">${escapeHtml(o.r.name)}</div>
+                    <div class="night-sub">рецепт ур. ${o.r.skillLevel} · ${escapeHtml(o.r.station)} · ${o.r.experience} опыта за крафт</div>
+                </div></div>
+                <div class="lvl-stats">
+                    <div><b>×${o.crafts.toLocaleString('ru-RU')}</b><span>крафтов</span></div>
+                    <div><b>${money(o.spend)}</b><span>закупка</span></div>
+                    <div><b>${o.back > 0 ? money(o.back) : '—'}</b><span>вернётся с продаж</span></div>
+                    <div><b>${netText(o.net)}</b><span>итого</span></div>
+                    <div><b>${perXpText(o.perXp)}</b><span>за 1 опыт</span></div>
+                    <div><b>${Math.round(o.energy).toLocaleString('ru-RU')}</b><span>энергии</span></div>
+                </div>
+                ${o.out > o.sellable ? `<div class="night-sub">Выход ${fmtQty(o.out)} шт, рынок за 14 дней взял ${fmtQty(o.sellable)} — остальное в расчёт продажи не входит.</div>` : ''}
+                <div class="st-pills">${stationBadges(o.r)}</div>
+            </div>`;
+        }
+        function renderLevelPlan() {
+            const skills = [...new Set(shelter.recipes.filter(r => r.experience > 0 && !r.oneTime).map(r => r.experienceSkill || r.skill))]
+                .sort((a, b) => skillOrder(a) - skillOrder(b));
+            if (!skills.includes(shelterSkill)) shelterSkill = skills[0] || '';
+            els.skillChips.innerHTML = skills.map(s => `<button type="button" class="skill-chip${s === shelterSkill ? ' active' : ''}" data-skill="${escapeHtml(s)}">${skillIcon(s)} ${escapeHtml(s)}<b>${getMyLevel(s) || '–'}</b></button>`).join('');
+            const my = getMyLevel(shelterSkill);
+            els.shelterLevel.innerHTML = ['<option value="">не задан</option>', ...[1, 2, 3, 4, 5].map(l => `<option value="${l}"${l === my ? ' selected' : ''}>${l}</option>`)].join('');
+            const builtOnly = els.shelterBuiltOnly.checked;
+            const plans = levelPlans(shelterSkill);
+            const from = my || 1;
+            const todo = plans.filter(p => p.level >= from);
+            const picks = todo.map(p => builtOnly ? p.bestBuilt : p.bestAny);
+            const sum = picks.reduce((acc, o) => o ? { net: acc.net + o.net, crafts: acc.crafts + o.crafts, energy: acc.energy + o.energy } : { ...acc, gaps: acc.gaps + 1 }, { net: 0, crafts: 0, energy: 0, gaps: 0 });
+            const oneTimeXp = shelter.recipes.filter(r => (r.experienceSkill || r.skill) === shelterSkill && r.oneTime && r.experience > 0)
+                .reduce((acc, r) => acc + r.experience, 0);
+            const summary = my === 5
+                ? '<div class="lvl-summary"><b>Навык уже 5 уровня.</b></div>'
+                : `<div class="lvl-summary">
+                    <div><span>С ${from} до 5 уровня</span><b>${netText(sum.net)}</b></div>
+                    <div><span>Крафтов</span><b>${sum.crafts.toLocaleString('ru-RU')}</b></div>
+                    <div><span>Энергии</span><b>${Math.round(sum.energy).toLocaleString('ru-RU')}</b></div>
+                    ${sum.gaps ? `<div class="warn">${sum.gaps} ${ruForm(sum.gaps, 'шаг', 'шага', 'шагов')} без подходящего рецепта</div>` : ''}
+                  </div>`;
+            const steps = plans.map(p => {
+                const pick = builtOnly ? p.bestBuilt : p.bestAny;
+                const done = my && p.level < my;
+                const now = my && p.level === my;
+                const alt = !builtOnly && p.bestBuilt && p.bestAny && p.bestBuilt !== p.bestAny
+                    ? `<div class="lvl-alt" data-craft-open="${escapeHtml(p.bestBuilt.r.itemId)}">Из уже построенного: <b>${escapeHtml(p.bestBuilt.r.name)}</b> ×${p.bestBuilt.crafts.toLocaleString('ru-RU')} · итого ${netText(p.bestBuilt.net)}</div>`
+                    : (builtOnly && p.bestAny && p.bestAny !== pick
+                        ? `<div class="lvl-alt" data-craft-open="${escapeHtml(p.bestAny.r.itemId)}">Если достроить ${p.bestAny.lacks.map(s => '«' + escapeHtml(stationName(s)) + '»').join(', ')}: <b>${escapeHtml(p.bestAny.r.name)}</b> · итого ${netText(p.bestAny.net)}</div>`
+                        : '');
+                const more = p.ranked.filter(o => o !== pick).filter(o => !builtOnly || o.built).slice(0, 6);
+                const moreHtml = more.length
+                    ? `<details class="st-more"><summary>Другие варианты</summary>${more.map(o => `<div class="lvl-row" data-craft-open="${escapeHtml(o.r.itemId)}">
+                        <span class="lvl-row-name">${escapeHtml(o.r.name)}${o.built ? '' : ' <i class="red">нет пристройки</i>'}</span>
+                        <span>×${o.crafts.toLocaleString('ru-RU')}</span><span>${netText(o.net)}</span>
+                        <span>${perXpText(o.perXp)}/оп</span></div>`).join('')}</details>`
+                    : '';
+                return `<div class="lvl-step${done ? ' done' : ''}${now ? ' now' : ''}">
+                    <div class="lvl-head">
+                        <div class="lvl-jump"><b>${p.level}</b><i>→</i><b>${p.level + 1}</b></div>
+                        <div class="night-sub">${p.need.toLocaleString('ru-RU')} опыта · ${ruCount(p.ranked.length, 'рецепт', 'рецепта', 'рецептов')} с ценой${p.unpriced ? `, ${p.unpriced} без цены` : ''}</div>
+                        ${done ? '<span class="st-badge built">пройдено</span>' : now ? '<span class="st-badge ready">сейчас</span>' : ''}
+                    </div>
+                    ${pick ? levelOptionHtml(pick) : `<div class="night-sub">${builtOnly ? 'Из построенного нет рецепта с известными ценами. Отметь пристройки справа или сними галочку.' : 'Нет рецепта с известными ценами.'}</div>`}
+                    ${alt}
+                    ${moreHtml}
+                </div>`;
+            }).join('');
+            const note = oneTimeXp ? `<div class="night-sub lvl-note">Разовые рецепты (пристройки, мебель) дают навыку ещё до ${oneTimeXp.toLocaleString('ru-RU')} опыта — по разу каждый, в расчёт не входят.</div>` : '';
+            els.levelPlan.innerHTML = summary + note + steps
+                + '<div class="night-sub lvl-note">Бонус крафта за уровень выше рецепта увеличивает выход на продажу. Опыт за крафт считается постоянным.</div>';
+        }
+        function renderShelter() {
+            if (!shelter.recipes.length) {
+                els.levelPlan.innerHTML = '<div class="night-sub">Загрузка рецептов…</div>';
+                return;
+            }
+            els.shelterBuiltOnly.checked = localStorage.getItem(BUILT_ONLY_KEY) === '1';
+            renderLevelPlan();
+            renderStations();
+        }
+
         function setupInfiniteScroll() {
             if (observer) observer.disconnect();
             observer = new IntersectionObserver(entries => {
@@ -3126,6 +3602,46 @@
         });
 
         els.categorySelect.addEventListener('change', applyFilters);
+        els.skillChips.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-skill]');
+            if (!chip) return;
+            shelterSkill = chip.dataset.skill;
+            localStorage.setItem(SHELTER_SKILL_KEY, shelterSkill);
+            renderLevelPlan();
+        });
+        els.shelterLevel.addEventListener('change', () => {
+            setMyLevel(shelterSkill, Number(els.shelterLevel.value) || null);
+            renderShelter();
+        });
+        els.shelterBuiltOnly.addEventListener('change', () => {
+            localStorage.setItem(BUILT_ONLY_KEY, els.shelterBuiltOnly.checked ? '1' : '0');
+            renderLevelPlan();
+        });
+        els.stationList.addEventListener('change', (e) => {
+            const box = e.target.closest('[data-station]');
+            if (!box) return;
+            const id = box.dataset.station;
+            const next = new Set(builtStations);
+            if (box.checked) next.add(id); else next.delete(id);
+            changeBuilt(next, `${box.checked ? 'Отмечено' : 'Снято'}: «${stationName(id)}»`);
+        });
+        els.buildAllBtn.addEventListener('click', () => changeBuilt(new Set(shelter.stations.keys()), 'Построены все пристройки'));
+        els.clearBuiltBtn.addEventListener('click', () => changeBuilt(new Set(), 'Все пристройки сняты'));
+        document.getElementById('tab-shelter').addEventListener('click', (e) => {
+            if (e.target.closest('summary, input, label, select')) return;
+            const open = e.target.closest('[data-craft-open]');
+            if (!open) return;
+            const id = open.dataset.craftOpen;
+            if (craftsData[id]) openCraftModal(id); else openModal(id);
+        });
+        els.catRail.addEventListener('click', (e) => {
+            const btn = e.target.closest('.cat-btn');
+            if (!btn) return;
+            els.categorySelect.value = btn.dataset.cat;
+            syncCatRail();
+            applyFilters();
+            if (window.matchMedia('(max-width: 760px)').matches) btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+        });
         els.marketFilter.addEventListener('change', applyFilters);
         els.signalFilter.addEventListener('change', applyFilters);
         els.sortSelect.addEventListener('change', applyFilters);
@@ -3148,6 +3664,7 @@
                 star.title = nowFav ? 'Убрать из избранного' : 'В избранное';
                 const favOpt = els.categorySelect.querySelector(`option[value="${FAVORITES_KEY}"]`);
                 if (favOpt) favOpt.textContent = `⭐ Избранное (${favorites.length})`;
+                syncCatRail();
                 if (els.categorySelect.value === FAVORITES_KEY) applyFilters();
                 return;
             }
