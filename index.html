@@ -835,6 +835,25 @@
             if (Math.abs(n - Math.round(n)) < 1e-6) return Math.round(n).toLocaleString('ru-RU');
             return n.toFixed(2).replace('.', ',');
         }
+        function ruForm(n, one, few, many) {
+            const value = Math.abs(Math.trunc(Number(n) || 0));
+            const mod10 = value % 10;
+            const mod100 = value % 100;
+            if (mod100 >= 11 && mod100 <= 14) return many;
+            if (mod10 === 1) return one;
+            if (mod10 >= 2 && mod10 <= 4) return few;
+            return many;
+        }
+        function ruCount(n, one, few, many) {
+            const value = Number(n) || 0;
+            const shown = Math.abs(value - Math.round(value)) < 1e-6 ? Math.round(value).toLocaleString('ru-RU') : fmtQty(value);
+            return `${shown} ${ruForm(value, one, few, many)}`;
+        }
+        function ruPieces(n) {
+            const value = Number(n) || 0;
+            if (Math.abs(value - Math.round(value)) > 1e-6) return `${fmtQty(value)} шт`;
+            return ruCount(value, 'штука', 'штуки', 'штук');
+        }
         function bagCandidates(query) {
             const q = query.trim().toLowerCase();
             if (q.length < 2) return [];
@@ -992,7 +1011,7 @@
                 `<div class="night-row plan-row" data-loot-craft="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">«${escapeHtml(row.name)}» +${money(row.profit)} — сырьё уже в рюкзаке.</div></div></div>`
             ).join('');
             const almostHtml = almost.slice(0, 3).map(row =>
-                `<div class="night-row plan-row" data-loot-craft="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">«${escapeHtml(row.name)}»: не хватает ${fmtQty(Math.ceil(row.left - 1e-9))} шт «${escapeHtml(row.missing)}».</div></div></div>`
+                `<div class="night-row plan-row" data-loot-craft="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">«${escapeHtml(row.name)}»: не хватает ${ruPieces(Math.ceil(row.left - 1e-9))} «${escapeHtml(row.missing)}».</div></div></div>`
             ).join('');
             const blocks = [
                 readyHtml ? `<div class="night-sub" style="padding-top:8px">Уже можно скрафтить</div>${readyHtml}` : '',
@@ -1101,7 +1120,7 @@
                 buildItemsCache();
                 populateCategories();
                 applyFilters();
-                els.resultCount.textContent = `Загружено: ${itemsCache.length} предметов`;
+                els.resultCount.textContent = `Загружено: ${ruCount(itemsCache.length, 'предмет', 'предмета', 'предметов')}`;
             } catch (e) {
                 console.error(e);
                 els.resultCount.textContent = 'Не удалось загрузить prices.json';
@@ -1265,11 +1284,11 @@
                 } else {
                     els.itemsGrid.innerHTML = '<div class="empty-state">Ничего не найдено</div>';
                 }
-                els.resultCount.textContent = 'Найдено: 0';
+                els.resultCount.textContent = `Найдено ${ruCount(0, 'предмет', 'предмета', 'предметов')}`;
                 els.sentinel.style.display = 'none';
                 return;
             }
-            els.resultCount.textContent = `Найдено: ${filteredItems.length}`;
+            els.resultCount.textContent = `Найдено ${ruCount(filteredItems.length, 'предмет', 'предмета', 'предметов')}`;
             els.sentinel.style.display = 'block';
             renderNextChunk();
         }
@@ -1304,9 +1323,9 @@
                 ? `${item.trend7 > 0 ? '+' : ''}${item.trend7.toFixed(0)}% 7д`
                 : '';
             const trendClass = !trendText ? '' : (item.trend7 < 0 ? 'green' : (item.trend7 > 0 ? 'red' : 'neutral'));
-            const soldText = item.sold14 > 0 ? `продано ${item.sold14.toLocaleString('ru-RU')}` : '';
+            const soldText = item.sold14 > 0 ? `продано ${ruPieces(item.sold14)}` : '';
             const amountText = item.listed
-                ? `${item.total_amount.toLocaleString('ru-RU')} шт`
+                ? ruPieces(item.total_amount)
                 : (item.avg ? 'нет лотов' : '');
             const fav = isFavorite(item.id);
             card.innerHTML = `
@@ -1355,8 +1374,8 @@
                 const cls = known ? (profit > 0 ? 'green' : 'red') : '';
                 return `<button type="button" class="used-row" data-craft="${escapeHtml(craft.id)}"><span>${escapeHtml(craft.name)}</span><span class="${cls}">${profitText}</span></button>`;
             }).join('');
-            const more = used.length > 6 ? `<div class="used-more">ещё ${used.length - 6}</div>` : '';
-            return `<div class="used-in"><div class="used-title">Входит в крафты · ${used.length}</div>${rows}${more}</div>`;
+            const more = used.length > 6 ? `<div class="used-more">ещё ${ruCount(used.length - 6, 'крафт', 'крафта', 'крафтов')}</div>` : '';
+            return `<div class="used-in"><div class="used-title">Входит в ${ruCount(used.length, 'крафт', 'крафта', 'крафтов')}</div>${rows}${more}</div>`;
         }
         function openModal(id) {
             const item = itemsCache.find(i => i.id === id);
@@ -1377,15 +1396,15 @@
                 : `${signal.text} ${(dev > 0 ? '+' : '') + dev.toFixed(1)}%`;
             let bestLotInfo = '';
             if (last.best_lot_amount && last.best_lot_buyout) {
-                bestLotInfo = `Лучший лот: ${last.best_lot_amount} шт за ${last.best_lot_buyout.toLocaleString('ru-RU')} ₽`;
+                bestLotInfo = `Лучший лот: ${ruPieces(last.best_lot_amount)} за ${last.best_lot_buyout.toLocaleString('ru-RU')} ₽`;
             }
             let lotsHtml = '';
             if (last.lots && last.lots.length) {
                 const rows = last.lots.map((lot, i) => {
                     const endTime = lot.endTime ? new Date(lot.endTime).toLocaleString('ru-RU') : '—';
-                    return `<tr><td>${i+1}</td><td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td><td>${lot.amount.toLocaleString('ru-RU')} шт</td><td>${lot.buyout.toLocaleString('ru-RU')} ₽</td><td class="time-cell">${endTime}</td></tr>`;
+                    return `<tr><td>${i+1}</td><td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td><td>${ruPieces(lot.amount)}</td><td>${lot.buyout.toLocaleString('ru-RU')} ₽</td><td class="time-cell">${endTime}</td></tr>`;
                 }).join('');
-                lotsHtml = `<h3 class="lots-title">📋 Актуальные лоты (${last.lots.length})</h3><table><thead><tr><th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
+                lotsHtml = `<h3 class="lots-title">📋 Актуальные лоты · ${ruCount(last.lots.length, 'лот', 'лота', 'лотов')}</h3><table><thead><tr><th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
 
             let salesHtml = '';
@@ -1398,7 +1417,7 @@
                     const dt = s.t ? new Date(s.t).toLocaleString('ru-RU') : '—';
                     return `<tr>
                         <td class="time-cell">${dt}</td>
-                        <td>${(s.a || 0).toLocaleString('ru-RU')} шт</td>
+                        <td>${ruPieces(s.a || 0)}</td>
                         <td class="price-cell">${(s.avg || 0).toLocaleString('ru-RU')} ₽</td>
                         <td style="color:#aaa;font-size:12px;">${(s.min || 0).toLocaleString('ru-RU')} – ${(s.max || 0).toLocaleString('ru-RU')} ₽</td>
                     </tr>`;
@@ -1406,7 +1425,7 @@
                 salesHtml = `
                     <h3 class="lots-title" style="margin-top:25px;">📈 История продаж</h3>
                     <div style="color:#888;font-size:13px;margin-bottom:10px;">
-                        Продано за период: <b style="color:#86efac;">${totalAmount.toLocaleString('ru-RU')} шт</b>
+                        Продано за период: <b style="color:#86efac;">${ruPieces(totalAmount)}</b>
                         · Средняя цена сделки: <b style="color:#86efac;">${avgDeal.toLocaleString('ru-RU')} ₽</b>
                         · Периодов: ${sales.length}
                     </div>
@@ -1434,8 +1453,8 @@
                     <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : (avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : 'нет лотов')}</div><div class="stat-label">${cur ? 'Цена за 1 шт' : 'Средняя сделок'}</div><div class="stat-sub">${cur ? bestLotInfo : 'Сейчас лотов нет'}</div></div>
                     <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя сделок (14 дней)</div></div>
                     <div class="stat-item"><div class="stat-value ${cur && avg ? signal.cls : ''}">${devText}</div><div class="stat-label">К средней цене</div></div>
-                    <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div></div>
-                    <div class="stat-item"><div class="stat-value">${item.sold14 ? item.sold14.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Продано за 14 дней</div></div>
+                    <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? ruPieces(last.total_amount) : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? ruCount(last.lots_count, 'лот', 'лота', 'лотов') : ''}</div></div>
+                    <div class="stat-item"><div class="stat-value">${item.sold14 ? ruPieces(item.sold14) : '—'}</div><div class="stat-label">Продано за 14 дней</div></div>
                     <div class="stat-item"><div class="stat-value ${typeof item.trend7 === 'number' ? (item.trend7 < 0 ? 'green' : (item.trend7 > 0 ? 'red' : '')) : ''}">${typeof item.trend7 === 'number' ? (item.trend7 > 0 ? '+' : '') + item.trend7.toFixed(1) + '%' : '—'}</div><div class="stat-label">Тренд 7 дней</div><div class="stat-sub">Последние 3 дня к предыдущей неделе</div></div>
                 </div>
                 ${usedInHtml(id)}
@@ -1638,7 +1657,7 @@
                 ${nightIcon(item.icon)}
                 <div class="night-main">
                     <div class="night-name">${escapeHtml(item.name)}</div>
-                    <div class="night-sub">лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${item.sold14.toLocaleString('ru-RU')} за 14д${falling}</div>
+                    <div class="night-sub">лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${ruPieces(item.sold14)} за 14д${falling}</div>
                 </div>
                 <div class="night-side green">${row.dev.toFixed(0)}%</div>
             </div>`;
@@ -1768,7 +1787,7 @@
             const revenue = (econ.sell || 0) * output;
             const staleSell = econ.sellSource === 'sale' && saleIsStale(craft.id);
             if (!missing.length) {
-                const profit = revenue > 0 ? ` Продажа ${output.toLocaleString('ru-RU')} шт даст ${money(revenue)}${staleSell ? ' · давно не продавалось' : ''}.` : '';
+                const profit = revenue > 0 ? ` Продажа ${ruPieces(output)} даст ${money(revenue)}${staleSell ? ' · давно не продавалось' : ''}.` : '';
                 els.targetList.innerHTML = `<div class="night-sub">«${escapeHtml(craft.name)}» ×${count.toLocaleString('ru-RU')} уже можно скрафтить.${profit}</div>`;
                 return;
             }
@@ -1780,7 +1799,7 @@
                 ? 'Нет цены на часть сырья, плюс не считаю.'
                 : (profit === null
                     ? 'Прибыль не считаю: нет цены на всё недостающее.'
-                    : `На ${count.toLocaleString('ru-RU')} крафт. выйдет ${output.toLocaleString('ru-RU')} шт, ${profit > 0 ? 'плюс' : 'минус'} ${money(Math.abs(profit))}${staleSell ? ' · давно не продавалось' : ''}.`);
+                    : `На ${ruCount(count, 'крафт', 'крафта', 'крафтов')} выйдет ${ruPieces(output)}, ${profit > 0 ? 'плюс' : 'минус'} ${money(Math.abs(profit))}${staleSell ? ' · давно не продавалось' : ''}.`);
             const budget = readBudget();
             const budgetText = budget === null || !(spend > 0)
                 ? ''
@@ -1819,9 +1838,9 @@
                             ? `для «${pick.name}» уже хватает`
                             : `для «${pick.name}» · в рюкзаке ${fmtQty(part.have)} из ${fmtQty(part.qty * pick.runs)}`)
                         : (row.best
-                            ? `в ${row.profitable.length} ${row.profitable.length % 10 === 1 && row.profitable.length % 100 !== 11 ? 'выгодном' : 'выгодных'} · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
-                            : `продаётся само · ${row.sold14.toLocaleString('ru-RU')} шт за 14д`)));
-            const stock = row.listed ? `лотов ${row.lots.toLocaleString('ru-RU')}` : 'лотов нет';
+                            ? `в ${row.profitable.length} ${ruForm(row.profitable.length, 'выгодном', 'выгодных', 'выгодных')} · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
+                            : `продаётся само · ${ruPieces(row.sold14)} за 14д`)));
+            const stock = row.listed ? ruCount(row.lots, 'лот', 'лота', 'лотов') : 'лотов нет';
             const tight = row.listed && row.scarce ? ' · запас < 2 дней' : '';
             const staleNote = row.stalePrice ? ' · давно не продавалось' : '';
             const verdict = sellOwned ? 'продать' : (otherCraft ? 'другой' : (row.best || part ? 'в крафт' : 'продать'));
@@ -1888,16 +1907,16 @@
                     ${nightIcon(part.icon)}
                     <div class="night-main">
                         <div class="night-name">${escapeHtml(part.name)}<span class="night-tag${tagClass}">${tag}</span></div>
-                        <div class="night-sub">${part.qty.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} шт · ${stockText}${!owned && !partial && part.source === 'sale' && !part.absurd ? ' продажа' : ''}${staleNote}${absurd} · ${Math.round(part.share * 100)}% себестоимости</div>
+                        <div class="night-sub">${ruPieces(part.qty)} · ${stockText}${!owned && !partial && part.source === 'sale' && !part.absurd ? ' продажа' : ''}${staleNote}${absurd} · ${Math.round(part.share * 100)}% себестоимости</div>
                     </div>
                 </div>`;
             }).join('');
             return `<section class="night-card loot-box"><h2>Куда деть: ${escapeHtml(craft.name)}</h2><p class="night-hint">${head} Дорогие позиции лучше добыть, дешёвые — купить.</p>${rows}</section>`;
         }
         function materialPathHtml(row) {
-            const stock = row.listed ? `на аукционе ${row.lots.toLocaleString('ru-RU')} шт` : 'сейчас лотов нет';
+            const stock = row.listed ? `на аукционе ${ruPieces(row.lots)}` : 'сейчас лотов нет';
             const haveN = ownedCount(row.id);
-            const have = haveN > 0 ? `В рюкзаке ${fmtQty(haveN)} шт. ` : '';
+            const have = haveN > 0 ? `В рюкзаке ${ruPieces(haveN)}. ` : '';
             const ranked = row.crafts.filter(craft => craft.sell > 0).slice().sort((a, b) => (b.profitBuy ?? -1e15) - (a.profitBuy ?? -1e15)).slice(0, 3);
             const best = ranked.find(craft => craft.profitBuy > 0 && craft.share >= 0.15) || null;
             const thin = !best && ranked.find(craft => craft.profitBuy > 0);
@@ -1905,7 +1924,7 @@
             const verdict = stale && !best
                 ? 'Давно не продавалось: сегодняшнюю цену продажи не берите.'
                 : (best
-                    ? `Лучше пустить в «${escapeHtml(best.name)}»: <b class="green">+${money(best.profitBuy)}</b> сверх продажи этого сырья на 1 шт выхода. Это ${Math.round(best.share * 100)}% себестоимости.`
+                    ? `Лучше пустить в «${escapeHtml(best.name)}»: <b class="green">+${money(best.profitBuy)}</b> сверх продажи этого сырья на ${ruPieces(1)} выхода. Это ${Math.round(best.share * 100)}% себестоимости.`
                     : (thin
                         ? `Крафт «${escapeHtml(thin.name)}» в плюсе, но это сырьё только ${Math.round(thin.share * 100)}% цены. Проще продать как есть.`
                         : `Лучше продать как есть за <b>${money(row.unit)}</b>: крафты на этом сырье сейчас не дают плюс.`));
@@ -1919,7 +1938,7 @@
                     </div>
                 </div>`;
             }).join('');
-            return `<section class="night-card loot-box"><h2>Куда деть: ${escapeHtml(row.name)}</h2><p class="night-hint">${have}${money(row.unit)}${row.source === 'sale' ? ' последняя продажа' : ''}${row.absurd ? ` · ${row.quotedLot ? 'лот' : 'продажа'} ${money(row.quoted)} не берём` : ''}${stale ? ' · давно не продавалось' : ''} · ${stock} · продано ${row.sold14.toLocaleString('ru-RU')} за 14д. ${verdict}</p>${crafts}</section>`;
+            return `<section class="night-card loot-box"><h2>Куда деть: ${escapeHtml(row.name)}</h2><p class="night-hint">${have}${money(row.unit)}${row.source === 'sale' ? ' последняя продажа' : ''}${row.absurd ? ` · ${row.quotedLot ? 'лот' : 'продажа'} ${money(row.quoted)} не берём` : ''}${stale ? ' · давно не продавалось' : ''} · ${stock} · продано ${ruPieces(row.sold14)} за 14д. ${verdict}</p>${crafts}</section>`;
         }
         function lootAdviceHtml(query, plan) {
             let bestMat = null;
@@ -1961,7 +1980,7 @@
                 const ticket = flipTicket(row);
                 return {
                     open: row.item.id,
-                    text: `Купить ${ticket.stack.toLocaleString('ru-RU')} шт «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(buySpend(row))}. Затраты вернутся, если продать ${ticket.need.toLocaleString('ru-RU')} шт по средней ${money(row.item.avg)}.${priceIsFalling(row.item) ? ' Ещё падает.' : ''}`
+                    text: `Купить ${ruPieces(ticket.stack)} «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(buySpend(row))}. Затраты вернутся, если продать ${ruPieces(ticket.need)} по средней ${money(row.item.avg)}.${priceIsFalling(row.item) ? ' Ещё падает.' : ''}`
                 };
             });
             const farms = plan.farms
@@ -2031,7 +2050,7 @@
                     const need = part ? part.qty * pick.runs : (row.best.qty || 0);
                     const share = Math.round(row.best.share * 100);
                     const text = have + 1e-9 >= need && need > 0
-                        ? `«${craftName}» можно закрывать: «${row.name}» уже в рюкзаке (${fmtQty(have)} шт).`
+                        ? `«${craftName}» можно закрывать: «${row.name}» уже в рюкзаке (${ruPieces(have)}).`
                         : (have > 0
                             ? `«${craftName}» упирается в «${row.name}»: в рюкзаке ${fmtQty(have)} из ${fmtQty(need)}.`
                             : `«${row.best.name}» упирается в «${row.name}»: ${share}% себестоимости, плюс ${money(row.best.profitBuy)} если докупить остальное.`);
@@ -2125,7 +2144,7 @@
                     ${nightIcon(row.icon)}
                     <div class="night-main">
                         <div class="night-name">${escapeHtml(row.name)}</div>
-                        <div class="night-sub">${row.count.toLocaleString('ru-RU')} плюсовых · лучший «${escapeHtml(row.best.name)}» · ${Math.round(row.best.share * 100)}% себестоимости</div>
+                        <div class="night-sub">${ruCount(row.count, 'плюсовый', 'плюсовых', 'плюсовых')} · лучший «${escapeHtml(row.best.name)}» · ${Math.round(row.best.share * 100)}% себестоимости</div>
                     </div>
                     <div class="night-side green">${row.count}</div>
                 </div>`).join('')
@@ -2221,7 +2240,7 @@
                 case 'level_desc': items.sort((a, b) => (b.skillLevel || 0) - (a.skillLevel || 0)); break;
             }
 
-            els.craftResultCount.textContent = `Найдено рецептов: ${items.length}`;
+            els.craftResultCount.textContent = `Найдено ${ruCount(items.length, 'рецепт', 'рецепта', 'рецептов')}`;
 
             if (items.length === 0) {
                 container.innerHTML = '<div class="empty-state">Ничего не найдено. Попробуйте изменить фильтры.</div>';
@@ -2257,7 +2276,7 @@
                         <div class="skill-header-icon">${skillIcon(skill)}</div>
                         <div class="skill-header-info">
                             <div class="skill-header-name">${escapeHtml(skill)}</div>
-                            <div class="skill-header-desc">${escapeHtml(skillDesc(skill))} · ${total} рецептов</div>
+                            <div class="skill-header-desc">${escapeHtml(skillDesc(skill))} · ${ruCount(total, 'рецепт', 'рецепта', 'рецептов')}</div>
                         </div>
                     </div>
                 `;
@@ -2497,12 +2516,10 @@
                 const valueText = item.unit_price > 0
                     ? `<span style="color:#888;font-size:12px;">≈ ${Math.round(item.total_value).toLocaleString('ru-RU')} ₽</span>`
                     : '';
-                const qtyText = Number.isInteger(item.quantity)
-                    ? item.quantity.toLocaleString('ru-RU')
-                    : item.quantity.toFixed(2).replace('.', ',');
+                const qtyText = ruPieces(item.quantity);
                 return `<tr data-item="${escapeHtml(item.id)}">
                     <td>${iconHtml}${escapeHtml(item.name)}</td>
-                    <td style="text-align:right;font-weight:bold;color:#f0c36a;">${qtyText} шт</td>
+                    <td style="text-align:right;font-weight:bold;color:#f0c36a;">${qtyText}</td>
                     <td style="text-align:right;">${valueText}</td>
                 </tr>`;
             }).join('');
@@ -2661,7 +2678,7 @@
             return `
         <div class="craft-summary-grid">
             <div class="craft-summary-item">
-                <div class="craft-summary-value">${qty.toLocaleString('ru-RU')} шт</div>
+                <div class="craft-summary-value">${ruPieces(qty)}</div>
                 <div class="craft-summary-label">Хотим получить</div>
             </div>
             <div class="craft-summary-item is-link" data-open="buy">
@@ -2794,7 +2811,7 @@
                 return `
                     <div class="bonus-banner" style="border-left-color:#888;">
                         <div class="bonus-banner-title">🎓 Требуется уровень <b>${reqLevel}</b> навыка «${escapeHtml(skill)}»${extra}</div>
-                        <div class="bonus-banner-hint">Базовый выход: <b>${baseAmount}</b> шт за крафт. Бонус за превосходство не применяется.</div>
+                        <div class="bonus-banner-hint">Базовый выход: <b>${ruPieces(baseAmount)}</b> за крафт. Бонус за превосходство не применяется.</div>
                         <div class="bonus-input-row">
                             <label>Ваш уровень «${escapeHtml(skill)}»:</label>
                             <select class="my-level-input" data-skill="${escapeHtml(skill)}">
@@ -2820,7 +2837,7 @@
                     <div class="bonus-banner-hint">
                         Бонусные крафты: ${combined}<br>
                         Множитель за крафт: <span class="bonus-banner-value">×${b.multiplier.toFixed(2)}</span><br>
-                        Средний выход: <b>${baseAmount}</b> × ${b.multiplier.toFixed(2)} = <span class="bonus-banner-value">${avgPerCraft % 1 === 0 ? avgPerCraft : avgPerCraft.toFixed(2)} шт</span> за крафт
+                        Средний выход: <b>${ruPieces(baseAmount)}</b> × ${b.multiplier.toFixed(2)} = <span class="bonus-banner-value">${ruPieces(avgPerCraft)}</span> за крафт
                     </div>
                     <div class="bonus-input-row">
                         <label>Ваш уровень «${escapeHtml(skill)}»:</label>
@@ -2847,7 +2864,7 @@
 
             const qtyRowHtml = `
                 <div class="qty-row">
-                    <label for="craftQtyInput">Сколько крафтить (штук):</label>
+                    <label for="craftQtyInput">Сколько получить:</label>
                     <input type="number" id="craftQtyInput" class="qty-input" value="1" min="1" max="99999">
                     <button class="qty-preset" data-qty="1">1</button>
                     <button class="qty-preset" data-qty="5">5</button>
