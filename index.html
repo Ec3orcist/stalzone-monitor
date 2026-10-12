@@ -2300,8 +2300,9 @@
                 items = items.filter(item => (item.skillLevel || 0) === lvl);
             }
             const profitFilter = els.craftProfitFilter.value;
-            if (profitFilter === 'buy') items = items.filter(item => item.econ.profitBuy > 0);
-            else if (profitFilter === 'craft') items = items.filter(item => item.econ.profitCraft > 0);
+            const traded = item => soldOut(item.id) > 0;
+            if (profitFilter === 'buy') items = items.filter(item => traded(item) && item.econ.profitBuy > 0);
+            else if (profitFilter === 'craft') items = items.filter(item => traded(item) && item.econ.profitCraft > 0);
             else if (profitFilter === 'priced') items = items.filter(item => item.econ.sell > 0 && item.econ.buy.missing === 0 && item.econ.buy.cost > 0);
             if (query) {
                 const exact = items.filter(item => item.id.toLowerCase() === query);
@@ -2315,10 +2316,10 @@
             }
 
             switch (sortMode) {
-                case 'profit_buy': items.sort(cmpNullLast(it => it.econ.profitBuy, -1)); break;
-                case 'roi_buy': items.sort(cmpNullLast(it => it.econ.roiBuy, -1)); break;
-                case 'profit_craft': items.sort(cmpNullLast(it => it.econ.profitCraft, -1)); break;
-                case 'roi_craft': items.sort(cmpNullLast(it => it.econ.roiCraft, -1)); break;
+                case 'profit_buy': items.sort(cmpNullLast(it => soldOut(it.id) > 0 ? it.econ.profitBuy : null, -1)); break;
+                case 'roi_buy': items.sort(cmpNullLast(it => soldOut(it.id) > 0 ? it.econ.roiBuy : null, -1)); break;
+                case 'profit_craft': items.sort(cmpNullLast(it => soldOut(it.id) > 0 ? it.econ.profitCraft : null, -1)); break;
+                case 'roi_craft': items.sort(cmpNullLast(it => soldOut(it.id) > 0 ? it.econ.roiCraft : null, -1)); break;
                 case 'name': items.sort((a, b) => a.name.localeCompare(b.name, 'ru')); break;
                 case 'level_asc': items.sort((a, b) => (a.skillLevel || 0) - (b.skillLevel || 0)); break;
                 case 'level_desc': items.sort((a, b) => (b.skillLevel || 0) - (a.skillLevel || 0)); break;
