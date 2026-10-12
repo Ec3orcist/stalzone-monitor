@@ -1640,12 +1640,38 @@
             const value = Number(raw);
             return Number.isFinite(value) && value > 0 ? value : null;
         }
+        function listedAmount(item) {
+            const count = Number(item && item.total_amount);
+            return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+        }
+        function flipTicket(row) {
+            const item = row.item;
+            const listed = listedAmount(item);
+            const price = item.price || 0;
+            const avg = item.avg || 0;
+            const daily = Math.ceil((item.sold14 || 0) / 14);
+            const full = avg > price && price > 0 ? Math.max(daily, 1) : 0;
+            const stack = Math.min(full, listed);
+            const need = stack > 0 && avg > 0 ? Math.min(stack, Math.ceil((price * stack) / avg)) : 0;
+            return {
+                stack,
+                need,
+                listed,
+                full,
+                partial: full > listed && listed > 0,
+                extra: Math.max(0, stack - need) * (avg - price)
+            };
+        }
         function buySpend(row) {
             return flipTicket(row).stack * row.item.price;
         }
         function affordableFlips(plan) {
             const budget = readBudget();
-            return plan.flips.filter(row => budget === null || buySpend(row) <= budget);
+            return plan.flips.filter(row => {
+                const ticket = flipTicket(row);
+                if (!(ticket.stack > 0)) return false;
+                return budget === null || ticket.stack * row.item.price <= budget;
+            });
         }
         function isTrap(item) {
             const dev = fairDeviation(item);
@@ -1654,15 +1680,21 @@
         function priceIsFalling(item) {
             return typeof item.trend7 === 'number' && item.trend7 <= -15;
         }
+        function buyQtyNote(ticket) {
+            if (!(ticket.stack > 0)) return 'на аукционе нет';
+            if (!ticket.partial) return `купить ${ruPieces(ticket.stack)}`;
+            return `на аукционе только ${ruPieces(ticket.listed)}, окупается частично`;
+        }
         function flipRow(row) {
             const item = row.item;
-            const spend = buySpend(row);
+            const ticket = flipTicket(row);
+            const spend = ticket.stack * item.price;
             const falling = priceIsFalling(item) ? ' · <span class="warn">ещё падает</span>' : '';
             return `<div class="night-row" data-open-item="${escapeHtml(item.id)}">
                 ${nightIcon(item.icon)}
                 <div class="night-main">
                     <div class="night-name">${escapeHtml(item.name)}</div>
-                    <div class="night-sub">лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${ruPieces(item.sold14)} за 14д${falling}</div>
+                    <div class="night-sub">${buyQtyNote(ticket)} · лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${ruPieces(item.sold14)} за 14д${falling}</div>
                 </div>
                 <div class="night-side green">${row.dev.toFixed(0)}%</div>
             </div>`;
@@ -1699,7 +1731,8 @@
                 if (saleIsStale(item.id)) return false;
                 if (budget !== null && item.price > budget) return false;
                 return true;
-            }).map(item => ({ item, dev: fairDeviation(item) }))
+            }).map(item => ({ item, dev: fairDeviation(item), ticket: flipTicket({ item }) }))
+                .filter(row => row.ticket.stack > 0)
                 .sort((a, b) => a.dev - b.dev)
                 .slice(0, 8);
             els.outingList.innerHTML = rows.length
@@ -1710,7 +1743,7 @@
                         ${nightIcon(item.icon)}
                         <div class="night-main">
                             <div class="night-name">${escapeHtml(item.name)}</div>
-                            <div class="night-sub">лот ${money(item.price)} · ${escapeHtml(categoryName(item.category))} · дешевле средней на ${money(cheaper)}</div>
+                            <div class="night-sub">${buyQtyNote(row.ticket)} · лот ${money(item.price)} · ${escapeHtml(categoryName(item.category))} · дешевле средней на ${money(cheaper)}</div>
                         </div>
                         <div class="night-side green">${row.dev.toFixed(0)}%</div>
                     </div>`;
@@ -1974,18 +2007,13 @@
             if (bestCraft) return craftPathHtml(bestCraft);
             return '<section class="night-card loot-box"><p class="night-hint">Такого предмета в ценах и рецептах нет.</p></section>';
         }
-        function flipTicket(row) {
-            const daily = Math.max(1, Math.ceil(row.item.sold14 / 14));
-            const stack = Math.max(1, Math.min(row.item.total_amount || 1, daily));
-            const need = Math.max(1, Math.ceil((row.item.price * stack) / row.item.avg));
-            return { stack, need, extra: Math.max(0, stack - need) * (row.item.avg - row.item.price) };
-        }
         function eveningActions(plan) {
             const flips = affordableFlips(plan).slice(0, 3).map(row => {
                 const ticket = flipTicket(row);
+                const partial = ticket.partial ? ` На аукционе только ${ruPieces(ticket.listed)}, окупается не вся пачка.` : '';
                 return {
                     open: row.item.id,
-                    text: `Купить ${ruPieces(ticket.stack)} «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(buySpend(row))}. Затраты вернутся, если продать ${ruPieces(ticket.need)} по средней ${money(row.item.avg)}.${priceIsFalling(row.item) ? ' Ещё падает.' : ''}`
+                    text: `Купить ${ruPieces(ticket.stack)} «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(ticket.stack * row.item.price)}. Затраты вернутся, если продать ${ruPieces(ticket.need)} по средней ${money(row.item.avg)}.${partial}${priceIsFalling(row.item) ? ' Ещё падает.' : ''}`
                 };
             });
             const farms = plan.farms
