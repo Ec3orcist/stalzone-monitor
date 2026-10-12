@@ -348,6 +348,7 @@
         .shelter-opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
         .lvl-pick { display: inline-flex; align-items: center; gap: 8px; }
         .lvl-pick select { padding: 6px 10px; font-family: var(--mono); }
+        #shelterXp { width: 120px; font-family: var(--mono); }
         .check-line { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
         .check-line input { width: 16px; height: 16px; accent-color: #8b6cf0; }
         .lvl-summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding: 10px 12px; margin-bottom: 10px; background: #0b0914; border: 1px solid var(--edge); clip-path: var(--cut); }
@@ -726,6 +727,7 @@
                         <div class="skill-chips" id="skillChips"></div>
                         <div class="shelter-opts">
                             <label class="lvl-pick">Мой уровень <select id="shelterLevel"></select></label>
+                            <label class="lvl-pick">Опыт <input type="text" id="shelterXp" inputmode="numeric" placeholder="0" autocomplete="off"><span id="shelterXpNeed" class="night-sub"></span></label>
                             <label class="check-line"><input type="checkbox" id="shelterBuiltOnly"> Только из построенного</label>
                         </div>
                         <div id="levelPlan"></div>
@@ -778,6 +780,7 @@
         let currentChart = null;
         const FAV_STORAGE_KEY = 'sz_favorites';
         const SKILL_LEVELS_KEY = 'sz_skill_levels';
+        const SKILL_XP_KEY = 'sz_skill_xp';
         const BAG_KEY = 'sz_backpack';
         const BUDGET_KEY = 'sz_budget';
         const TARGET_KEY = 'sz_craft_target';
@@ -1112,6 +1115,29 @@
             else delete levels[skill];
             saveSkillLevels(levels);
         }
+        function loadSkillXp() {
+            try { return JSON.parse(localStorage.getItem(SKILL_XP_KEY) || '{}'); } catch { return {}; }
+        }
+        function getMyXp(skill) {
+            const value = Math.floor(Number(loadSkillXp()[skill]) || 0);
+            return value > 0 ? value : 0;
+        }
+        function setMyXp(skill, xp) {
+            const stored = loadSkillXp();
+            const value = Math.max(0, Math.floor(Number(xp) || 0));
+            if (value > 0) stored[skill] = value;
+            else delete stored[skill];
+            localStorage.setItem(SKILL_XP_KEY, JSON.stringify(stored));
+        }
+        function levelSpan(level) {
+            return shelter.xp[`${level}-${level + 1}`] || 0;
+        }
+        function bankedXp(skill) {
+            const level = getMyLevel(skill);
+            const full = level && level < 5 ? levelSpan(level) : 0;
+            if (!full) return 0;
+            return Math.min(getMyXp(skill), full);
+        }
 
         function loadFavorites() {
             try { return JSON.parse(localStorage.getItem(FAV_STORAGE_KEY) || '[]'); } catch { return []; }
@@ -1421,6 +1447,8 @@
             targetList: document.getElementById('targetList'),
             skillChips: document.getElementById('skillChips'),
             shelterLevel: document.getElementById('shelterLevel'),
+            shelterXp: document.getElementById('shelterXp'),
+            shelterXpNeed: document.getElementById('shelterXpNeed'),
             shelterBuiltOnly: document.getElementById('shelterBuiltOnly'),
             levelPlan: document.getElementById('levelPlan'),
             stationList: document.getElementById('stationList'),
@@ -3701,12 +3729,19 @@
                 return bills.get(r.id);
             };
             const pool = shelter.recipes.filter(r => (r.experienceSkill || r.skill) === skill && r.experience > 0 && !r.oneTime);
+            const my = getMyLevel(skill);
+            const banked = bankedXp(skill);
             return [1, 2, 3, 4].map(level => {
-                const need = shelter.xp[`${level}-${level + 1}`] || 0;
+                const full = levelSpan(level);
+                const have = my === level ? banked : 0;
+                const need = my === level ? Math.max(0, full - have) : full;
+                if (!need) {
+                    return { level, need: 0, full, have, filled: true, ranked: [], unpriced: 0, bestAny: null, bestBuilt: null };
+                }
                 const options = pool.filter(r => r.skillLevel <= level).map(r => levelOption(r, level, need, bill(r)));
                 const ranked = options.filter(o => o.priced).sort((a, b) => a.net - b.net);
                 return {
-                    level, need, ranked,
+                    level, need, full, have, filled: false, ranked,
                     unpriced: options.length - ranked.length,
                     bestAny: ranked[0] || null,
                     bestBuilt: ranked.find(o => o.built) || null
@@ -3751,15 +3786,27 @@
             const skills = [...new Set(shelter.recipes.filter(r => r.experience > 0 && !r.oneTime).map(r => r.experienceSkill || r.skill))]
                 .sort((a, b) => skillOrder(a) - skillOrder(b));
             if (!skills.includes(shelterSkill)) shelterSkill = skills[0] || '';
-            els.skillChips.innerHTML = skills.map(s => `<button type="button" class="skill-chip${s === shelterSkill ? ' active' : ''}" data-skill="${escapeHtml(s)}">${skillIcon(s)} ${escapeHtml(s)}<b>${getMyLevel(s) || '–'}</b></button>`).join('');
+            els.skillChips.innerHTML = skills.map(s => {
+                const xp = bankedXp(s);
+                const mark = getMyLevel(s) ? `${getMyLevel(s)}${xp ? '·' + (xp >= 1000 ? Math.round(xp / 100) / 10 + 'к' : xp) : ''}` : '–';
+                return `<button type="button" class="skill-chip${s === shelterSkill ? ' active' : ''}" data-skill="${escapeHtml(s)}">${skillIcon(s)} ${escapeHtml(s)}<b>${mark}</b></button>`;
+            }).join('');
             const my = getMyLevel(shelterSkill);
             els.shelterLevel.innerHTML = ['<option value="">не задан</option>', ...[1, 2, 3, 4, 5].map(l => `<option value="${l}"${l === my ? ' selected' : ''}>${l}</option>`)].join('');
+            const fullNow = my && my < 5 ? levelSpan(my) : 0;
+            const haveNow = bankedXp(shelterSkill);
+            if (document.activeElement !== els.shelterXp) els.shelterXp.value = haveNow ? String(haveNow) : '';
+            els.shelterXp.disabled = !fullNow;
+            els.shelterXpNeed.textContent = !my ? 'сначала уровень' : my >= 5 ? 'максимум' : `из ${fullNow.toLocaleString('ru-RU')}`;
             const builtOnly = els.shelterBuiltOnly.checked;
             const plans = levelPlans(shelterSkill);
             const from = my || 1;
             const todo = plans.filter(p => p.level >= from);
-            const picks = todo.map(p => builtOnly ? p.bestBuilt : p.bestAny);
-            const sum = picks.reduce((acc, o) => o ? { net: acc.net + o.net, crafts: acc.crafts + o.crafts, energy: acc.energy + o.energy } : { ...acc, gaps: acc.gaps + 1 }, { net: 0, crafts: 0, energy: 0, gaps: 0 });
+            const picks = todo.map(p => p.filled ? { filled: true } : (builtOnly ? p.bestBuilt : p.bestAny));
+            const sum = picks.reduce((acc, o) => {
+                if (o && o.filled) return acc;
+                return o ? { net: acc.net + o.net, crafts: acc.crafts + o.crafts, energy: acc.energy + o.energy } : { ...acc, gaps: acc.gaps + 1 };
+            }, { net: 0, crafts: 0, energy: 0, gaps: 0 });
             const oneTimeXp = shelter.recipes.filter(r => (r.experienceSkill || r.skill) === shelterSkill && r.oneTime && r.experience > 0)
                 .reduce((acc, r) => acc + r.experience, 0);
             const summary = my === 5
@@ -3789,10 +3836,10 @@
                 return `<div class="lvl-step${done ? ' done' : ''}${now ? ' now' : ''}">
                     <div class="lvl-head">
                         <div class="lvl-jump"><b>${p.level}</b><i>→</i><b>${p.level + 1}</b></div>
-                        <div class="night-sub">${p.need.toLocaleString('ru-RU')} опыта · ${ruCount(p.ranked.length, 'рецепт', 'рецепта', 'рецептов')} с ценой${p.unpriced ? `, ${p.unpriced} без цены` : ''}</div>
-                        ${done ? '<span class="st-badge built">пройдено</span>' : now ? '<span class="st-badge ready">сейчас</span>' : ''}
+                        <div class="night-sub">${p.filled ? `уже ${p.full.toLocaleString('ru-RU')} из ${p.full.toLocaleString('ru-RU')}` : p.have ? `осталось ${p.need.toLocaleString('ru-RU')} из ${p.full.toLocaleString('ru-RU')}` : `${p.need.toLocaleString('ru-RU')} опыта`} · ${ruCount(p.ranked.length, 'рецепт', 'рецепта', 'рецептов')} с ценой${p.unpriced ? `, ${p.unpriced} без цены` : ''}</div>
+                        ${done ? '<span class="st-badge built">пройдено</span>' : p.filled ? '<span class="st-badge ready">хватает</span>' : now ? '<span class="st-badge ready">сейчас</span>' : ''}
                     </div>
-                    ${pick ? levelOptionHtml(pick) : `<div class="night-sub">${builtOnly ? 'Из построенного нет рецепта с известными ценами. Отметь пристройки справа или сними галочку.' : 'Нет рецепта с известными ценами.'}</div>`}
+                    ${p.filled ? '<div class="night-sub">Этого опыта уже хватает на следующий уровень.</div>' : pick ? levelOptionHtml(pick) : `<div class="night-sub">${builtOnly ? 'Из построенного нет рецепта с известными ценами. Отметь пристройки справа или сними галочку.' : 'Нет рецепта с известными ценами.'}</div>`}
                     ${alt}
                     ${moreHtml}
                 </div>`;
@@ -3959,23 +4006,26 @@
         function xpStory(skill, xp) {
             const known = getMyLevel(skill);
             const start = known || 1;
+            const full = levelSpan(start);
+            const banked = known && known < 5 ? Math.min(getMyXp(skill), full) : 0;
             if (start >= 5) return { text: 'навык уже 5 уровня', known };
             let level = start;
-            let left = xp;
+            let left = xp + banked;
             while (level < 5) {
-                const need = shelter.xp[`${level}-${level + 1}`];
+                const need = levelSpan(level);
                 if (!need || left < need) {
                     const have = Math.max(0, Math.floor(left));
                     const goal = need ? need.toLocaleString('ru-RU') : '—';
+                    const owned = banked ? `уже ${banked.toLocaleString('ru-RU')}, ` : '';
                     const text = level > start
-                        ? `с ${start} до ${level}, до ${level + 1} ещё ${have.toLocaleString('ru-RU')} из ${goal}`
-                        : `${have.toLocaleString('ru-RU')} из ${goal} до ${level}→${level + 1}`;
+                        ? `${owned}с ${start} до ${level}, до ${level + 1} ещё ${have.toLocaleString('ru-RU')} из ${goal}`
+                        : `${owned}${have.toLocaleString('ru-RU')} из ${goal} до ${level}→${level + 1}`;
                     return { text, known };
                 }
                 left -= need;
                 level += 1;
             }
-            return { text: `с ${start} до 5`, known };
+            return { text: `${banked ? `уже ${banked.toLocaleString('ru-RU')}, ` : ''}с ${start} до 5`, known };
         }
         function inventoryXp() {
             const stock = new Map([...backpack.entries()].filter(([, n]) => n > 0));
@@ -4165,6 +4215,19 @@
         els.shelterLevel.addEventListener('change', () => {
             setMyLevel(shelterSkill, Number(els.shelterLevel.value) || null);
             renderShelter();
+            if (document.getElementById('tab-inventory').style.display !== 'none') renderInvAdvice();
+        });
+        els.shelterXp.addEventListener('input', () => {
+            els.shelterXp.value = els.shelterXp.value.replace(/[^\d]/g, '');
+            const full = levelSpan(getMyLevel(shelterSkill));
+            let value = Math.floor(Number(els.shelterXp.value) || 0);
+            if (full && value > full) {
+                value = full;
+                els.shelterXp.value = String(full);
+            }
+            setMyXp(shelterSkill, value);
+            renderLevelPlan();
+            if (document.getElementById('tab-inventory').style.display !== 'none') renderInvAdvice();
         });
         els.shelterBuiltOnly.addEventListener('change', () => {
             localStorage.setItem(BUILT_ONLY_KEY, els.shelterBuiltOnly.checked ? '1' : '0');
