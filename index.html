@@ -190,6 +190,20 @@
         .variant-head { display: grid; grid-template-columns: 1.6fr .9fr .9fr .9fr .7fr; gap: 8px; padding: 8px 14px 0; color: var(--muted); font-size: 12px; }
         .craft-summary-item.is-link { cursor: pointer; border-radius: 10px; }
         .craft-summary-item.is-link:hover { background: rgba(139, 108, 240, .12); }
+        .night-lead { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+        .night-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .night-card { background: rgba(22,18,33,.72); border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 6px; }
+        .night-card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+        .night-hint { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+        .night-row { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); cursor: pointer; }
+        .night-row img { width: 36px; height: 36px; object-fit: contain; background: var(--bg); border-radius: 4px; flex-shrink: 0; }
+        .night-main { flex: 1; min-width: 0; }
+        .night-name { font-weight: 700; }
+        .night-sub { color: var(--muted); font-size: 12px; line-height: 1.35; }
+        .night-side { text-align: right; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+        .night-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); color: var(--warn); }
+        .loot-box { margin-bottom: 14px; padding-bottom: 12px; }
+        .warn { color: var(--warn); }
         @media (max-width: 760px) {
             .variant > summary, .variant-head { grid-template-columns: 1fr 1fr; }
             body { padding: 10px; }
@@ -197,6 +211,7 @@
             .tabs { width: 100%; }
             .tab { flex: 1; }
             .items-grid { grid-template-columns: 1fr; }
+            .night-grid { grid-template-columns: 1fr; }
             .controls select, #refreshBtn { flex: 1 1 140px; }
             .modal { padding: 16px; }
             .craft-list-profit { min-width: 0; }
@@ -208,11 +223,12 @@
         <header class="topbar">
             <div>
                 <h1>Stalzone</h1>
-                <p class="subtitle">Аукцион и крафт</p>
+                <p class="subtitle">Аукцион, крафт, добыча</p>
             </div>
             <div class="tabs">
                 <button class="tab active" data-tab="market">Аукцион</button>
                 <button class="tab" data-tab="crafts">Крафты</button>
+                <button class="tab" data-tab="tonight">Сегодня</button>
             </div>
         </header>
 
@@ -281,6 +297,26 @@
             <div class="stats-bar"><span id="craftResultCount">Загрузка...</span></div>
             <div id="craftListContainer">
                 <div class="empty-state">Загрузка рецептов...</div>
+            </div>
+        </div>
+
+        <div id="tab-tonight" style="display:none;">
+            <p class="night-lead">Цены текущего аукциона: что выгодно купить, что имеет смысл фармить и куда деть уже добытое.</p>
+            <div class="controls">
+                <input type="text" id="lootSearch" placeholder="У меня есть... предмет или крафт">
+            </div>
+            <div id="lootAdvice"></div>
+            <div class="night-grid">
+                <section class="night-card">
+                    <h2>Что скупать</h2>
+                    <p class="night-hint">Лот ниже недавней средней, и предмет реально продаётся.</p>
+                    <div id="flipList"></div>
+                </section>
+                <section class="night-card">
+                    <h2>Что фармить</h2>
+                    <p class="night-hint">Сырьё дорогое или его мало, а крафты на нём в плюсе.</p>
+                    <div id="farmList"></div>
+                </section>
             </div>
         </div>
     </div>
@@ -656,6 +692,10 @@
             craftModalOverlay: document.getElementById('craftModalOverlay'),
             craftModalContent: document.getElementById('craftModalContent'),
             craftModalClose: document.getElementById('craftModalClose'),
+            lootSearch: document.getElementById('lootSearch'),
+            lootAdvice: document.getElementById('lootAdvice'),
+            flipList: document.getElementById('flipList'),
+            farmList: document.getElementById('farmList'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
@@ -665,7 +705,9 @@
                 const tabName = tab.dataset.tab;
                 document.getElementById('tab-market').style.display = tabName === 'market' ? 'block' : 'none';
                 document.getElementById('tab-crafts').style.display = tabName === 'crafts' ? 'block' : 'none';
+                document.getElementById('tab-tonight').style.display = tabName === 'tonight' ? 'block' : 'none';
                 if (tabName === 'crafts') renderCraftList();
+                if (tabName === 'tonight') renderTonight();
             });
         });
 
@@ -706,11 +748,14 @@
                 ingestCatalog();
                 ingestCrafts();
                 ingestRecipes(recipes);
+                econCache.clear();
+                nightPlan = null;
                 buildItemsCache();
                 populateCategories();
                 populateCraftSkills();
                 applyFilters();
                 if (document.getElementById('tab-crafts').style.display !== 'none') renderCraftList();
+                if (document.getElementById('tab-tonight').style.display !== 'none') renderTonight();
                 els.craftResultCount.textContent = `Рецептов: ${recipeIds().length}`;
             } catch (e) {
                 console.error(e);
@@ -1064,10 +1109,17 @@
         }
 
         let econCache = new Map();
+        let nightPlan = null;
+        function money(n) {
+            return Math.round(n).toLocaleString('ru-RU') + ' ₽';
+        }
         function craftEconomics(item) {
             const cached = econCache.get(item.id);
             if (cached) return cached;
-            const sell = item.sell_price || 0;
+            const quoted = item.sell_price || 0;
+            const typical = typicalSale(item.id);
+            const outlier = quoted > 0 && typical > 0 && (typical / quoted > 4 || typical / quoted < 0.25);
+            const sell = outlier ? typical : quoted;
             const per = item.craftAmount || 1;
             const buy = directBuyCost(item, 1 / per);
             const flat = new Map();
@@ -1082,10 +1134,246 @@
                 profitBuy,
                 profitCraft,
                 roiBuy: profitBuy === null ? null : profitBuy / buy.cost * 100,
-                roiCraft: profitCraft === null ? null : profitCraft / base.cost * 100
+                roiCraft: profitCraft === null ? null : profitCraft / base.cost * 100,
+                sellSource: outlier ? 'sale' : (item.price_source || 'none')
             };
             econCache.set(item.id, result);
             return result;
+        }
+
+        function planTonight() {
+            if (nightPlan) return nightPlan;
+            const market = new Map(itemsCache.map(item => [item.id, item]));
+            const flips = itemsCache.filter(item => {
+                const dev = fairDeviation(item);
+                if (dev === null || dev > -15) return false;
+                if ((item.sold14 || 0) < 20) return false;
+                if (typeof item.trend7 === 'number' && item.trend7 < -25) return false;
+                return true;
+            }).map(item => {
+                const dev = fairDeviation(item);
+                const margin = item.avg - item.price;
+                const daily = item.sold14 / 14;
+                const canMove = Math.min(item.total_amount || 0, Math.max(daily * 3, 1));
+                return { item, dev, margin, pocket: margin * canMove };
+            }).sort((a, b) => b.pocket - a.pocket).slice(0, 8);
+
+            const bucket = new Map();
+            recipeIds().forEach(rid => {
+                const craft = resolveNode(rid);
+                const econ = craftEconomics(craft);
+                const per = craft.craftAmount || 1;
+                const outSold = (market.get(rid) || {}).sold14 || 0;
+                (craft.ingredients || []).forEach(ing => {
+                    const nested = craftsData[ing.id];
+                    if (nested && Array.isArray(nested.ingredients) && nested.ingredients.length) return;
+                    const node = resolveNode(ing.id);
+                    const unit = node.sell_price || 0;
+                    const qty = (ing.amount || 0) / per;
+                    if (!(unit > 0) || !(qty > 0) || node.name === node.id) return;
+                    const line = unit * qty;
+                    const share = econ.buy.cost > 0 ? line / econ.buy.cost : 0;
+                    let row = bucket.get(ing.id);
+                    if (!row) {
+                        const live = market.get(ing.id);
+                        row = {
+                            id: ing.id,
+                            name: node.name,
+                            icon: node.icon,
+                            unit,
+                            source: node.price_source,
+                            sold14: live ? live.sold14 || 0 : 0,
+                            lots: live ? live.total_amount || 0 : 0,
+                            lotsCount: live ? live.lots_count || 0 : 0,
+                            listed: Boolean(live && live.listed),
+                            crafts: []
+                        };
+                        bucket.set(ing.id, row);
+                    }
+                    row.crafts.push({
+                        id: rid,
+                        name: craft.name,
+                        share,
+                        qty,
+                        profitBuy: econ.profitBuy,
+                        profitCraft: econ.profitCraft,
+                        sell: econ.sell,
+                        outSold,
+                        missing: econ.buy.missing
+                    });
+                });
+            });
+
+            const materials = [...bucket.values()].map(row => {
+                const daily = row.sold14 / 14;
+                const scarce = !row.listed || (daily >= 4 && row.lots < daily * 2);
+                const profitable = row.crafts.filter(craft => craft.profitBuy > 0 && craft.share >= 0.15 && craft.outSold >= 5 && !craft.missing);
+                const best = profitable.slice().sort((a, b) => (b.profitBuy * b.share) - (a.profitBuy * a.share))[0] || null;
+                const maxShare = row.crafts.reduce((bestShare, craft) => Math.max(bestShare, craft.share), 0);
+                const craftScore = best
+                    ? best.profitBuy * best.share * (scarce ? 1.5 : 1) * (1 + Math.log10(1 + best.outSold))
+                    : 0;
+                const sellScore = !best && scarce && row.sold14 >= 30 && row.unit >= 500
+                    ? row.unit * Math.min(row.sold14 / 14, 20)
+                    : 0;
+                return { ...row, scarce, profitable, best, maxShare, craftScore, sellScore };
+            });
+            const farms = materials.filter(row => row.craftScore > 0 || row.sellScore > 0);
+            nightPlan = { flips, farms, materials };
+            return nightPlan;
+        }
+
+        function nightIcon(src) {
+            return src ? `<img src="${src}" alt="" draggable="false">` : '';
+        }
+        function flipRow(row) {
+            const item = row.item;
+            return `<div class="night-row" data-open-item="${escapeHtml(item.id)}">
+                ${nightIcon(item.icon)}
+                <div class="night-main">
+                    <div class="night-name">${escapeHtml(item.name)}</div>
+                    <div class="night-sub">лот ${money(item.price)} · средняя ${money(item.avg)} · продано ${item.sold14.toLocaleString('ru-RU')} за 14д</div>
+                </div>
+                <div class="night-side green">${row.dev.toFixed(0)}%</div>
+            </div>`;
+        }
+        function farmRow(row) {
+            const why = row.best
+                ? `в ${row.profitable.length} выгодных · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
+                : `продаётся само · ${row.sold14.toLocaleString('ru-RU')} шт за 14д`;
+            const stock = row.listed ? `лотов ${row.lots.toLocaleString('ru-RU')}` : 'лотов нет';
+            const tight = row.listed && row.scarce ? ' · запас < 2 дней' : '';
+            const verdict = row.best ? 'в крафт' : 'продать';
+            return `<div class="night-row" data-loot="${escapeHtml(row.id)}">
+                ${nightIcon(row.icon)}
+                <div class="night-main">
+                    <div class="night-name">${escapeHtml(row.name)}</div>
+                    <div class="night-sub">${money(row.unit)}${row.source === 'sale' ? ' продажа' : ''} · ${stock}${tight} · ${why}</div>
+                </div>
+                <div class="night-side ${row.best ? 'green' : 'warn'}">${verdict}</div>
+            </div>`;
+        }
+        function matchScore(name, id, query) {
+            const title = String(name || '').toLowerCase();
+            if (String(id || '').toLowerCase() === query) return 100;
+            if (title === query) return 90;
+            if (title.startsWith(query)) return 70;
+            if (title.includes(query)) return 40;
+            return 0;
+        }
+        function craftPathHtml(craft) {
+            const econ = craftEconomics(craft);
+            const per = craft.craftAmount || 1;
+            const parts = (craft.ingredients || []).map(ing => {
+                const node = resolveNode(ing.id);
+                const qty = (ing.amount || 0) / per;
+                const unit = node.sell_price || 0;
+                const line = unit * qty;
+                const share = econ.buy.cost > 0 ? line / econ.buy.cost : 0;
+                return { id: node.id, name: node.name, icon: node.icon, qty, unit, line, share, source: node.price_source };
+            }).filter(part => part.name && part.name !== part.id).sort((a, b) => b.line - a.line);
+            const head = econ.buy.missing > 0
+                ? `Не все цены известны (${econ.buy.missing}). По неполной себестоимости плюс не считаю.`
+                : (econ.profitBuy > 0
+                    ? `Выгодно купить всё и скрафтить: <b class="green">+${money(econ.profitBuy)}</b> с штуки.`
+                    : (econ.profitCraft > 0
+                        ? `В плюсе только со своим сырьём: <b class="green">+${money(econ.profitCraft)}</b>. Покупка ингредиентов съедает прибыль.`
+                        : 'Сейчас крафт не окупается ни покупкой, ни своим сырьём.'));
+            const rows = parts.map(part => {
+                const dubious = part.source === 'sale' && part.share >= 0.45 && !(econ.profitBuy > 0);
+                const farm = !dubious && part.share >= 0.18;
+                const tag = dubious ? 'цена неясна' : (farm ? 'фармить' : 'купить');
+                return `<div class="night-row" data-open-item="${escapeHtml(part.id)}">
+                    ${nightIcon(part.icon)}
+                    <div class="night-main">
+                        <div class="night-name">${escapeHtml(part.name)}<span class="night-tag">${tag}</span></div>
+                        <div class="night-sub">${part.qty.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} шт · ${part.unit ? money(part.unit) : 'нет цены'}${part.source === 'sale' ? ' продажа' : ''} · ${Math.round(part.share * 100)}% себестоимости</div>
+                    </div>
+                </div>`;
+            }).join('');
+            return `<section class="night-card loot-box"><h2>Куда деть: ${escapeHtml(craft.name)}</h2><p class="night-hint">${head} Дорогие позиции лучше добыть, дешёвые — купить.</p>${rows}</section>`;
+        }
+        function materialPathHtml(row) {
+            const stock = row.listed ? `на аукционе ${row.lots.toLocaleString('ru-RU')} шт` : 'сейчас лотов нет';
+            const ranked = row.crafts.filter(craft => craft.sell > 0).slice().sort((a, b) => (b.profitBuy ?? -1e15) - (a.profitBuy ?? -1e15)).slice(0, 3);
+            const best = ranked.find(craft => craft.profitBuy > 0 && craft.share >= 0.15) || null;
+            const thin = !best && ranked.find(craft => craft.profitBuy > 0);
+            const verdict = best
+                ? `Лучше пустить в «${escapeHtml(best.name)}»: <b class="green">+${money(best.profitBuy)}</b> сверх продажи этого сырья на 1 шт выхода. Это ${Math.round(best.share * 100)}% себестоимости.`
+                : (thin
+                    ? `Крафт «${escapeHtml(thin.name)}» в плюсе, но это сырьё только ${Math.round(thin.share * 100)}% цены. Проще продать как есть.`
+                    : `Лучше продать как есть за <b>${money(row.unit)}</b>: крафты на этом сырье сейчас не дают плюс.`);
+            const crafts = ranked.map(craft => {
+                const sign = craft.profitBuy > 0 ? '+' : '';
+                const text = typeof craft.profitBuy === 'number' ? `${sign}${money(craft.profitBuy)} к продаже сырья` : 'нет полной цены';
+                return `<div class="night-row" data-loot-craft="${escapeHtml(craft.id)}">
+                    <div class="night-main">
+                        <div class="night-name">${escapeHtml(craft.name)}</div>
+                        <div class="night-sub">${Math.round(craft.share * 100)}% себестоимости · ${text}</div>
+                    </div>
+                </div>`;
+            }).join('');
+            return `<section class="night-card loot-box"><h2>Куда деть: ${escapeHtml(row.name)}</h2><p class="night-hint">${money(row.unit)}${row.source === 'sale' ? ' последняя продажа' : ''} · ${stock} · продано ${row.sold14.toLocaleString('ru-RU')} за 14д. ${verdict}</p>${crafts}</section>`;
+        }
+        function lootAdviceHtml(query, plan) {
+            let bestMat = null;
+            let bestMatScore = 0;
+            plan.materials.forEach(row => {
+                const score = matchScore(row.name, row.id, query);
+                if (score > bestMatScore) {
+                    bestMatScore = score;
+                    bestMat = row;
+                }
+            });
+            let bestCraft = null;
+            let bestCraftScore = 0;
+            let bestCraftProfit = -1e15;
+            recipeIds().forEach(id => {
+                const craft = resolveNode(id);
+                const score = matchScore(craft.name, craft.id, query);
+                if (!score) return;
+                const profit = craftEconomics(craft).profitBuy ?? -1e15;
+                if (score > bestCraftScore || (score === bestCraftScore && profit > bestCraftProfit)) {
+                    bestCraftScore = score;
+                    bestCraftProfit = profit;
+                    bestCraft = craft;
+                }
+            });
+            if (bestCraftScore > bestMatScore && bestCraft) return craftPathHtml(bestCraft);
+            if (bestMat) return materialPathHtml(bestMat);
+            if (bestCraft) return craftPathHtml(bestCraft);
+            return '<section class="night-card loot-box"><p class="night-hint">Такого предмета в ценах и рецептах нет.</p></section>';
+        }
+        function renderTonight() {
+            if (!recipeIds().length) {
+                els.flipList.innerHTML = '';
+                els.farmList.innerHTML = '<div class="night-sub">Рецепты ещё грузятся…</div>';
+                return;
+            }
+            const plan = planTonight();
+            const query = els.lootSearch.value.trim().toLowerCase();
+            els.lootAdvice.innerHTML = query ? lootAdviceHtml(query, plan) : '';
+            els.flipList.innerHTML = plan.flips.length
+                ? plan.flips.map(flipRow).join('')
+                : '<div class="night-sub">Сейчас нет жидких лотов заметно ниже средней.</div>';
+            const farms = query
+                ? plan.farms.filter(row => row.name.toLowerCase().includes(query) || row.id.toLowerCase().includes(query)).slice(0, 10)
+                : null;
+            const craftFarms = (farms || plan.farms.filter(row => row.craftScore > 0))
+                .slice()
+                .sort((a, b) => b.craftScore - a.craftScore)
+                .filter(row => row.craftScore > 0)
+                .slice(0, 6);
+            const sellFarms = (farms || plan.farms.filter(row => row.sellScore > 0))
+                .slice()
+                .sort((a, b) => b.sellScore - a.sellScore)
+                .filter(row => row.sellScore > 0 && !craftFarms.some(shown => shown.id === row.id))
+                .slice(0, 4);
+            const blocks = [
+                craftFarms.length ? `<div class="night-sub" style="padding-top:8px">В плюсовый крафт</div>${craftFarms.map(farmRow).join('')}` : '',
+                sellFarms.length ? `<div class="night-sub" style="padding-top:8px">Продать как есть</div>${sellFarms.map(farmRow).join('')}` : ''
+            ].join('');
+            els.farmList.innerHTML = blocks || '<div class="night-sub">Нет сырья, которое одновременно нужно выгодным крафтам.</div>';
         }
 
         function renderCraftList() {
@@ -1247,7 +1535,7 @@
 
             const buy = econ.buy;
             const rub = (n) => n > 0 ? Math.round(n).toLocaleString('ru-RU') + ' ₽' : '—';
-            const sellLabel = item.price_source === 'sale' ? 'Последняя продажа' : 'Продажа';
+            const sellLabel = econ.sellSource === 'sale' ? 'По продажам' : 'Продажа';
             const roiText = typeof roi === 'number' ? roi.toFixed(1) + '%' : 'нет цены';
             const otherText = typeof other === 'number'
                 ? `${other > 0 ? '+' : ''}${Math.round(other).toLocaleString('ru-RU')} ₽ ${otherLabel}`
@@ -1883,6 +2171,29 @@
         els.craftSearchInput.addEventListener('input', () => {
             clearTimeout(craftSearchTimer);
             craftSearchTimer = setTimeout(renderCraftList, 200);
+        });
+        let lootTimer = null;
+        els.lootSearch.addEventListener('input', () => {
+            clearTimeout(lootTimer);
+            lootTimer = setTimeout(renderTonight, 200);
+        });
+        document.getElementById('tab-tonight').addEventListener('click', (e) => {
+            const open = e.target.closest('[data-open-item]');
+            if (open && !e.target.closest('[data-loot]')) {
+                openModal(open.dataset.openItem);
+                return;
+            }
+            const craft = e.target.closest('[data-loot-craft]');
+            if (craft) {
+                els.lootSearch.value = craft.dataset.lootCraft;
+                renderTonight();
+                return;
+            }
+            const loot = e.target.closest('[data-loot]');
+            if (loot) {
+                els.lootSearch.value = loot.dataset.loot;
+                renderTonight();
+            }
         });
 
         els.craftListContainer.addEventListener('click', (e) => {
