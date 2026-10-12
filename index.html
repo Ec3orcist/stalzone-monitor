@@ -2251,6 +2251,9 @@
                 ? (saleIsStale(item.id) ? 'По продажам · давно' : 'По продажам')
                 : 'Продажа';
             const roiText = typeof roi === 'number' ? roi.toFixed(1) + '%' : 'нет цены';
+            const gapText = hasProfit
+                ? `${roiLabel} ${roiText}`
+                : ((buy.missing > 0 || econ.base.missing > 0) && econ.sell > 0 ? 'нет цены на сырьё' : 'нет лотов / сырья');
             const otherText = typeof other === 'number'
                 ? `${other > 0 ? '+' : ''}${Math.round(other).toLocaleString('ru-RU')} ₽ ${otherLabel}`
                 : '';
@@ -2268,7 +2271,7 @@
                 </div>
                 <div class="craft-list-profit ${profitClass}">
                     ${hasProfit ? `${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽` : 'нет цены'}
-                    <div style="font-size:12px;font-weight:normal;color:#9a917c;">${hasProfit ? roiLabel + ' ' + roiText : 'нет лотов / сырья'}</div>
+                    <div style="font-size:12px;font-weight:normal;color:#9a917c;">${gapText}</div>
                     ${otherText ? `<div style="font-size:11px;font-weight:normal;color:#8b7da3;">${otherText}</div>` : ''}
                 </div>
             `;
