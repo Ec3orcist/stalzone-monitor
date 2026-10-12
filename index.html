@@ -1404,7 +1404,12 @@
                     const endTime = lot.endTime ? new Date(lot.endTime).toLocaleString('ru-RU') : '—';
                     return `<tr><td>${i+1}</td><td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td><td>${ruPieces(lot.amount)}</td><td>${lot.buyout.toLocaleString('ru-RU')} ₽</td><td class="time-cell">${endTime}</td></tr>`;
                 }).join('');
-                lotsHtml = `<h3 class="lots-title">📋 Актуальные лоты · ${ruCount(last.lots.length, 'лот', 'лота', 'лотов')}</h3><table><thead><tr><th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
+                const shownLots = last.lots.length;
+                const totalLots = last.lots_count || shownLots;
+                const lotTitle = totalLots > shownLots
+                    ? `Актуальные лоты · ${shownLots.toLocaleString('ru-RU')} из ${ruCount(totalLots, 'лота', 'лотов', 'лотов')}`
+                    : `Актуальные лоты · ${ruCount(shownLots, 'лот', 'лота', 'лотов')}`;
+                lotsHtml = `<h3 class="lots-title">📋 ${lotTitle}</h3><table><thead><tr><th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
 
             let salesHtml = '';
@@ -1450,8 +1455,8 @@
                     <button id="modalFavBtn" class="card-star ${fav ? 'active' : ''}" style="position:static; font-size:32px; padding:0 12px;" title="В избранное">★</button>
                 </div>
                 <div class="stats">
-                    <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : (avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : 'нет лотов')}</div><div class="stat-label">${cur ? 'Цена за 1 шт' : 'Средняя сделок'}</div><div class="stat-sub">${cur ? bestLotInfo : 'Сейчас лотов нет'}</div></div>
-                    <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя сделок (14 дней)</div></div>
+                    <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : (avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : 'нет лотов')}</div><div class="stat-label">${cur ? 'Цена за 1 шт' : 'Средняя цена сделок'}</div><div class="stat-sub">${cur ? bestLotInfo : 'Сейчас лотов нет'}</div></div>
+                    <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя цена сделок за 14 дней</div></div>
                     <div class="stat-item"><div class="stat-value ${cur && avg ? signal.cls : ''}">${devText}</div><div class="stat-label">К средней цене</div></div>
                     <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? ruPieces(last.total_amount) : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? ruCount(last.lots_count, 'лот', 'лота', 'лотов') : ''}</div></div>
                     <div class="stat-item"><div class="stat-value">${item.sold14 ? ruPieces(item.sold14) : '—'}</div><div class="stat-label">Продано за 14 дней</div></div>
