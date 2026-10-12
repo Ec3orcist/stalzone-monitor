@@ -73,6 +73,12 @@
         .stat-value { font-size: 22px; font-weight: 700; color: var(--accent); }
         .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
         .stat-sub { font-size: 11px; color: #8b7da3; margin-top: 3px; }
+        .used-in { margin: 0 0 16px; }
+        .used-title { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+        .used-row { width: 100%; display: flex; justify-content: space-between; gap: 12px; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; cursor: pointer; font: inherit; text-align: left; }
+        .used-row:hover { border-color: #8b6cf0; }
+        .used-more { color: #8b7da3; font-size: 12px; }
+        .craft-ingredient[data-item], .shopping-table tr[data-item] { cursor: pointer; }
         .green { color: var(--accent-2) !important; }
         .red { color: var(--danger) !important; }
         .chart-container { background: var(--panel); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--line); }
@@ -904,6 +910,31 @@
             return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
+        function craftsUsing(id) {
+            return recipeIds()
+                .filter(rid => ((craftsData[rid] || {}).ingredients || []).some(ing => ing.id === id))
+                .map(rid => {
+                    const node = resolveNode(rid);
+                    node.econ = craftEconomics(node);
+                    return node;
+                })
+                .sort(cmpNullLast(it => it.econ.profitBuy, -1));
+        }
+        function usedInHtml(id) {
+            const used = craftsUsing(id);
+            if (!used.length) return '';
+            const rows = used.slice(0, 6).map(craft => {
+                const profit = craft.econ.profitBuy;
+                const known = typeof profit === 'number';
+                const profitText = known
+                    ? `${profit > 0 ? '+' : ''}${Math.round(profit).toLocaleString('ru-RU')} ₽`
+                    : 'нет цены';
+                const cls = known ? (profit > 0 ? 'green' : 'red') : '';
+                return `<button type="button" class="used-row" data-craft="${escapeHtml(craft.id)}"><span>${escapeHtml(craft.name)}</span><span class="${cls}">${profitText}</span></button>`;
+            }).join('');
+            const more = used.length > 6 ? `<div class="used-more">ещё ${used.length - 6}</div>` : '';
+            return `<div class="used-in"><div class="used-title">Входит в крафты · ${used.length}</div>${rows}${more}</div>`;
+        }
         function openModal(id) {
             const item = itemsCache.find(i => i.id === id);
             if (!item) return;
@@ -984,6 +1015,7 @@
                     <div class="stat-item"><div class="stat-value">${item.sold14 ? item.sold14.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Продано за 14 дней</div></div>
                     <div class="stat-item"><div class="stat-value ${typeof item.trend7 === 'number' ? (item.trend7 < 0 ? 'green' : (item.trend7 > 0 ? 'red' : '')) : ''}">${typeof item.trend7 === 'number' ? (item.trend7 > 0 ? '+' : '') + item.trend7.toFixed(1) + '%' : '—'}</div><div class="stat-label">Тренд 7 дней</div><div class="stat-sub">Последние 3 дня к предыдущей неделе</div></div>
                 </div>
+                ${usedInHtml(id)}
                 ${(hist.length || sales.length) ? '<div class="chart-container"><canvas id="modalChart"></canvas></div>' : '<div style="margin-top:16px;color:#a394bc;font-size:13px;">Лотов пока нет. Цена появится после опроса аукциона.</div>'}
                 ${lotsHtml}
                 ${salesHtml}
@@ -1088,7 +1120,8 @@
             else if (profitFilter === 'craft') items = items.filter(item => item.econ.profitCraft > 0);
             else if (profitFilter === 'priced') items = items.filter(item => item.econ.sell > 0 && item.econ.buy.missing === 0 && item.econ.buy.cost > 0);
             if (query) {
-                items = items.filter(item => {
+                const exact = items.filter(item => item.id.toLowerCase() === query);
+                items = exact.length ? exact : items.filter(item => {
                     if (item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query)) return true;
                     return (item.ingredients || []).some(ing => {
                         const name = humanName(ing.id, ing.name).toLowerCase();
@@ -1317,7 +1350,7 @@
                 const qtyText = Number.isInteger(item.quantity)
                     ? item.quantity.toLocaleString('ru-RU')
                     : item.quantity.toFixed(2).replace('.', ',');
-                return `<tr>
+                return `<tr data-item="${escapeHtml(item.id)}">
                     <td>${iconHtml}${escapeHtml(item.name)}</td>
                     <td style="text-align:right;font-weight:bold;">${qtyText}</td>
                     <td style="text-align:right;">${priceText}</td>
@@ -1358,7 +1391,7 @@
                 const qtyText = Number.isInteger(item.quantity)
                     ? item.quantity.toLocaleString('ru-RU')
                     : item.quantity.toFixed(2).replace('.', ',');
-                return `<tr>
+                return `<tr data-item="${escapeHtml(item.id)}">
                     <td>${iconHtml}${escapeHtml(item.name)}</td>
                     <td style="text-align:right;font-weight:bold;color:#f0c36a;">${qtyText} шт</td>
                     <td style="text-align:right;">${valueText}</td>
@@ -1531,7 +1564,7 @@
             ${b > 1 ? variantBlock('bonus', 'С нуля и бонусом ×' + b.toFixed(2), materialsBonus, sellTotal, flatBonus) : ''}
         </div>
         <div style="font-size:12px;color:#9a917c;margin-top:10px;">
-            Нажмите на вариант — откроется список предметов и цен.
+            Нажмите на вариант — откроется список. Нажмите материал — откроется аукцион.
         </div>`;
         }
 
@@ -1583,7 +1616,7 @@
                         </details>
                     `;
                 } else {
-                    html += `<div class="craft-ingredient">${renderIngredientRow(ing, false)}</div>`;
+                    html += `<div class="craft-ingredient" data-item="${escapeHtml(ing.id)}">${renderIngredientRow(ing, false)}</div>`;
                 }
             });
             html += '</div>';
@@ -1809,6 +1842,28 @@
             }
             const card = e.target.closest('.item-card');
             if (card && card.dataset.id) openModal(card.dataset.id);
+        });
+
+        els.modalContent.addEventListener('click', (e) => {
+            const craftBtn = e.target.closest('[data-craft]');
+            if (!craftBtn) return;
+            const name = craftBtn.dataset.craft;
+            closeModal();
+            document.querySelector('[data-tab="crafts"]').click();
+            els.craftSearchInput.value = name;
+            els.craftProfitFilter.value = '';
+            els.craftSortSelect.value = 'profit_buy';
+            renderCraftList();
+        });
+
+        els.craftModalContent.addEventListener('click', (e) => {
+            if (e.target.closest('summary') || e.target.closest('[data-open]') || e.target.closest('.modal-close')) return;
+            const row = e.target.closest('[data-item]');
+            if (!row) return;
+            const itemId = row.dataset.item;
+            if (!itemsCache.some(it => it.id === itemId)) return;
+            closeCraftModal();
+            openModal(itemId);
         });
 
         els.modalClose.addEventListener('click', closeModal);
