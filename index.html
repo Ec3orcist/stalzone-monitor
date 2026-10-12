@@ -1595,6 +1595,12 @@
             const profitText = profit === null
                 ? 'Прибыль не считаю: нет цены на всё недостающее.'
                 : `На ${count.toLocaleString('ru-RU')} крафт. выйдет ${output.toLocaleString('ru-RU')} шт, ${profit > 0 ? 'плюс' : 'минус'} ${money(Math.abs(profit))}${staleSell ? ' · давно не продавалось' : ''}.`;
+            const budget = readBudget();
+            const budgetText = budget === null || !(spend > 0)
+                ? ''
+                : (spend <= budget
+                    ? ` Докупка влезает в бюджет, останется ${money(budget - spend)}.`
+                    : ` До бюджета не хватает ${money(spend - budget)}.`);
             const rows = missing.map(row => {
                 const share = row.unit > 0 && spend > 0 ? row.take.rest / spend : 0;
                 const farm = row.unit > 0 && share >= 0.18;
@@ -1609,7 +1615,7 @@
                     </div>
                 </div>`;
             }).join('');
-            els.targetList.innerHTML = `<div class="night-sub">«${escapeHtml(craft.name)}». Докупка ${money(spend)}. ${profitText}</div>${rows}`;
+            els.targetList.innerHTML = `<div class="night-sub">«${escapeHtml(craft.name)}». Докупка ${money(spend)}. ${profitText}${budgetText}</div>${rows}`;
         }
         function farmRow(row) {
             const why = row.best
