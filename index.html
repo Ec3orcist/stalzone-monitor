@@ -1444,8 +1444,8 @@
             const flat = new Map();
             flattenTree(item, 1, flat, new Map(), null, new Set());
             const base = sumFlat(flat);
-            const profitBuy = sell > 0 && buy.cost > 0 ? sell - buy.cost : null;
-            const profitCraft = sell > 0 && base.cost > 0 ? sell - base.cost : null;
+            const profitBuy = sell > 0 && buy.cost > 0 && buy.missing === 0 ? sell - buy.cost : null;
+            const profitCraft = sell > 0 && base.cost > 0 && base.missing === 0 ? sell - base.cost : null;
             const result = {
                 sell,
                 buy,
