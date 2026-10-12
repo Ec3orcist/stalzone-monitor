@@ -285,6 +285,36 @@
         .cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .cat-count { font-family: var(--mono); font-size: 11px; color: #8b7da3; }
         .cat-btn.active .cat-count { color: var(--accent); }
+        .rail-group + .rail-group { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+        .rail-items { display: flex; flex-direction: column; gap: 3px; }
+        .inv-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .inv-tools input { flex: 1 1 200px; }
+        .inv-roles { display: flex; flex-wrap: wrap; gap: 6px; }
+        .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+        .inv-section { grid-column: 1 / -1; font-family: var(--hud); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); padding: 8px 2px 2px; border-bottom: 1px solid var(--line); }
+        .inv-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 5px 7px; border-radius: 8px; border: 1px solid var(--edge); background: linear-gradient(180deg, rgba(28,21,44,.9), rgba(14,11,23,.9)); color: var(--text); cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
+        .inv-tile:hover { border-color: rgba(167,139,250,.6); box-shadow: 0 0 16px rgba(124,92,191,.3); transform: translateY(-1px); }
+        .inv-tile img, .inv-tile .inv-noicon { width: 52px; height: 52px; object-fit: contain; border-radius: 6px; background: radial-gradient(circle at 50% 40%, #241a3a, #0a0812 75%); pointer-events: none; }
+        .inv-noicon { display: grid; place-items: center; color: var(--muted); }
+        .inv-tile .inv-name { font-size: 11px; line-height: 1.2; text-align: center; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.4em; }
+        .inv-tile.owned { border-color: rgba(167,139,250,.75); box-shadow: inset 0 0 0 1px rgba(167,139,250,.35), 0 0 14px rgba(124,92,191,.3); }
+        .inv-tile.owned .inv-name { color: var(--text); }
+        .inv-tile.picked { outline: 2px solid #c4b5fd; outline-offset: 1px; }
+        .inv-badge { position: absolute; top: 4px; right: 4px; min-width: 22px; padding: 1px 6px; border-radius: 999px; font-family: var(--mono); font-size: 11px; font-weight: 700; color: #fff; background: linear-gradient(160deg, #8b6cf0, #4c2f96); box-shadow: 0 0 8px var(--glow); }
+        .inv-editor { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; width: min(560px, calc(100vw - 20px)); display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            background: rgba(14, 11, 23, .96); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(167,139,250,.6); border-radius: 12px; box-shadow: 0 0 40px rgba(76,47,150,.45), 0 12px 30px rgba(0,0,0,.5); }
+        .inv-editor[hidden] { display: none; }
+        .inv-editor-icon img { width: 44px; height: 44px; object-fit: contain; border-radius: 6px; background: #0a0812; }
+        .inv-qty { display: flex; align-items: center; gap: 4px; }
+        .inv-qty button { width: 36px; height: 38px; padding: 0; font-size: 18px; color: var(--accent); }
+        .inv-qty input { width: 80px; text-align: center; font-family: var(--mono); font-size: 16px; }
+        .inv-remove { width: 36px; height: 38px; padding: 0; font-size: 18px; color: var(--muted); background: transparent; }
+        .inv-remove:hover { color: var(--danger); border-color: rgba(251,113,133,.5); }
+        .inv-total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+        .inv-total b { font-family: var(--mono); font-size: 20px; color: var(--accent); }
+        .inv-row { display: flex; align-items: center; gap: 10px; padding: 8px; margin: 0 -8px; border-top: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+        .inv-row:hover { background: rgba(139,108,240,.09); }
+        .inv-row img { width: 36px; height: 36px; object-fit: contain; border-radius: 6px; background: #0a0812; flex-shrink: 0; }
         .shelter-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px; align-items: start; }
         .skill-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
         .skill-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; font-size: 13px; border-radius: 8px; background: #0d0a16; border: 1px solid var(--line); color: var(--muted); }
@@ -369,7 +399,8 @@
             .hq-layout { grid-template-columns: 1fr; }
         }
         @media (max-width: 760px) {
-            .market-layout { grid-template-columns: 1fr; gap: 8px; }
+            .market-layout { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+            .cat-rail, .rail-group, .rail-items { min-width: 0; }
             .lvl-row { grid-template-columns: minmax(0, 1fr) auto; }
             .lvl-stats { grid-template-columns: 1fr 1fr; }
             .skill-chip { min-height: 40px; }
@@ -378,6 +409,13 @@
             .cat-rail::-webkit-scrollbar { display: none; }
             .cat-rail::before, .cat-title, .cat-sep { display: none; }
             .cat-btn { width: auto; flex-shrink: 0; padding: 8px 10px; min-height: 40px; }
+            .craft-rail { flex-direction: column; overflow: visible; gap: 6px; }
+            .craft-rail .rail-group + .rail-group { margin-top: 0; padding-top: 0; border-top: 0; }
+            .craft-rail .rail-items { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 6px; }
+            .craft-rail .rail-items::-webkit-scrollbar { display: none; }
+            .inv-grid { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+            .inv-editor { flex-wrap: wrap; bottom: 8px; }
+            .inv-editor .night-main { flex: 1 1 calc(100% - 60px); }
             .cat-name { overflow: visible; }
             .hq-folds { grid-template-columns: 1fr; }
             .hq-budget { width: 100%; }
@@ -385,14 +423,16 @@
             .hq-title { font-size: 20px; }
             .brand-mark { width: 28px; height: 28px; }
             .tabs { clip-path: none; border-radius: 8px; }
-            .tab { padding: 9px 6px; font-size: 12px; letter-spacing: .04em; }
+            .tab { padding: 9px 6px; font-size: 11px; letter-spacing: 0; }
+            .tabs { overflow-x: auto; scrollbar-width: none; gap: 2px; padding: 3px; }
+            .tabs::-webkit-scrollbar { display: none; }
             .variant > summary, .variant-head { grid-template-columns: 1fr 1fr; }
             .variant > summary > span, .variant-head > span { min-width: 0; overflow-wrap: anywhere; }
             body { padding: 0 10px 32px; }
             .topbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 2px; margin-bottom: 10px; }
             h1 { font-size: 20px; }
             .tabs { width: 100%; }
-            .tab { flex: 1; }
+            .tab { flex: 1 0 auto; }
             .items-grid { grid-template-columns: 1fr; }
             .night-grid { grid-template-columns: 1fr; }
             .controls select, .controls input, #refreshBtn { flex: 1 1 100%; max-width: 100%; min-width: 0; min-height: 40px; }
@@ -440,6 +480,7 @@
                 <button class="tab active" data-tab="market">Аукцион</button>
                 <button class="tab" data-tab="crafts">Крафты</button>
                 <button class="tab" data-tab="tonight">Наводки</button>
+                <button class="tab" data-tab="inventory">Инвентарь</button>
                 <button class="tab" data-tab="shelter">Убежище</button>
             </div>
         </header>
@@ -484,9 +525,12 @@
         </div>
 
         <div id="tab-crafts" style="display:none;">
+            <div class="market-layout">
+            <aside class="cat-rail craft-rail" id="craftRail" aria-label="Фильтры крафта"></aside>
+            <div class="market-main">
             <div class="controls">
-                <select id="craftSkillSelect"><option value="">Все навыки</option></select>
-                <select id="craftLevelSelect">
+                <select id="craftSkillSelect" hidden><option value="">Все навыки</option></select>
+                <select id="craftLevelSelect" hidden>
                     <option value="">Любой уровень рецепта</option>
                     <option value="1">Рецепт ур. 1</option>
                     <option value="2">Рецепт ур. 2</option>
@@ -494,7 +538,7 @@
                     <option value="4">Рецепт ур. 4</option>
                     <option value="5">Рецепт ур. 5</option>
                 </select>
-                <select id="craftProfitFilter">
+                <select id="craftProfitFilter" hidden>
                     <option value="">Все рецепты</option>
                     <option value="buy">В плюсе, если купить</option>
                     <option value="craft">В плюсе с нуля</option>
@@ -514,6 +558,46 @@
             <div class="stats-bar"><span id="craftResultCount">Загрузка...</span></div>
             <div id="craftListContainer">
                 <div class="empty-state">Загрузка рецептов...</div>
+            </div>
+            </div>
+            </div>
+        </div>
+
+        <div id="tab-inventory" style="display:none;">
+            <div class="hq-head">
+                <div>
+                    <h2 class="hq-title">Инвентарь</h2>
+                    <p class="night-lead">Нажми на иконку и впиши, сколько есть. Справа — что из этого собрать, что продать и что докупить.</p>
+                </div>
+                <div class="station-actions">
+                    <button type="button" class="ghost-btn" id="invClearBtn">Очистить инвентарь</button>
+                </div>
+            </div>
+            <div class="shelter-layout">
+                <div class="hq-main">
+                    <section class="night-card bag-box">
+                        <div class="inv-tools">
+                            <input type="text" id="invSearch" placeholder="Найти предмет..." autocomplete="off">
+                            <div class="inv-roles" id="invRoles"></div>
+                        </div>
+                        <div class="inv-grid" id="invGrid"></div>
+                    </section>
+                </div>
+                <aside class="hq-side" id="invAdvice"></aside>
+            </div>
+            <div class="inv-editor" id="invEditor" hidden>
+                <div class="inv-editor-icon" id="invEditorIcon"></div>
+                <div class="night-main">
+                    <div class="night-name" id="invEditorName"></div>
+                    <div class="night-sub" id="invEditorPrice"></div>
+                </div>
+                <div class="inv-qty">
+                    <button type="button" data-inv-step="-1">−</button>
+                    <input type="text" id="invQty" inputmode="numeric" autocomplete="off">
+                    <button type="button" data-inv-step="1">+</button>
+                </div>
+                <button type="button" class="ghost-btn" id="invSave">Готово</button>
+                <button type="button" class="inv-remove" id="invRemove" aria-label="Убрать">×</button>
             </div>
         </div>
 
@@ -583,7 +667,7 @@
             </section>
             <section class="night-card bag-box" id="bagCard">
                 <h2>Мой рюкзак</h2>
-                <p class="night-hint">Сколько уже есть. Списки закупки и «куда деть» вычтут это количество, а не всю строку.</p>
+                <p class="night-hint">Сколько уже есть — то же самое, что во вкладке «Инвентарь». Списки закупки и «куда деть» вычтут это количество, а не всю строку.</p>
                 <input type="text" id="bagSearch" placeholder="Добавить по названию..." autocomplete="off">
                 <div id="bagSuggest" class="bag-suggest"></div>
                 <div id="bagChips" class="bag-chips"></div>
@@ -1314,6 +1398,14 @@
             unlockMeter: document.getElementById('unlockMeter'),
             unlockDiff: document.getElementById('unlockDiff'),
             buildAllBtn: document.getElementById('buildAllBtn'),
+            craftRail: document.getElementById('craftRail'),
+            invSearch: document.getElementById('invSearch'),
+            invRoles: document.getElementById('invRoles'),
+            invGrid: document.getElementById('invGrid'),
+            invAdvice: document.getElementById('invAdvice'),
+            invEditor: document.getElementById('invEditor'),
+            invQty: document.getElementById('invQty'),
+            invClearBtn: document.getElementById('invClearBtn'),
             clearBuiltBtn: document.getElementById('clearBuiltBtn'),
         };
 
@@ -1326,6 +1418,9 @@
                 document.getElementById('tab-crafts').style.display = tabName === 'crafts' ? 'block' : 'none';
                 document.getElementById('tab-tonight').style.display = tabName === 'tonight' ? 'block' : 'none';
                 document.getElementById('tab-shelter').style.display = tabName === 'shelter' ? 'block' : 'none';
+                document.getElementById('tab-inventory').style.display = tabName === 'inventory' ? 'block' : 'none';
+                if (tabName !== 'inventory') closeInvEditor();
+                if (tabName === 'inventory') renderInventory();
                 if (tabName === 'crafts') renderCraftList();
                 if (tabName === 'tonight') renderTonight();
                 if (tabName === 'shelter') renderShelter();
@@ -1394,6 +1489,7 @@
                 if (document.getElementById('tab-crafts').style.display !== 'none') renderCraftList();
                 if (document.getElementById('tab-tonight').style.display !== 'none') renderTonight();
                 if (document.getElementById('tab-shelter').style.display !== 'none') renderShelter();
+                if (document.getElementById('tab-inventory').style.display !== 'none') renderInventory();
                 renderBag();
                 els.craftResultCount.textContent = `Рецептов: ${recipeIds().length}`;
             } catch (e) {
@@ -2535,6 +2631,35 @@
                 : '<div class="night-sub">Нет выгодных рецептов с верстаком.</div>';
         }
 
+        function renderCraftRail(all, bySkill, byLevel, skillOf, profitTests) {
+            const countBy = (list, pick) => list.reduce((map, item) => map.set(pick(item), (map.get(pick(item)) || 0) + 1), new Map());
+            const skills = countBy(all, skillOf);
+            const levels = countBy(bySkill, item => String(item.skillLevel || 0));
+            const btn = (target, value, label, count, glyph) => {
+                const active = els[target].value === value;
+                return `<button type="button" class="cat-btn${active ? ' active' : ''}" data-rail-target="${target}" data-value="${escapeHtml(value)}">
+                    <span class="cat-glyph">${glyph}</span><span class="cat-name">${escapeHtml(label)}</span><span class="cat-count">${count}</span></button>`;
+            };
+            const group = (title, buttons) => `<div class="rail-group"><div class="cat-title">${title}</div><div class="rail-items">${buttons.join('')}</div></div>`;
+            const skillList = [...skills.keys()].sort((a, b) => skillOrder(a) - skillOrder(b));
+            els.craftRail.innerHTML = [
+                group('Навык', [
+                    btn('craftSkillSelect', '', 'Все навыки', all.length, '◆'),
+                    ...skillList.map(s => btn('craftSkillSelect', s, s, skills.get(s), skillIcon(s)))
+                ]),
+                group('Уровень рецепта', [
+                    btn('craftLevelSelect', '', 'Любой', bySkill.length, '∗'),
+                    ...[1, 2, 3, 4, 5].map(l => btn('craftLevelSelect', String(l), `Уровень ${l}`, levels.get(String(l)) || 0, String(l)))
+                ]),
+                group('Выгода', [
+                    btn('craftProfitFilter', '', 'Все рецепты', byLevel.length, '○'),
+                    btn('craftProfitFilter', 'buy', 'В плюсе, если купить', byLevel.filter(profitTests.buy).length, '₽'),
+                    btn('craftProfitFilter', 'craft', 'В плюсе с нуля', byLevel.filter(profitTests.craft).length, '⚒'),
+                    btn('craftProfitFilter', 'priced', 'Все цены известны', byLevel.filter(profitTests.priced).length, '✓')
+                ])
+            ].join('');
+        }
+
         function renderCraftList() {
             const query = els.craftSearchInput.value.toLowerCase().trim();
             const skillFilter = els.craftSkillSelect.value;
@@ -2549,24 +2674,23 @@
                 return;
             }
 
-            let items = ids.map(id => {
+            const all = ids.map(id => {
                 const item = resolveNode(id);
                 item.econ = craftEconomics(item);
                 return item;
             });
-
-            if (skillFilter) {
-                items = items.filter(item => (item.skill || "Сырье и материалы") === skillFilter);
-            }
-            if (levelFilter) {
-                const lvl = parseInt(levelFilter);
-                items = items.filter(item => (item.skillLevel || 0) === lvl);
-            }
-            const profitFilter = els.craftProfitFilter.value;
+            const skillOf = item => item.skill || "Сырье и материалы";
             const traded = item => soldOut(item.id) > 0;
-            if (profitFilter === 'buy') items = items.filter(item => traded(item) && item.econ.profitBuy > 0);
-            else if (profitFilter === 'craft') items = items.filter(item => traded(item) && item.econ.profitCraft > 0);
-            else if (profitFilter === 'priced') items = items.filter(item => item.econ.sell > 0 && item.econ.buy.missing === 0 && item.econ.buy.cost > 0);
+            const profitTests = {
+                buy: item => traded(item) && item.econ.profitBuy > 0,
+                craft: item => traded(item) && item.econ.profitCraft > 0,
+                priced: item => item.econ.sell > 0 && item.econ.buy.missing === 0 && item.econ.buy.cost > 0
+            };
+            const bySkill = skillFilter ? all.filter(item => skillOf(item) === skillFilter) : all;
+            const byLevel = levelFilter ? bySkill.filter(item => (item.skillLevel || 0) === parseInt(levelFilter)) : bySkill;
+            const profitFilter = els.craftProfitFilter.value;
+            let items = profitTests[profitFilter] ? byLevel.filter(profitTests[profitFilter]) : byLevel;
+            renderCraftRail(all, bySkill, byLevel, skillOf, profitTests);
             if (query) {
                 const exact = items.filter(item => item.id.toLowerCase() === query);
                 items = exact.length ? exact : items.filter(item => {
@@ -3328,6 +3452,7 @@
             });
             shelter = { recipes, xp, stations, builders };
             builtStations = loadBuilt();
+            invPool = null;
         }
         const stationName = (id) => (shelter.stations.get(id) || {}).name || id;
         const stationArea = (id) => {
@@ -3582,6 +3707,202 @@
             renderStations();
         }
 
+        const INV_ROLES = [
+            { key: 'raw', label: 'Сырьё' },
+            { key: 'mid', label: 'Компоненты' },
+            { key: 'product', label: 'Готовое' }
+        ];
+        let invPool = null;
+        let invRole = '';
+        let invPick = '';
+
+        function inventoryPool() {
+            if (invPool) return invPool;
+            const roles = new Map();
+            const mark = (id, key) => {
+                if (!id) return;
+                roles.set(id, { ...(roles.get(id) || { input: false, output: false }), [key]: true });
+            };
+            shelter.recipes.filter(r => !r.providesFeature && !r.oneTime).forEach(r => {
+                mark(r.itemId, 'output');
+                (r.resources || []).forEach(res => mark(res.itemId, 'input'));
+            });
+            invPool = [...roles.entries()]
+                .map(([id, role]) => ({
+                    id,
+                    name: humanName(id),
+                    icon: humanIcon(id),
+                    role: role.input && role.output ? 'mid' : (role.input ? 'raw' : 'product')
+                }))
+                .filter(row => row.name && row.name !== row.id)
+                .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+            return invPool;
+        }
+        function invTile(row) {
+            const count = ownedCount(row.id);
+            return `<button type="button" class="inv-tile${count ? ' owned' : ''}${row.id === invPick ? ' picked' : ''}" data-inv-id="${escapeHtml(row.id)}" title="${escapeHtml(row.name)}">
+                ${count ? `<span class="inv-badge">${count.toLocaleString('ru-RU')}</span>` : ''}
+                ${row.icon ? `<img src="${row.icon}" alt="" loading="lazy" draggable="false">` : '<span class="inv-noicon">?</span>'}
+                <span class="inv-name">${escapeHtml(row.name)}</span></button>`;
+        }
+        function renderInvGrid() {
+            const pool = inventoryPool();
+            const query = els.invSearch.value.trim().toLowerCase();
+            const counts = { '': pool.length, owned: pool.filter(row => owns(row.id)).length };
+            INV_ROLES.forEach(r => { counts[r.key] = pool.filter(row => row.role === r.key).length; });
+            els.invRoles.innerHTML = [{ key: '', label: 'Все' }, { key: 'owned', label: 'Есть у меня' }, ...INV_ROLES]
+                .map(r => `<button type="button" class="skill-chip${invRole === r.key ? ' active' : ''}" data-inv-role="${r.key}">${r.label}<b>${counts[r.key]}</b></button>`).join('');
+            const shown = pool.filter(row =>
+                (!query || row.name.toLowerCase().includes(query)) &&
+                (invRole === 'owned' ? owns(row.id) : (!invRole || row.role === invRole)));
+            if (!shown.length) {
+                els.invGrid.innerHTML = `<div class="night-sub inv-section">${invRole === 'owned' ? 'Пока пусто. Нажми на иконку в «Все» и впиши количество.' : 'Ничего не найдено.'}</div>`;
+                return;
+            }
+            const sections = invRole ? [{ key: invRole, label: '' }] : INV_ROLES;
+            els.invGrid.innerHTML = sections.map(section => {
+                const rows = invRole ? shown : shown.filter(row => row.role === section.key);
+                if (!rows.length) return '';
+                return (section.label ? `<div class="inv-section">${section.label} · ${rows.length}</div>` : '') + rows.map(invTile).join('');
+            }).join('');
+        }
+
+        function craftStationGap(id) {
+            const rec = shelter.recipes.find(r => r.itemId === id && !r.providesFeature);
+            return rec ? (rec.requiredStations || []).filter(s => !builtStations.has(s)) : [];
+        }
+        function inventoryOptions() {
+            return recipeIds().map(id => {
+                const craft = resolveNode(id);
+                const ingredients = craft.ingredients || [];
+                if (!ingredients.length) return null;
+                const lines = ingredients.map(ing => {
+                    const have = ownedCount(ing.id);
+                    const need = ing.amount || 0;
+                    return { id: ing.id, need, have, unit: ingredientUnit(ing.id).price || 0 };
+                });
+                if (!lines.some(l => l.have > 0)) return null;
+                const sale = saneSale(id);
+                const outPerCraft = (craft.craftAmount || 1) * (sale.price || 0);
+                const runs = Math.min(...lines.map(l => l.need > 0 ? Math.floor(l.have / l.need + 1e-9) : Infinity));
+                const priced = lines.every(l => l.unit > 0) && sale.price > 0;
+                const ownedValue = lines.reduce((sum, l) => sum + Math.min(l.have, l.need) * l.unit, 0);
+                const missingCost = lines.reduce((sum, l) => sum + Math.max(0, l.need - l.have) * l.unit, 0);
+                return {
+                    id,
+                    name: craft.name,
+                    icon: craft.icon,
+                    runs: Number.isFinite(runs) ? runs : 0,
+                    priced,
+                    readyGain: runs > 0 ? runs * (outPerCraft - lines.reduce((sum, l) => sum + l.need * l.unit, 0)) : 0,
+                    topUpGain: outPerCraft - missingCost - ownedValue,
+                    missingCost,
+                    coverage: ownedValue + missingCost > 0 ? ownedValue / (ownedValue + missingCost) : 0,
+                    missing: lines.filter(l => l.have < l.need).map(l => ({ id: l.id, left: l.need - l.have })),
+                    stale: sale.stale,
+                    unsold: !(soldOut(id) > 0),
+                    gap: craftStationGap(id)
+                };
+            }).filter(Boolean);
+        }
+        function invOptionTags(o) {
+            return [
+                o.gap.length ? `<span class="red">нет пристройки: ${o.gap.map(s => escapeHtml(stationName(s))).join(', ')}</span>` : '',
+                o.unsold ? '<span class="warn">выход почти не продаётся</span>' : '',
+                o.stale ? '<span class="warn">цена давно не обновлялась</span>' : ''
+            ].filter(Boolean).join(' · ');
+        }
+        function renderInvAdvice() {
+            const owned = [...backpack.entries()].filter(([, n]) => n > 0);
+            if (!owned.length) {
+                els.invAdvice.innerHTML = `<section class="night-card bag-box"><h2>Что можно сделать</h2>
+                    <p class="night-hint">Отметь, что лежит в инвентаре: нажми на иконку слева и впиши количество. Здесь появится, что из этого собрать, что докупить и что выгоднее продать.</p></section>`;
+                return;
+            }
+            const worth = owned.reduce((acc, [id, n]) => {
+                const sale = saneSale(id);
+                if (!(sale.price > 0)) return { ...acc, unpriced: acc.unpriced + 1 };
+                return sale.stale ? { ...acc, stale: acc.stale + sale.price * n } : { ...acc, fresh: acc.fresh + sale.price * n };
+            }, { fresh: 0, stale: 0, unpriced: 0 });
+            const options = inventoryOptions();
+            const ready = options.filter(o => o.runs > 0 && o.priced).sort((a, b) => b.readyGain - a.readyGain).slice(0, 8);
+            const topUp = options.filter(o => o.runs === 0 && o.priced && o.topUpGain > 0 && !o.unsold && o.coverage >= 0.2)
+                .sort((a, b) => b.topUpGain - a.topUpGain).slice(0, 8);
+            const usefulIds = new Set([...ready.filter(o => o.readyGain > 0), ...topUp].flatMap(o => {
+                const craft = resolveNode(o.id);
+                return (craft.ingredients || []).map(ing => ing.id);
+            }));
+            const sellRaw = owned.filter(([id]) => !usefulIds.has(id))
+                .map(([id, n]) => ({ id, n, sale: saneSale(id) }))
+                .filter(row => row.sale.price > 0)
+                .sort((a, b) => b.sale.price * b.n - a.sale.price * a.n).slice(0, 8);
+            const icon = (src) => src ? `<img src="${resolveIcon(src)}" alt="" draggable="false">` : '';
+            const readyHtml = ready.length
+                ? ready.map(o => `<div class="inv-row" data-inv-craft="${escapeHtml(o.id)}">${icon(o.icon)}<div class="night-main">
+                    <div class="night-name">${escapeHtml(o.name)} ×${o.runs}</div>
+                    <div class="night-sub">${o.readyGain > 0 ? `выгоднее, чем продать сырьё, на <b class="green">${money(o.readyGain)}</b>` : `сырьём продать выгоднее на ${money(-o.readyGain)}`}${invOptionTags(o) ? ' · ' + invOptionTags(o) : ''}</div>
+                  </div></div>`).join('')
+                : '<p class="night-hint">Ни один рецепт целиком из инвентаря не собирается.</p>';
+            const topUpHtml = topUp.length
+                ? topUp.map(o => `<div class="inv-row" data-inv-craft="${escapeHtml(o.id)}">${icon(o.icon)}<div class="night-main">
+                    <div class="night-name">${escapeHtml(o.name)} <span class="night-sub">· есть ${Math.round(o.coverage * 100)}%</span></div>
+                    <div class="night-sub">докупить ${o.missing.slice(0, 3).map(m => `${escapeHtml(humanName(m.id))} ×${fmtQty(m.left)}`).join(', ')}${o.missing.length > 3 ? '…' : ''} на ${money(o.missingCost)} · сверху <b class="green">${money(o.topUpGain)}</b>${invOptionTags(o) ? ' · ' + invOptionTags(o) : ''}</div>
+                  </div></div>`).join('')
+                : '<p class="night-hint">Нет выгодных рецептов, где хотя бы пятая часть сырья уже есть.</p>';
+            const sellHtml = sellRaw.length
+                ? sellRaw.map(row => `<div class="inv-row" data-inv-item="${escapeHtml(row.id)}">${nightIcon(humanIcon(row.id))}<div class="night-main">
+                    <div class="night-name">${escapeHtml(humanName(row.id))} ×${row.n.toLocaleString('ru-RU')}</div>
+                    <div class="night-sub">≈ ${money(row.sale.price * row.n)} · ${money(row.sale.price)} за шт${row.sale.stale ? ' · <span class="warn">давно не продавалось</span>' : ''}</div>
+                  </div></div>`).join('')
+                : '<p class="night-hint">Всё отмеченное лучше пустить в крафт.</p>';
+            els.invAdvice.innerHTML = `
+                <section class="night-card bag-box plan-card">
+                    <h2>Стоимость</h2>
+                    <div class="inv-total"><span class="night-sub">${ruCount(owned.length, 'позиция', 'позиции', 'позиций')} · ${ruPieces(owned.reduce((s, [, n]) => s + n, 0))}</span><b>${money(worth.fresh)}</b></div>
+                    <p class="night-hint">${worth.stale > 0 ? `Ещё ${money(worth.stale)} по старым ценам. ` : ''}${worth.unpriced ? `${worth.unpriced} без цены.` : ''}</p>
+                </section>
+                <section class="night-card bag-box"><h2>Собрать сейчас</h2><p class="night-hint">Рецепт целиком из инвентаря. Выгода — против продажи этого же сырья.</p>${readyHtml}</section>
+                <section class="night-card bag-box"><h2>Докупить немного</h2><p class="night-hint">Часть сырья уже есть, остальное купить. «Сверху» — прибыль после закупки, если бы своё сырьё продал.</p>${topUpHtml}</section>
+                <section class="night-card bag-box"><h2>Лучше продать</h2><p class="night-hint">Отмеченное, что не пригодилось в выгодных рецептах выше.</p>${sellHtml}</section>`;
+        }
+        function renderInventory() {
+            if (!shelter.recipes.length) {
+                els.invGrid.innerHTML = '<div class="night-sub inv-section">Загрузка рецептов…</div>';
+                return;
+            }
+            renderInvGrid();
+            renderInvAdvice();
+        }
+        function openInvEditor(id) {
+            invPick = id;
+            const sale = saneSale(id);
+            const icon = humanIcon(id);
+            document.getElementById('invEditorIcon').innerHTML = icon ? `<img src="${icon}" alt="">` : '';
+            document.getElementById('invEditorName').textContent = humanName(id);
+            document.getElementById('invEditorPrice').textContent = sale.price > 0
+                ? `≈ ${money(sale.price)} за шт${sale.stale ? ' · цена старая' : ''} · продано за 14д: ${(saleStats(id).sold14 || 0).toLocaleString('ru-RU')}`
+                : 'Цены на рынке нет';
+            els.invQty.value = ownedCount(id) || '';
+            els.invEditor.hidden = false;
+            els.invQty.focus();
+            els.invQty.select();
+            renderInvGrid();
+        }
+        function closeInvEditor() {
+            if (!els.invEditor || els.invEditor.hidden) return;
+            els.invEditor.hidden = true;
+            invPick = '';
+            if (document.getElementById('tab-inventory').style.display !== 'none') renderInvGrid();
+        }
+        function commitInv(count) {
+            if (!invPick) return;
+            setOwned(invPick, count);
+            saveBackpack();
+            closeInvEditor();
+            refreshOwnedViews();
+            renderInventory();
+        }
+
         function setupInfiniteScroll() {
             if (observer) observer.disconnect();
             observer = new IntersectionObserver(entries => {
@@ -3704,6 +4025,60 @@
         });
 
         els.craftSkillSelect.addEventListener('change', renderCraftList);
+        els.invGrid.addEventListener('click', (e) => {
+            const tile = e.target.closest('[data-inv-id]');
+            if (tile) openInvEditor(tile.dataset.invId);
+        });
+        els.invRoles.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-inv-role]');
+            if (!chip) return;
+            invRole = chip.dataset.invRole;
+            renderInvGrid();
+        });
+        let invSearchTimer = null;
+        els.invSearch.addEventListener('input', () => {
+            clearTimeout(invSearchTimer);
+            invSearchTimer = setTimeout(renderInvGrid, 150);
+        });
+        els.invEditor.addEventListener('click', (e) => {
+            const step = e.target.closest('[data-inv-step]');
+            if (step) {
+                const next = Math.max(0, (Math.floor(Number(els.invQty.value)) || 0) + Number(step.dataset.invStep));
+                els.invQty.value = next || '';
+                return;
+            }
+            if (e.target.closest('#invSave')) commitInv(els.invQty.value);
+            else if (e.target.closest('#invRemove')) commitInv(0);
+        });
+        els.invQty.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') commitInv(els.invQty.value);
+            else if (e.key === 'Escape') closeInvEditor();
+        });
+        els.invQty.addEventListener('input', () => {
+            els.invQty.value = els.invQty.value.replace(/[^\d]/g, '');
+        });
+        els.invClearBtn.addEventListener('click', () => {
+            if (!backpack.size || !confirm('Убрать все предметы из инвентаря?')) return;
+            backpack = new Map();
+            saveBackpack();
+            closeInvEditor();
+            refreshOwnedViews();
+            renderInventory();
+        });
+        els.invAdvice.addEventListener('click', (e) => {
+            const craft = e.target.closest('[data-inv-craft]');
+            if (craft) { openCraftModal(craft.dataset.invCraft); return; }
+            const item = e.target.closest('[data-inv-item]');
+            if (item) openModal(item.dataset.invItem);
+        });
+        els.craftRail.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-rail-target]');
+            if (!btn) return;
+            const select = els[btn.dataset.railTarget];
+            select.value = btn.dataset.value;
+            if (btn.dataset.railTarget === 'craftSkillSelect') els.craftLevelSelect.value = '';
+            renderCraftList();
+        });
         els.craftProfitFilter.addEventListener('change', renderCraftList);
         els.craftLevelSelect.addEventListener('change', renderCraftList);
         els.craftSortSelect.addEventListener('change', renderCraftList);
