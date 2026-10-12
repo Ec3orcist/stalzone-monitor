@@ -364,6 +364,11 @@
                     <div id="farmList"></div>
                 </section>
             </div>
+            <details class="night-fold" id="sharedFold">
+                <summary>Одно сырьё</summary>
+                <p class="night-hint">Входит сразу в несколько плюсовых рецептов. Один поход закрывает много крафта.</p>
+                <div id="sharedList"></div>
+            </details>
             <details class="night-fold" id="outingFold">
                 <summary>На выход</summary>
                 <p class="night-hint">Патроны, еда и медикаменты дешевле недавней средней. Дороже бюджета не показываю.</p>
@@ -838,6 +843,16 @@
             const source = outlier ? 'sale' : (node.price_source || 'none');
             return { price, source, stale: source !== 'lot' && saleIsStale(id) };
         }
+        function ingredientUnit(id) {
+            const sane = saneSale(id);
+            const node = resolveNode(id);
+            const quoted = node.sell_price || 0;
+            const typical = typicalSale(id);
+            const absurd = quoted > 0 && typical > 0 && (typical / quoted > 4 || typical / quoted < 0.25);
+            const quotedLot = absurd && quote(id).source === 'lot';
+            if (!(sane.price > 0)) return { price: 0, stale: Boolean(sane.stale), absurd: false, quoted, quotedLot: false, source: sane.source };
+            return { price: sane.price, stale: sane.stale, absurd, quoted, quotedLot, source: sane.source };
+        }
         function renderBagWorth() {
             if (!els.bagWorth) return;
             if (!backpack.size) {
@@ -876,8 +891,7 @@
                     let rest = 0;
                     (craft.ingredients || []).forEach(ing => {
                         const qty = (ing.amount || 0) / per;
-                        const node = resolveNode(ing.id);
-                        const unit = node.sell_price || 0;
+                        const unit = ingredientUnit(ing.id).price || 0;
                         rest += bagTake(ing.id, qty * runs, unit).rest;
                     });
                     bestExtra = extra;
@@ -991,6 +1005,7 @@
             bottlenecks: document.getElementById('bottlenecks'),
             budgetInput: document.getElementById('budgetInput'),
             benchList: document.getElementById('benchList'),
+            sharedList: document.getElementById('sharedList'),
             bagReady: document.getElementById('bagReady'),
             trapList: document.getElementById('trapList'),
             outingList: document.getElementById('outingList'),
@@ -1472,7 +1487,8 @@
                     const nested = craftsData[ing.id];
                     if (nested && Array.isArray(nested.ingredients) && nested.ingredients.length) return;
                     const node = resolveNode(ing.id);
-                    const unit = node.sell_price || 0;
+                    const priced = ingredientUnit(ing.id);
+                    const unit = priced.price || 0;
                     const qty = (ing.amount || 0) / per;
                     if (!(unit > 0) || !(qty > 0) || node.name === node.id) return;
                     const line = unit * qty;
@@ -1669,14 +1685,19 @@
             const lines = (craft.ingredients || []).map(ing => {
                 const node = resolveNode(ing.id);
                 const need = (ing.amount || 0) * count;
-                const unit = node.sell_price || 0;
+                const priced = ingredientUnit(node.id);
+                const unit = priced.price || 0;
                 return {
                     id: node.id,
                     name: node.name,
                     icon: node.icon,
                     need,
                     unit,
-                    source: node.price_source,
+                    source: priced.source,
+                    absurd: priced.absurd,
+                    quoted: priced.quoted,
+                    quotedLot: priced.quotedLot,
+                    stale: priced.stale,
                     take: bagTake(node.id, need, unit)
                 };
             }).filter(row => row.name && row.name !== row.id);
@@ -1707,12 +1728,13 @@
                 const farm = row.unit > 0 && share >= 0.18;
                 const tag = !(row.unit > 0) ? 'нет цены' : (farm ? 'фармить' : 'купить');
                 const tagClass = farm ? '' : ' buy';
-                const stale = row.source === 'sale' && saleIsStale(row.id) ? ' · давно не продавалось' : '';
+                const stale = row.stale ? ' · цена старая' : (row.source === 'sale' && saleIsStale(row.id) ? ' · давно не продавалось' : '');
+                const absurd = row.absurd ? ` · ${row.quotedLot ? 'лот' : 'продажа'} ${money(row.quoted)} не берём` : '';
                 return `<div class="night-row" data-open-item="${escapeHtml(row.id)}">
                     ${nightIcon(row.icon)}
                     <div class="night-main">
                         <div class="night-name">${escapeHtml(row.name)}<span class="night-tag${tagClass}">${tag}</span></div>
-                        <div class="night-sub">ещё ${fmtQty(row.take.left)} из ${fmtQty(row.need)} · ${row.unit ? money(row.take.rest) : 'нет цены'}${stale}</div>
+                        <div class="night-sub">ещё ${fmtQty(row.take.left)} из ${fmtQty(row.need)} · ${row.unit ? money(row.take.rest) : 'нет цены'}${stale}${absurd}</div>
                     </div>
                 </div>`;
             }).join('');
@@ -1749,10 +1771,11 @@
             const parts = (craft.ingredients || []).map(ing => {
                 const node = resolveNode(ing.id);
                 const qty = (ing.amount || 0) / per;
-                const unit = node.sell_price || 0;
+                const priced = ingredientUnit(node.id);
+                const unit = priced.price || 0;
                 const line = unit * qty;
                 const share = econ.buy.cost > 0 ? line / econ.buy.cost : 0;
-                return { id: node.id, name: node.name, icon: node.icon, qty, unit, line, share, source: node.price_source };
+                return { id: node.id, name: node.name, icon: node.icon, qty, unit, line, share, source: priced.source, absurd: priced.absurd, stale: priced.stale };
             }).filter(part => part.name && part.name !== part.id).sort((a, b) => b.line - a.line)
                 .map(part => ({ ...part, take: bagTake(part.id, part.qty, part.unit) }));
             const ownedCost = parts.reduce((sum, part) => sum + part.take.covered, 0);
@@ -1966,7 +1989,41 @@
                 sellFarms.length ? `<div class="night-sub" style="padding-top:8px">Продать как есть</div>${sellFarms.map(farmRow).join('')}` : ''
             ].join('');
             els.farmList.innerHTML = blocks || '<div class="night-sub">Нет сырья, которое одновременно нужно выгодным крафтам.</div>';
+            renderShared(plan);
             renderBenches();
+        }
+        function renderShared(plan) {
+            if (!els.sharedList) return;
+            const rows = plan.materials.map(row => {
+                const quoted = resolveNode(row.id).sell_price || 0;
+                const typical = typicalSale(row.id);
+                const absurd = quoted > 0 && typical > 0 && (typical / quoted > 4 || typical / quoted < 0.25);
+                const sane = saneSale(row.id);
+                if (absurd || sane.stale || !(sane.price > 0)) return null;
+                const seen = new Map();
+                row.crafts.forEach(craft => {
+                    if (!(craft.profitBuy > 0) || craft.missing) return;
+                    const econ = craftEconomics(resolveNode(craft.id));
+                    if (econ.sellSource === 'sale' && saleIsStale(craft.id)) return;
+                    const prev = seen.get(craft.id);
+                    if (!prev || craft.profitBuy > prev.profitBuy) seen.set(craft.id, craft);
+                });
+                if (seen.size < 2) return null;
+                const best = [...seen.values()].sort((a, b) => b.profitBuy - a.profitBuy)[0];
+                return { id: row.id, name: row.name, icon: row.icon, count: seen.size, best };
+            }).filter(Boolean)
+                .sort((a, b) => b.count - a.count || b.best.profitBuy - a.best.profitBuy)
+                .slice(0, 5);
+            els.sharedList.innerHTML = rows.length
+                ? rows.map(row => `<div class="night-row" data-open-item="${escapeHtml(row.id)}">
+                    ${nightIcon(row.icon)}
+                    <div class="night-main">
+                        <div class="night-name">${escapeHtml(row.name)}</div>
+                        <div class="night-sub">${row.count.toLocaleString('ru-RU')} плюсовых · лучший «${escapeHtml(row.best.name)}» · ${Math.round(row.best.share * 100)}% себестоимости</div>
+                    </div>
+                    <div class="night-side green">${row.count}</div>
+                </div>`).join('')
+                : '<div class="night-sub">Нет сырья, которое нужно сразу нескольким плюсовым рецептам.</div>';
         }
         function renderBenches() {
             const groups = new Map();
@@ -2201,12 +2258,17 @@
             const canCraft = resolved.craftable && ings.length > 0 && resolved.id && !seen.has(resolved.id);
 
             if (!canCraft) {
+                const priced = ingredientUnit(resolved.id);
                 if (!flat.has(resolved.id)) {
                     flat.set(resolved.id, {
                         id: resolved.id, name: resolved.name, icon: resolved.icon,
                         quantity: 0,
-                        unit_price: resolved.sell_price || 0,
-                        price_source: resolved.price_source || 'none',
+                        unit_price: priced.price,
+                        price_source: priced.source || 'none',
+                        absurd: priced.absurd,
+                        quoted: priced.quoted,
+                        quotedLot: priced.quotedLot,
+                        stale: priced.stale,
                         total_cost: 0
                     });
                 }
@@ -2231,7 +2293,7 @@
                     excess.set(resolved.id, {
                         id: resolved.id, name: resolved.name, icon: resolved.icon,
                         quantity: 0,
-                        unit_price: resolved.sell_price || 0
+                        unit_price: ingredientUnit(resolved.id).price
                     });
                 }
                 const ex = excess.get(resolved.id);
@@ -2278,7 +2340,7 @@
                 const priceText = take.full
                     ? '<span style="color:#8b7da3">уже есть</span>'
                     : (hasPrice
-                        ? `${Math.round(item.unit_price).toLocaleString('ru-RU')} ₽${item.price_source === 'sale' ? ' <span style="color:#8b7da3;font-size:11px;">продажа</span>' : ''}`
+                        ? `${Math.round(item.unit_price).toLocaleString('ru-RU')} ₽${item.price_source === 'sale' && !item.absurd ? ' <span style="color:#8b7da3;font-size:11px;">продажа</span>' : ''}${item.stale ? ' <span class="warn">цена старая</span>' : ''}${item.absurd ? ` <span class="warn">${item.quotedLot ? 'лот' : 'продажа'} ${Math.round(item.quoted).toLocaleString('ru-RU')} ₽ не берём</span>` : ''}`
                         : '<span class="no-price">—</span>');
                 const costText = take.full ? 'есть' : (hasPrice ? `${Math.round(take.rest).toLocaleString('ru-RU')} ₽` : '—');
                 const iconHtml = item.icon
@@ -2410,15 +2472,19 @@
             return (craft.ingredients || []).map(ing => {
                 const node = resolveNode(ing);
                 const quantity = (ing.amount || 0) * craftsNeeded;
-                const unit = node.sell_price || 0;
+                const priced = ingredientUnit(node.id);
                 return {
                     id: node.id,
                     name: node.name,
                     icon: node.icon,
                     quantity,
-                    unit_price: unit,
-                    price_source: node.price_source || 'none',
-                    total_cost: unit * quantity
+                    unit_price: priced.price,
+                    price_source: priced.source || 'none',
+                    absurd: priced.absurd,
+                    quoted: priced.quoted,
+                    quotedLot: priced.quotedLot,
+                    stale: priced.stale,
+                    total_cost: priced.price * quantity
                 };
             });
         }
@@ -2447,7 +2513,7 @@
             let cost = 0;
             let missing = 0;
             (craft.ingredients || []).forEach(ing => {
-                const price = resolveNode(ing).sell_price || 0;
+                const price = ingredientUnit(ing.id || ing).price || 0;
                 if (price > 0) cost += price * (ing.amount || 0) * craftsNeeded;
                 else missing += 1;
             });
