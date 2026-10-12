@@ -2,9 +2,17 @@ name: Update Auction Data
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '3,18,33,48 * * * *'
     - cron: '17 3 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update.yml'
+      - 'fetch_prices.py'
+
+permissions:
+  contents: write
 
 concurrency:
   group: stalzone-update
@@ -16,6 +24,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -39,7 +49,22 @@ jobs:
         run: python fetch_prices.py
 
       - name: Commit and push
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Auto-update prices, crafts & sales"
-          file_pattern: "prices.json crafts.json active_items.json sales_history.json sale_clock.json items.json"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- prices.json crafts.json active_items.json sales_history.json sale_clock.json items.json
+          if git diff --cached --quiet; then
+            echo "No price changes"
+            exit 0
+          fi
+          git commit -m "Auto-update prices, crafts & sales"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if git rebase --onto origin/main HEAD~1 HEAD && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort || true
+            echo "Push rejected, retry ${attempt}"
+            sleep 5
+          done
+          exit 1
