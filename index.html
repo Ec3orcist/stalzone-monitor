@@ -1801,7 +1801,7 @@
                             ? `для «${pick.name}» уже хватает`
                             : `для «${pick.name}» · в рюкзаке ${fmtQty(part.have)} из ${fmtQty(part.qty * pick.runs)}`)
                         : (row.best
-                            ? `в ${row.profitable.length} выгодных · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
+                            ? `в ${row.profitable.length} ${row.profitable.length % 10 === 1 && row.profitable.length % 100 !== 11 ? 'выгодном' : 'выгодных'} · до ${Math.round(row.best.share * 100)}% себестоимости «${row.best.name}»`
                             : `продаётся само · ${row.sold14.toLocaleString('ru-RU')} шт за 14д`)));
             const stock = row.listed ? `лотов ${row.lots.toLocaleString('ru-RU')}` : 'лотов нет';
             const tight = row.listed && row.scarce ? ' · запас < 2 дней' : '';
