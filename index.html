@@ -1644,22 +1644,32 @@
             const count = Number(item && item.total_amount);
             return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
         }
+        function salePace(sold14) {
+            const sold = Number(sold14) || 0;
+            if (!(sold > 0)) return 0;
+            return Math.max(1, sold / 14);
+        }
         function flipTicket(row) {
             const item = row.item;
             const listed = listedAmount(item);
             const price = item.price || 0;
             const avg = item.avg || 0;
-            const daily = Math.ceil((item.sold14 || 0) / 14);
-            const full = avg > price && price > 0 ? Math.max(daily, 1) : 0;
+            const pace = salePace(item.sold14);
+            const full = avg > price && price > 0 ? Math.max(Math.ceil(pace), 1) : 0;
             const stack = Math.min(full, listed);
             const need = stack > 0 && avg > 0 ? Math.min(stack, Math.ceil((price * stack) / avg)) : 0;
+            const days = pace > 0 && need > pace ? Math.ceil(need / pace) : (need > 0 ? 1 : 0);
+            const today = pace > 0 ? Math.min(stack, pace) : 0;
+            const extraUnits = days > 1 ? 0 : Math.max(0, today - need);
             return {
                 stack,
                 need,
                 listed,
                 full,
+                pace,
+                days,
                 partial: full > listed && listed > 0,
-                extra: Math.max(0, stack - need) * (avg - price)
+                extra: extraUnits * (avg - price)
             };
         }
         function buySpend(row) {
@@ -1685,6 +1695,11 @@
             if (!ticket.partial) return `купить ${ruPieces(ticket.stack)}`;
             return `на аукционе только ${ruPieces(ticket.listed)}, окупается частично`;
         }
+        function resaleNote(ticket) {
+            if (!(ticket.need > 0) || !(ticket.pace > 0)) return '';
+            if (ticket.days > 1) return `за день около ${ruPieces(ticket.pace)}, деньги вернутся за ${ruCount(ticket.days, 'день', 'дня', 'дней')}`;
+            return `окупят ${ruPieces(ticket.need)}`;
+        }
         function flipRow(row) {
             const item = row.item;
             const ticket = flipTicket(row);
@@ -1694,7 +1709,7 @@
                 ${nightIcon(item.icon)}
                 <div class="night-main">
                     <div class="night-name">${escapeHtml(item.name)}</div>
-                    <div class="night-sub">${buyQtyNote(ticket)} · лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${ruPieces(item.sold14)} за 14д${falling}</div>
+                    <div class="night-sub">${buyQtyNote(ticket)} · ${resaleNote(ticket)} · лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${ruPieces(item.sold14)} за 14д${falling}</div>
                 </div>
                 <div class="night-side green">${row.dev.toFixed(0)}%</div>
             </div>`;
@@ -2033,9 +2048,12 @@
             const flips = affordableFlips(plan).slice(0, 3).map(row => {
                 const ticket = flipTicket(row);
                 const partial = ticket.partial ? ` На аукционе только ${ruPieces(ticket.listed)}, окупается не вся пачка.` : '';
+                const payback = ticket.days > 1
+                    ? ` За день уходит около ${ruPieces(ticket.pace)}. Деньги вернутся за ${ruCount(ticket.days, 'день', 'дня', 'дней')}.`
+                    : ` Затраты вернутся, если продать ${ruPieces(ticket.need)} по средней ${money(row.item.avg)}.`;
                 return {
                     open: row.item.id,
-                    text: `Купить ${ruPieces(ticket.stack)} «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(ticket.stack * row.item.price)}. Затраты вернутся, если продать ${ruPieces(ticket.need)} по средней ${money(row.item.avg)}.${partial}${priceIsFalling(row.item) ? ' Ещё падает.' : ''}`
+                    text: `Купить ${ruPieces(ticket.stack)} «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(ticket.stack * row.item.price)}.${payback}${partial}${priceIsFalling(row.item) ? ' Ещё падает.' : ''}`
                 };
             });
             const farms = plan.farms
