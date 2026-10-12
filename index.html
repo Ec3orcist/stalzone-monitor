@@ -1428,14 +1428,18 @@
             if (bestCraft) return craftPathHtml(bestCraft);
             return '<section class="night-card loot-box"><p class="night-hint">Такого предмета в ценах и рецептах нет.</p></section>';
         }
+        function flipTicket(row) {
+            const daily = Math.max(1, Math.ceil(row.item.sold14 / 14));
+            const stack = Math.max(1, Math.min(row.item.total_amount || 1, daily));
+            const need = Math.max(1, Math.ceil((row.item.price * stack) / row.item.avg));
+            return { stack, need, extra: Math.max(0, stack - need) * (row.item.avg - row.item.price) };
+        }
         function eveningActions(plan) {
             const flips = plan.flips.slice(0, 3).map(row => {
-                const daily = Math.max(1, Math.ceil(row.item.sold14 / 14));
-                const stack = Math.max(1, Math.min(row.item.total_amount || 1, daily));
-                const need = Math.max(1, Math.ceil((row.item.price * stack) / row.item.avg));
+                const ticket = flipTicket(row);
                 return {
                     open: row.item.id,
-                    text: `Купить ${stack.toLocaleString('ru-RU')} шт «${row.item.name}» по ${money(row.item.price)}. Затраты вернутся, если продать ${need.toLocaleString('ru-RU')} шт по средней ${money(row.item.avg)}.`
+                    text: `Купить ${ticket.stack.toLocaleString('ru-RU')} шт «${row.item.name}» по ${money(row.item.price)}. Затраты вернутся, если продать ${ticket.need.toLocaleString('ru-RU')} шт по средней ${money(row.item.avg)}.`
                 };
             });
             const farms = plan.farms
@@ -1493,7 +1497,10 @@
                         ? ` data-open-item="${escapeHtml(action.open)}"`
                         : ` data-loot="${escapeHtml(action.loot)}"`;
                     return `<div class="night-row plan-row"${attr}><div class="night-main"><div class="night-name">${escapeHtml(action.text)}</div></div></div>`;
-                }).join('')
+                }).join('') + (() => {
+                    const extra = plan.flips.slice(0, 3).reduce((sum, row) => sum + flipTicket(row).extra, 0);
+                    return extra > 0 ? `<div class="night-sub">Если продать лишние штуки скупки по средней, сверху около ${money(extra)}.</div>` : '';
+                })()
                 : '<div class="night-sub">Сейчас нет короткого плана.</div>';
         }
         function renderTonight() {
