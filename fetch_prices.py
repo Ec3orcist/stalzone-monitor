@@ -320,10 +320,13 @@ def parse_sales(raw_entries):
             amount = int(amount)
         except (TypeError, ValueError):
             continue
+        if amount <= 0 or price <= 0:
+            continue
+        unit = round(price / amount)
         bucket = days.setdefault(day, {"prices": [], "total_amount": 0, "total_sum": 0})
-        bucket["prices"].append(price)
+        bucket["prices"].append(unit)
         bucket["total_amount"] += amount
-        bucket["total_sum"] += price * amount
+        bucket["total_sum"] += price
 
     result = [
         {
