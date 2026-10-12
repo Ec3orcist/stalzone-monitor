@@ -893,8 +893,14 @@
                 ? `<span>Продать <b>${money(sell)}</b></span>`
                 : '<span>Свежей цены продажи нет.</span>';
             const staleBit = staleValue > 0 ? `<span class="warn">Цена старая: <b>${money(staleValue)}</b></span>` : '';
+            const budget = readBudget();
+            const budgetBit = bestExtra > 0 && budget !== null && bestRest > 0
+                ? (bestRest <= budget
+                    ? ' Докупка влезает в бюджет.'
+                    : ` До бюджета не хватает ${money(bestRest - budget)}.`)
+                : '';
             const craftBit = bestExtra > 0
-                ? `<span>В «${escapeHtml(bestName)}» выгоднее ещё на <b class="green">${money(bestExtra)}</b>, если докупить остальное на ${money(bestRest)}.</span>`
+                ? `<span>В «${escapeHtml(bestName)}» выгоднее ещё на <b class="green">${money(bestExtra)}</b>, если докупить остальное на ${money(bestRest)}.${budgetBit}</span>`
                 : (sell > 0 ? '<span>Сырьём выгоднее продать.</span>' : '');
             els.bagWorth.innerHTML = `<div class="bag-worth">${saleBit}${staleBit}${craftBit}</div>`;
         }
