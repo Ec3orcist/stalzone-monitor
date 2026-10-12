@@ -20,6 +20,7 @@ DATA_FILE = Path("prices.json")
 RECIPES_FILE = Path("recipes.json")
 ACTIVE_ITEMS_FILE = Path("active_items.json")
 SALES_FILE = Path("sales_history.json")
+CLOCK_FILE = Path("sale_clock.json")
 CRAFTS_FILE = Path("crafts.json")
 ITEMS_FILE = Path("items.json")
 
@@ -35,6 +36,9 @@ MAX_LOTS_PER_ITEM = 10
 MIN_REQUEST_INTERVAL = 1.05
 REQUEST_TIMEOUT = 15
 RETRIES = 3
+
+MSK = timezone(timedelta(hours=3))
+CLOCK_SLOTS = 8
 
 UNTRADABLE_STATES = frozenset({
     "PERSONAL",
@@ -304,6 +308,35 @@ def fetch_lots(api, item_id):
     return item_id, processed
 
 
+def clock_from_entries(raw_entries):
+    slots = [{"a": 0, "sum": 0} for _ in range(CLOCK_SLOTS)]
+    for entry in raw_entries:
+        if not isinstance(entry, dict):
+            continue
+        stamp = entry.get("time") or entry.get("timestamp") or ""
+        price = entry.get("price") or entry.get("buyoutPrice")
+        amount = entry.get("amount") or 1
+        if not stamp or not price:
+            continue
+        try:
+            dt = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+            price = int(price)
+            amount = int(amount)
+        except (TypeError, ValueError):
+            continue
+        if amount <= 0 or price <= 0:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        slot = dt.astimezone(MSK).hour // 3
+        slots[slot]["a"] += amount
+        slots[slot]["sum"] += price
+    return [
+        {"a": slot["a"], "p": round(slot["sum"] / slot["a"]) if slot["a"] else 0}
+        for slot in slots
+    ]
+
+
 def parse_sales(raw_entries):
     days = {}
     for entry in raw_entries:
@@ -360,7 +393,7 @@ def fetch_sales(api, item_id):
             break
         if len(prices) < SALES_PAGE_SIZE:
             break
-    return item_id, parse_sales(collected)
+    return item_id, parse_sales(collected), clock_from_entries(collected)
 
 
 def sales_needs_refresh(sales):
@@ -654,6 +687,16 @@ def update_prices(api, items, history):
     return history
 
 
+def save_clock(clock):
+    body = {key: value for key, value in clock.items() if not str(key).startswith("_")}
+    save_json(CLOCK_FILE, {
+        "_updated_at": utc_now().isoformat(),
+        "_tz": "MSK",
+        "_slot": 3,
+        **body,
+    })
+
+
 def update_sales(api, item_ids, previous):
     if not sales_needs_refresh(previous):
         print(f"💤 История продаж свежая (< {SALES_REFRESH_HOURS} ч)")
@@ -665,19 +708,24 @@ def update_sales(api, item_ids, previous):
         for key, value in previous.items()
         if key != "_updated_at"
     }
+    clock = load_json(CLOCK_FILE, {})
+    if not isinstance(clock, dict):
+        clock = {}
     got = empty = 0
-    for item_id, entries in run_pool(
+    for item_id, entries, slots in run_pool(
         item_ids,
         lambda item_id: fetch_sales(api, item_id),
         "продажи",
     ):
         if entries:
             sales[item_id] = entries
+            clock[item_id] = slots
             got += 1
         else:
             empty += 1
     sales["_updated_at"] = utc_now().isoformat()
     save_json(SALES_FILE, sales)
+    save_clock(clock)
     size_kb = SALES_FILE.stat().st_size / 1024
     print(f"✅ Продажи: {got} с данными, {empty} пусто ({size_kb:.0f} КБ)")
     return sales

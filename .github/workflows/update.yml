@@ -38,4 +38,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Auto-update prices, crafts & sales"
-          file_pattern: "prices.json crafts.json active_items.json sales_history.json items.json"
+          file_pattern: "prices.json crafts.json active_items.json sales_history.json sale_clock.json items.json"

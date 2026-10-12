@@ -112,6 +112,15 @@
         .green { color: var(--accent-2) !important; }
         .red { color: var(--danger) !important; }
         .chart-container { background: rgba(18,14,29,.9); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--edge); }
+        .when { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+        .when-card { background: rgba(18,14,29,.9); border: 1px solid var(--edge); border-radius: 10px; padding: 12px; }
+        .when-card h3 { margin: 0 0 4px; font-family: var(--hud); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+        .when-bars { display: flex; align-items: flex-end; gap: 4px; height: 78px; margin-top: 8px; }
+        .when-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+        .when-bar { width: 100%; border-radius: 3px 3px 0 0; background: #6d4ad4; min-height: 3px; }
+        .when-bar.cheap { background: var(--accent-2); }
+        .when-bar.rich { background: var(--danger); }
+        .when-lab { font-family: var(--mono); font-size: 10px; color: var(--muted); }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--line); }
         th { color: var(--accent); font-weight: 700; font-size: 13px; }
@@ -451,6 +460,7 @@
             .tab { flex: 1 0 auto; }
             .items-grid { grid-template-columns: 1fr; }
             .night-grid { grid-template-columns: 1fr; }
+            .when { grid-template-columns: 1fr; }
             .controls select, .controls input, #refreshBtn { flex: 1 1 100%; max-width: 100%; min-width: 0; min-height: 40px; }
             .modal-overlay { padding: 8px; }
             .modal { padding: 16px 12px; }
@@ -758,6 +768,7 @@
         let catalogData = {};
         let craftsData = {};
         let salesData = {};
+        let clockData = {};
         let itemIndex = {};
         let itemsCache = [];
         let favorites = [];
@@ -1488,14 +1499,16 @@
 
         async function loadSecondary(force) {
             try {
-                const [crafts, sales, recipes, catalog] = await Promise.all([
+                const [crafts, sales, recipes, catalog, clock] = await Promise.all([
                     fetchJson('crafts.json', force).catch(() => ({})),
                     fetchJson('sales_history.json', force).catch(() => ({})),
                     fetchJson('recipes.json', force).catch(() => ({})),
-                    fetchJson('items.json', force).catch(() => ({}))
+                    fetchJson('items.json', force).catch(() => ({})),
+                    fetchJson('sale_clock.json', force).catch(() => ({}))
                 ]);
                 craftsData = crafts;
                 salesData = sales;
+                clockData = clock && typeof clock === 'object' ? clock : {};
                 catalogData = catalog && typeof catalog === 'object' && !Array.isArray(catalog) ? catalog : {};
                 ingestCatalog();
                 ingestCrafts();
@@ -1757,6 +1770,74 @@
             const more = used.length > 6 ? `<div class="used-more">ещё ${ruCount(used.length - 6, 'крафт', 'крафта', 'крафтов')}</div>` : '';
             return `<div class="used-in"><div class="used-title">Входит в ${ruCount(used.length, 'крафт', 'крафта', 'крафтов')}</div>${rows}${more}</div>`;
         }
+        const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+        const DAYPARTS = ['0–3', '3–6', '6–9', '9–12', '12–15', '15–18', '18–21', '21–24'];
+
+        function weekdayProfile(id) {
+            const sales = salesData[id];
+            if (!Array.isArray(sales)) return null;
+            const bins = Array.from({ length: 7 }, () => ({ a: 0, sum: 0 }));
+            sales.forEach(entry => {
+                if (!entry || !(entry.avg > 0) || !(entry.a > 0)) return;
+                const stamp = Date.parse(entry.t);
+                if (!Number.isFinite(stamp)) return;
+                const index = (new Date(stamp).getUTCDay() + 6) % 7;
+                bins[index].a += entry.a;
+                bins[index].sum += entry.avg * entry.a;
+            });
+            return profileBins(bins);
+        }
+        function hourProfile(id) {
+            const slots = clockData[id];
+            if (!Array.isArray(slots) || slots.length !== 8) return null;
+            return profileBins(slots.map(slot => ({
+                a: (slot && slot.a) || 0,
+                sum: ((slot && slot.p) || 0) * ((slot && slot.a) || 0)
+            })));
+        }
+        function profileBins(bins) {
+            const total = bins.reduce((sum, bin) => sum + bin.a, 0);
+            if (total < 5) return null;
+            const avg = bins.reduce((sum, bin) => sum + bin.sum, 0) / total;
+            if (!(avg > 0)) return null;
+            return bins.map(bin => ({
+                a: bin.a,
+                p: bin.a ? Math.round(bin.sum / bin.a) : 0,
+                share: bin.a / total,
+                dev: bin.a ? ((bin.sum / bin.a) - avg) / avg * 100 : null
+            }));
+        }
+        function whenNote(bins, labels) {
+            const alive = bins.map((bin, index) => ({ ...bin, index })).filter(bin => bin.share >= 0.08 && bin.p > 0);
+            if (alive.length < 2) return 'Мало сделок, чтобы отличить день от дня.';
+            const cheap = alive.slice().sort((a, b) => a.p - b.p)[0];
+            const busy = bins.map((bin, index) => ({ ...bin, index })).sort((a, b) => b.a - a.a)[0];
+            const cheapBit = cheap.dev <= -8 ? `Дешевле ${labels[cheap.index]}, на ${Math.abs(cheap.dev).toFixed(0)}%.` : '';
+            const busyBit = busy.share >= 0.18 ? `Больше всего сделок ${labels[busy.index]}.` : '';
+            return [cheapBit, busyBit].filter(Boolean).join(' ') || 'Цена по этим отрезкам почти ровная.';
+        }
+        function whenBars(bins, labels) {
+            const maxAmount = Math.max(...bins.map(bin => bin.a), 1);
+            return `<div class="when-bars">${bins.map((bin, index) => {
+                const height = bin.a ? Math.max(12, Math.round(bin.a / maxAmount * 100)) : 6;
+                const tone = bin.dev === null ? '' : bin.dev <= -8 ? ' cheap' : bin.dev >= 8 ? ' rich' : '';
+                const title = bin.a ? `${labels[index]}: ${bin.p.toLocaleString('ru-RU')} ₽, ${bin.a.toLocaleString('ru-RU')} шт` : labels[index];
+                return `<div class="when-col" title="${title}"><div class="when-bar${tone}" style="height:${height}%"></div><span class="when-lab">${labels[index]}</span></div>`;
+            }).join('')}</div>`;
+        }
+        function whenHtml(id) {
+            const days = weekdayProfile(id);
+            const hours = hourProfile(id);
+            if (!days && !hours) return '';
+            const card = (title, hint, bins, labels) => bins
+                ? `<div class="when-card"><h3>${title}</h3><p class="night-hint">${hint} ${whenNote(bins, labels)}</p>${whenBars(bins, labels)}</div>`
+                : `<div class="when-card"><h3>${title}</h3><p class="night-hint">${hint}</p></div>`;
+            return `<div class="when">
+                ${card('По дням недели', 'Средняя цена сделок за 60 дней.', days, WEEKDAYS)}
+                ${card('По времени суток', hours ? 'Москва, шаг 3 часа.' : 'Появится после следующего обновления продаж.', hours, DAYPARTS)}
+            </div>`;
+        }
+
         function openModal(id) {
             const item = itemsCache.find(i => i.id === id);
             if (!item) return;
@@ -1842,6 +1923,7 @@
                     <div class="stat-item"><div class="stat-value">${item.sold14 ? ruPieces(item.sold14) : '—'}</div><div class="stat-label">Продано за 14 дней</div></div>
                     <div class="stat-item"><div class="stat-value ${typeof item.trend7 === 'number' ? (item.trend7 < 0 ? 'green' : (item.trend7 > 0 ? 'red' : '')) : ''}">${typeof item.trend7 === 'number' ? (item.trend7 > 0 ? '+' : '') + item.trend7.toFixed(1) + '%' : '—'}</div><div class="stat-label">Тренд 7 дней</div><div class="stat-sub">Последние 3 дня к предыдущей неделе</div></div>
                 </div>
+                ${whenHtml(id)}
                 ${usedInHtml(id)}
                 ${(hist.length || sales.length) ? '<div class="chart-container"><canvas id="modalChart"></canvas></div>' : '<div style="margin-top:16px;color:#a394bc;font-size:13px;">Лотов пока нет. Цена появится после опроса аукциона.</div>'}
                 ${lotsHtml}
