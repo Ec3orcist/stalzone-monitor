@@ -218,6 +218,13 @@
                     <option value="lots">Есть лоты</option>
                     <option value="sales">Только продажи</option>
                 </select>
+                <select id="signalFilter">
+                    <option value="">Любая цена</option>
+                    <option value="cheap">Дёшево</option>
+                    <option value="fair">Норма</option>
+                    <option value="rich">Дорого</option>
+                    <option value="drop">Цена падает</option>
+                </select>
                 <input type="text" id="searchInput" placeholder="Поиск по названию или ID...">
                 <select id="sortSelect">
                     <option value="name">По названию (А-Я)</option>
@@ -252,6 +259,7 @@
                     <option value="">Все рецепты</option>
                     <option value="buy">В плюсе, если купить</option>
                     <option value="craft">В плюсе с нуля</option>
+                    <option value="priced">Все цены известны</option>
                 </select>
                 <select id="craftSortSelect">
                     <option value="profit_buy">Прибыль, если купить</option>
@@ -622,6 +630,7 @@
         const els = {
             categorySelect: document.getElementById('categorySelect'),
             marketFilter: document.getElementById('marketFilter'),
+            signalFilter: document.getElementById('signalFilter'),
             searchInput: document.getElementById('searchInput'),
             sortSelect: document.getElementById('sortSelect'),
             refreshBtn: document.getElementById('refreshBtn'),
@@ -793,9 +802,14 @@
             const query = els.searchInput.value.toLowerCase().trim();
             const sort = els.sortSelect.value;
             const market = els.marketFilter.value;
+            const signal = els.signalFilter.value;
             let items = itemsCache.slice();
             if (market === 'lots') items = items.filter(it => it.listed);
             else if (market === 'sales') items = items.filter(it => !it.listed && it.avg > 0);
+            if (signal === 'cheap') items = items.filter(it => priceSignal(it).text === 'дёшево');
+            else if (signal === 'fair') items = items.filter(it => priceSignal(it).text === 'норма');
+            else if (signal === 'rich') items = items.filter(it => priceSignal(it).text === 'дорого');
+            else if (signal === 'drop') items = items.filter(it => typeof it.trend7 === 'number' && it.trend7 <= -10);
             if (cat === FAVORITES_KEY) items = items.filter(it => isFavorite(it.id));
             else if (cat) items = items.filter(it => it.category === cat);
             if (query) {
@@ -1072,10 +1086,15 @@
             const profitFilter = els.craftProfitFilter.value;
             if (profitFilter === 'buy') items = items.filter(item => item.econ.profitBuy > 0);
             else if (profitFilter === 'craft') items = items.filter(item => item.econ.profitCraft > 0);
+            else if (profitFilter === 'priced') items = items.filter(item => item.econ.sell > 0 && item.econ.buy.missing === 0 && item.econ.buy.cost > 0);
             if (query) {
-                items = items.filter(item =>
-                    item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query)
-                );
+                items = items.filter(item => {
+                    if (item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query)) return true;
+                    return (item.ingredients || []).some(ing => {
+                        const name = humanName(ing.id, ing.name).toLowerCase();
+                        return name.includes(query) || String(ing.id || '').toLowerCase().includes(query);
+                    });
+                });
             }
 
             switch (sortMode) {
@@ -1092,6 +1111,16 @@
 
             if (items.length === 0) {
                 container.innerHTML = '<div class="empty-state">Ничего не найдено. Попробуйте изменить фильтры.</div>';
+                return;
+            }
+
+            const flatSort = sortMode.startsWith('profit_') || sortMode.startsWith('roi_');
+            if (flatSort) {
+                const list = document.createElement('div');
+                list.className = 'craft-list';
+                items.forEach(item => list.appendChild(buildCraftRow(item)));
+                container.innerHTML = '';
+                container.appendChild(list);
                 return;
             }
 
@@ -1148,15 +1177,24 @@
             row.className = 'craft-list-item';
             row.dataset.id = item.id;
             const econ = item.econ;
-            const profit = econ.profitBuy;
+            const scratchMode = els.craftSortSelect.value === 'profit_craft' || els.craftSortSelect.value === 'roi_craft';
+            const profit = scratchMode ? econ.profitCraft : econ.profitBuy;
+            const roi = scratchMode ? econ.roiCraft : econ.roiBuy;
+            const other = scratchMode ? econ.profitBuy : econ.profitCraft;
             const hasProfit = typeof profit === 'number';
             const profitClass = !hasProfit ? '' : (profit > 0 ? 'green' : (profit < 0 ? 'red' : ''));
             const profitSign = hasProfit && profit > 0 ? '+' : '';
+            const roiLabel = scratchMode ? 'ROI с нуля' : 'ROI покупки';
+            const otherLabel = scratchMode ? 'если купить' : 'с нуля';
             const iconHtml = item.icon
                 ? `<img class="craft-list-icon" src="${item.icon}" alt="" data-id="${item.id}" loading="lazy" decoding="async" draggable="false" onerror="iconError(this)">`
                 : `<div class="craft-list-icon" style="display:flex;align-items:center;justify-content:center;color:#444;">?</div>`;
             const levelBadge = item.skillLevel
                 ? `<span class="skill-level-badge lvl-${item.skillLevel}">ур. ${item.skillLevel}</span>`
+                : '';
+            const flatSort = els.craftSortSelect.value.startsWith('profit_') || els.craftSortSelect.value.startsWith('roi_');
+            const skillTag = flatSort && item.skill
+                ? `<span class="skill-level-badge">${escapeHtml(item.skill)}</span>`
                 : '';
 
             const skill = item.skill || "Сырье и материалы";
@@ -1177,12 +1215,15 @@
             const buy = econ.buy;
             const rub = (n) => n > 0 ? Math.round(n).toLocaleString('ru-RU') + ' ₽' : '—';
             const sellLabel = item.price_source === 'sale' ? 'Последняя продажа' : 'Продажа';
-            const roiText = typeof econ.roiBuy === 'number' ? econ.roiBuy.toFixed(1) + '%' : 'нет цены';
+            const roiText = typeof roi === 'number' ? roi.toFixed(1) + '%' : 'нет цены';
+            const otherText = typeof other === 'number'
+                ? `${other > 0 ? '+' : ''}${Math.round(other).toLocaleString('ru-RU')} ₽ ${otherLabel}`
+                : '';
 
             row.innerHTML = `
                 ${iconHtml}
                 <div class="craft-list-info">
-                    <div class="craft-list-name">${escapeHtml(item.name)}${levelBadge}${bonusBadge}</div>
+                    <div class="craft-list-name">${escapeHtml(item.name)}${levelBadge}${skillTag}${bonusBadge}</div>
                     <div class="craft-prices">
                         <span class="buy">Купить <b>${rub(buy.cost)}</b>${buy.missing ? ` <span style="color:#8b7da3">· ${buy.missing} без цены</span>` : ''}</span>
                         <span>С нуля <b>${rub(econ.base.cost)}</b></span>
@@ -1192,7 +1233,8 @@
                 </div>
                 <div class="craft-list-profit ${profitClass}">
                     ${hasProfit ? `${profitSign}${Math.round(profit).toLocaleString('ru-RU')} ₽` : 'нет цены'}
-                    <div style="font-size:12px;font-weight:normal;color:#9a917c;">${hasProfit ? 'ROI покупки ' + roiText : 'нет лотов / сырья'}</div>
+                    <div style="font-size:12px;font-weight:normal;color:#9a917c;">${hasProfit ? roiLabel + ' ' + roiText : 'нет лотов / сырья'}</div>
+                    ${otherText ? `<div style="font-size:11px;font-weight:normal;color:#8b7da3;">${otherText}</div>` : ''}
                 </div>
             `;
             return row;
@@ -1741,6 +1783,7 @@
 
         els.categorySelect.addEventListener('change', applyFilters);
         els.marketFilter.addEventListener('change', applyFilters);
+        els.signalFilter.addEventListener('change', applyFilters);
         els.sortSelect.addEventListener('change', applyFilters);
         els.refreshBtn.addEventListener('click', () => loadData(true));
 
