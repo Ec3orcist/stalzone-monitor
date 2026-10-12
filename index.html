@@ -315,6 +315,7 @@
                 <input type="text" id="bagSearch" placeholder="Добавить по названию..." autocomplete="off">
                 <div id="bagSuggest" class="bag-suggest"></div>
                 <div id="bagChips" class="bag-chips"></div>
+                <div id="bagReady"></div>
             </section>
             <section class="night-card bag-box">
                 <div class="bench-head">
@@ -752,6 +753,27 @@
                 `<button type="button" class="bag-chip" data-bag-drop="${escapeHtml(id)}">${escapeHtml(humanName(id))} ×</button>`
             ).join('');
             els.bagChips.innerHTML = chips || '<span class="night-sub">Пока пусто.</span>';
+            renderBagReady();
+        }
+        function renderBagReady() {
+            if (!els.bagReady) return;
+            if (!backpack.size || !recipeIds().length) {
+                els.bagReady.innerHTML = '';
+                return;
+            }
+            const ready = recipeIds().map(id => {
+                const craft = resolveNode(id);
+                const econ = craftEconomics(craft);
+                const ingredients = craft.ingredients || [];
+                if (!(econ.profitBuy > 0) || econ.buy.missing || !ingredients.length) return null;
+                if (!ingredients.every(ing => owns(ing.id))) return null;
+                return { id, name: craft.name, profit: econ.profitBuy };
+            }).filter(Boolean).sort((a, b) => b.profit - a.profit).slice(0, 3);
+            els.bagReady.innerHTML = ready.length
+                ? `<div class="night-sub" style="padding-top:8px">Уже можно скрафтить</div>` + ready.map(row =>
+                    `<div class="night-row plan-row" data-loot-craft="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">«${escapeHtml(row.name)}» +${money(row.profit)} — сырьё уже в рюкзаке.</div></div></div>`
+                ).join('')
+                : '<div class="night-sub">Из отмеченного плюсовый рецепт целиком пока не собирается.</div>';
         }
         function renderBagSuggest() {
             const rows = bagCandidates(els.bagSearch.value);
@@ -800,6 +822,7 @@
             bottlenecks: document.getElementById('bottlenecks'),
             budgetInput: document.getElementById('budgetInput'),
             benchList: document.getElementById('benchList'),
+            bagReady: document.getElementById('bagReady'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
