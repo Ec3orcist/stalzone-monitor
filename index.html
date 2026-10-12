@@ -287,6 +287,10 @@
         .cat-btn.active .cat-count { color: var(--accent); }
         .rail-group + .rail-group { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
         .rail-items { display: flex; flex-direction: column; gap: 3px; }
+        .inv-owned { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+        .inv-owned-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+        .inv-owned-head .cat-title { padding: 0; }
+        .inv-owned .inv-grid { margin-top: 8px; }
         .inv-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
         .inv-tools input { flex: 1 1 200px; }
         .inv-roles { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -310,6 +314,17 @@
         .inv-qty input { width: 80px; text-align: center; font-family: var(--mono); font-size: 16px; }
         .inv-remove { width: 36px; height: 38px; padding: 0; font-size: 18px; color: var(--muted); background: transparent; }
         .inv-remove:hover { color: var(--danger); border-color: rgba(251,113,133,.5); }
+        .inv-st-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+        .inv-st { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(51,40,76,.55); cursor: pointer; }
+        .inv-st .st-check { padding-top: 0; }
+        .inv-st-name { flex: 1; min-width: 0; font-size: 13px; }
+        .inv-st.on .inv-st-name { color: var(--accent-2); }
+        .inv-st-price { font-family: var(--mono); font-size: 12px; color: var(--warn); white-space: nowrap; }
+        .inv-st.on .inv-st-price { color: var(--muted); font-family: "Segoe UI", sans-serif; }
+        .inv-xp { padding: 8px 0; border-top: 1px solid var(--line); }
+        .inv-xp:first-of-type { border-top: 0; }
+        .inv-xp-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-weight: 700; }
+        .inv-xp-head b { font-family: var(--mono); color: var(--accent); font-size: 13px; }
         .inv-total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
         .inv-total b { font-family: var(--mono); font-size: 20px; color: var(--accent); }
         .inv-row { display: flex; align-items: center; gap: 10px; padding: 8px; margin: 0 -8px; border-top: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
@@ -414,6 +429,7 @@
             .craft-rail .rail-items { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 6px; }
             .craft-rail .rail-items::-webkit-scrollbar { display: none; }
             .inv-grid { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+            .inv-st-list { grid-template-columns: 1fr; }
             .inv-editor { flex-wrap: wrap; bottom: 8px; }
             .inv-editor .night-main { flex: 1 1 calc(100% - 60px); }
             .cat-name { overflow: visible; }
@@ -567,7 +583,7 @@
             <div class="hq-head">
                 <div>
                     <h2 class="hq-title">Инвентарь</h2>
-                    <p class="night-lead">Нажми на иконку и впиши, сколько есть. Справа — что из этого собрать, что продать и что докупить.</p>
+                    <p class="night-lead">Нажми на иконку и впиши, сколько есть. Выбранное переезжает наверх, справа — крафт, продажа и прокачка навыков.</p>
                 </div>
                 <div class="station-actions">
                     <button type="button" class="ghost-btn" id="invClearBtn">Очистить инвентарь</button>
@@ -575,13 +591,15 @@
             </div>
             <div class="shelter-layout">
                 <div class="hq-main">
-                    <section class="night-card bag-box">
+                    <section class="night-card bag-box" id="invBoard">
+                        <div class="inv-owned" id="invOwned"></div>
                         <div class="inv-tools">
                             <input type="text" id="invSearch" placeholder="Найти предмет..." autocomplete="off">
                             <div class="inv-roles" id="invRoles"></div>
                         </div>
                         <div class="inv-grid" id="invGrid"></div>
                     </section>
+                    <section class="night-card bag-box" id="invStations"></section>
                 </div>
                 <aside class="hq-side" id="invAdvice"></aside>
             </div>
@@ -1402,6 +1420,9 @@
             invSearch: document.getElementById('invSearch'),
             invRoles: document.getElementById('invRoles'),
             invGrid: document.getElementById('invGrid'),
+            invOwned: document.getElementById('invOwned'),
+            invBoard: document.getElementById('invBoard'),
+            invStations: document.getElementById('invStations'),
             invAdvice: document.getElementById('invAdvice'),
             invEditor: document.getElementById('invEditor'),
             invQty: document.getElementById('invQty'),
@@ -3511,6 +3532,7 @@
                 removed: [...before].filter(id => !after.has(id)).map(id => byId.get(id))
             };
             renderShelter();
+            if (document.getElementById('tab-inventory').style.display !== 'none') renderInventory();
         }
 
         function renderStations() {
@@ -3745,18 +3767,31 @@
                 ${row.icon ? `<img src="${row.icon}" alt="" loading="lazy" draggable="false">` : '<span class="inv-noicon">?</span>'}
                 <span class="inv-name">${escapeHtml(row.name)}</span></button>`;
         }
-        function renderInvGrid() {
-            const pool = inventoryPool();
+        function renderOwnedZone() {
             const query = els.invSearch.value.trim().toLowerCase();
-            const counts = { '': pool.length, owned: pool.filter(row => owns(row.id)).length };
+            const allOwned = inventoryPool().filter(row => owns(row.id));
+            const owned = allOwned.filter(row => !query || row.name.toLowerCase().includes(query))
+                .sort((a, b) => ownedCount(b.id) - ownedCount(a.id) || a.name.localeCompare(b.name, 'ru'));
+            const pieces = allOwned.reduce((sum, row) => sum + ownedCount(row.id), 0);
+            const head = `<div class="inv-owned-head"><div class="cat-title">У меня есть</div>${allOwned.length ? `<span class="night-sub">${ruCount(allOwned.length, 'предмет', 'предмета', 'предметов')} · ${ruPieces(pieces)}</span>` : ''}</div>`;
+            const body = owned.length
+                ? `<div class="inv-grid">${owned.map(invTile).join('')}</div>`
+                : `<p class="night-hint">${allOwned.length ? 'Среди выбранных ничего не найдено.' : 'Пока пусто. Нажми на иконку ниже и впиши количество — предмет переедет сюда.'}</p>`;
+            els.invOwned.innerHTML = head + body;
+        }
+        function renderInvGrid() {
+            renderOwnedZone();
+            const pool = inventoryPool().filter(row => !owns(row.id));
+            const query = els.invSearch.value.trim().toLowerCase();
+            const counts = { '': pool.length };
             INV_ROLES.forEach(r => { counts[r.key] = pool.filter(row => row.role === r.key).length; });
-            els.invRoles.innerHTML = [{ key: '', label: 'Все' }, { key: 'owned', label: 'Есть у меня' }, ...INV_ROLES]
+            if (invRole === 'owned') invRole = '';
+            els.invRoles.innerHTML = [{ key: '', label: 'Все' }, ...INV_ROLES]
                 .map(r => `<button type="button" class="skill-chip${invRole === r.key ? ' active' : ''}" data-inv-role="${r.key}">${r.label}<b>${counts[r.key]}</b></button>`).join('');
             const shown = pool.filter(row =>
-                (!query || row.name.toLowerCase().includes(query)) &&
-                (invRole === 'owned' ? owns(row.id) : (!invRole || row.role === invRole)));
+                (!query || row.name.toLowerCase().includes(query)) && (!invRole || row.role === invRole));
             if (!shown.length) {
-                els.invGrid.innerHTML = `<div class="night-sub inv-section">${invRole === 'owned' ? 'Пока пусто. Нажми на иконку в «Все» и впиши количество.' : 'Ничего не найдено.'}</div>`;
+                els.invGrid.innerHTML = `<div class="night-sub inv-section">${query ? 'Ничего не найдено.' : 'В этой группе всё выбранное уже наверху.'}</div>`;
                 return;
             }
             const sections = invRole ? [{ key: invRole, label: '' }] : INV_ROLES;
@@ -3812,6 +3847,91 @@
                 o.stale ? '<span class="warn">цена давно не обновлялась</span>' : ''
             ].filter(Boolean).join(' · ');
         }
+        function allocateXp(stock, recipes) {
+            const orders = [
+                (a, b) => b.experience - a.experience,
+                (a, b) => {
+                    const weight = (r) => Math.max(1, (r.resources || []).reduce((sum, res) => sum + (res.amount || 0), 0));
+                    return b.experience / weight(b) - a.experience / weight(a);
+                }
+            ];
+            const run = (order) => {
+                const left = new Map(stock);
+                const used = [];
+                recipes.slice().sort(order).forEach(r => {
+                    const need = r.resources || [];
+                    if (!need.length) return;
+                    const cap = r.oneTime ? 1 : Infinity;
+                    const crafts = need.reduce((max, res) => {
+                        const have = left.get(res.itemId) || 0;
+                        return (res.amount || 0) > 0 ? Math.min(max, Math.floor(have / res.amount)) : max;
+                    }, cap);
+                    if (crafts < 1) return;
+                    need.forEach(res => left.set(res.itemId, (left.get(res.itemId) || 0) - res.amount * crafts));
+                    used.push({ id: r.itemId, name: r.name, crafts, xp: crafts * r.experience });
+                });
+                return { xp: used.reduce((sum, row) => sum + row.xp, 0), used };
+            };
+            return orders.map(run).sort((a, b) => b.xp - a.xp)[0];
+        }
+        function xpStory(skill, xp) {
+            const known = getMyLevel(skill);
+            const start = known || 1;
+            if (start >= 5) return { text: 'навык уже 5 уровня', known };
+            let level = start;
+            let left = xp;
+            while (level < 5) {
+                const need = shelter.xp[`${level}-${level + 1}`];
+                if (!need || left < need) {
+                    const have = Math.max(0, Math.floor(left));
+                    const goal = need ? need.toLocaleString('ru-RU') : '—';
+                    const text = level > start
+                        ? `с ${start} до ${level}, до ${level + 1} ещё ${have.toLocaleString('ru-RU')} из ${goal}`
+                        : `${have.toLocaleString('ru-RU')} из ${goal} до ${level}→${level + 1}`;
+                    return { text, known };
+                }
+                left -= need;
+                level += 1;
+            }
+            return { text: `с ${start} до 5`, known };
+        }
+        function inventoryXp() {
+            const stock = new Map([...backpack.entries()].filter(([, n]) => n > 0));
+            const skills = [...new Set(shelter.recipes.map(r => r.experienceSkill || r.skill))]
+                .sort((a, b) => skillOrder(a) - skillOrder(b));
+            return skills.map(skill => {
+                const recipes = shelter.recipes.filter(r => (r.experienceSkill || r.skill) === skill && r.experience > 0
+                    && !(r.providesFeature && builtStations.has(r.providesFeature)));
+                const open = recipes.filter(r => isUnlocked(r, builtStations));
+                const locked = recipes.filter(r => !isUnlocked(r, builtStations));
+                const plan = allocateXp(stock, open);
+                const lockedPlan = allocateXp(stock, locked);
+                const stations = [...new Set(locked.flatMap(r => (r.requiredStations || []).filter(s => !builtStations.has(s))))];
+                return { skill, ...plan, lockedXp: lockedPlan.xp, stations };
+            }).filter(row => row.xp > 0 || row.lockedXp > 0);
+        }
+        function renderInvXp() {
+            const rows = inventoryXp();
+            if (!rows.length) {
+                return `<section class="night-card bag-box"><h2>Прокачка</h2>
+                    <p class="night-hint">На целый крафт с опытом материалов не хватает. Нужно добрать сырьё хотя бы на один рецепт навыка.</p></section>`;
+            }
+            const cards = rows.map(row => {
+                const story = xpStory(row.skill, row.xp);
+                const crafts = row.used.slice(0, 3).map(u => `${escapeHtml(u.name)} ×${u.crafts.toLocaleString('ru-RU')}`).join(', ');
+                const more = row.used.length > 3 ? ` и ещё ${row.used.length - 3}` : '';
+                const locked = row.lockedXp > 0
+                    ? `<div class="night-sub">Ещё ${Math.floor(row.lockedXp).toLocaleString('ru-RU')} опыта, если достроить ${row.stations.slice(0, 3).map(s => escapeHtml(stationName(s))).join(', ')}.</div>`
+                    : '';
+                return `<div class="inv-xp">
+                    <div class="inv-xp-head"><span>${skillIcon(row.skill)} ${escapeHtml(row.skill)}</span><b>${Math.floor(row.xp).toLocaleString('ru-RU')} опыта</b></div>
+                    <div class="night-sub">${story.known ? 'С текущего уровня: ' : 'Уровень не задан, считаю от 1: '}${story.text}. ${crafts}${more}</div>
+                    ${locked}
+                </div>`;
+            }).join('');
+            return `<section class="night-card bag-box plan-card"><h2>Прокачка</h2>
+                <p class="night-hint">Сколько опыта дадут материалы, если пустить их в один навык. Одно и то же сырьё на все навыки сразу не хватит.</p>${cards}</section>`;
+        }
         function renderInvAdvice() {
             const owned = [...backpack.entries()].filter(([, n]) => n > 0);
             if (!owned.length) {
@@ -3856,6 +3976,7 @@
                   </div></div>`).join('')
                 : '<p class="night-hint">Всё отмеченное лучше пустить в крафт.</p>';
             els.invAdvice.innerHTML = `
+                ${renderInvXp()}
                 <section class="night-card bag-box plan-card">
                     <h2>Стоимость</h2>
                     <div class="inv-total"><span class="night-sub">${ruCount(owned.length, 'позиция', 'позиции', 'позиций')} · ${ruPieces(owned.reduce((s, [, n]) => s + n, 0))}</span><b>${money(worth.fresh)}</b></div>
@@ -3865,12 +3986,41 @@
                 <section class="night-card bag-box"><h2>Докупить немного</h2><p class="night-hint">Часть сырья уже есть, остальное купить. «Сверху» — прибыль после закупки, если бы своё сырьё продал.</p>${topUpHtml}</section>
                 <section class="night-card bag-box"><h2>Лучше продать</h2><p class="night-hint">Отмеченное, что не пригодилось в выгодных рецептах выше.</p>${sellHtml}</section>`;
         }
+        function renderInvStations() {
+            const engLevel = getMyLevel('Инженерия');
+            const ids = [...shelter.stations.keys()];
+            const built = ids.filter(id => builtStations.has(id)).length;
+            const groups = STATION_AREAS.map(area => ({
+                area,
+                rows: ids.filter(id => stationArea(id) === area).map(id => ({ id, state: stationState(id, builtStations, engLevel) }))
+                    .sort((a, b) => stationName(a.id).localeCompare(stationName(b.id), 'ru'))
+            })).filter(g => g.rows.length);
+            const row = ({ id, state }) => {
+                const price = state.kind === 'built'
+                    ? 'есть'
+                    : state.kind === 'external'
+                        ? 'не крафтится'
+                        : billText(state.option.bill);
+                const extra = state.kind === 'blocked' && state.option.missing.length
+                    ? `<div class="night-sub">нужно: ${state.option.missing.map(s => escapeHtml(stationName(s))).join(', ')}</div>`
+                    : '';
+                return `<label class="inv-st${state.kind === 'built' ? ' on' : ''}">
+                    <span class="st-check"><input type="checkbox" data-inv-station="${escapeHtml(id)}" ${builtStations.has(id) ? 'checked' : ''}><span class="st-box"></span></span>
+                    <span class="inv-st-name">${escapeHtml(stationName(id))}${extra}</span>
+                    <span class="inv-st-price">${price}</span>
+                </label>`;
+            };
+            els.invStations.innerHTML = `<h2>Пристройки</h2>
+                <p class="night-hint">Есть ${built} из ${ids.length}. У тех, которых нет, цена постройки по текущему аукциону.</p>
+                ${groups.map(g => `<div class="st-area">${escapeHtml(g.area)}</div><div class="inv-st-list">${g.rows.map(row).join('')}</div>`).join('')}`;
+        }
         function renderInventory() {
             if (!shelter.recipes.length) {
                 els.invGrid.innerHTML = '<div class="night-sub inv-section">Загрузка рецептов…</div>';
                 return;
             }
             renderInvGrid();
+            renderInvStations();
             renderInvAdvice();
         }
         function openInvEditor(id) {
@@ -4025,7 +4175,15 @@
         });
 
         els.craftSkillSelect.addEventListener('change', renderCraftList);
-        els.invGrid.addEventListener('click', (e) => {
+        els.invStations.addEventListener('change', (e) => {
+            const box = e.target.closest('[data-inv-station]');
+            if (!box) return;
+            const id = box.dataset.invStation;
+            const next = new Set(builtStations);
+            if (box.checked) next.add(id); else next.delete(id);
+            changeBuilt(next, `${box.checked ? 'Отмечено' : 'Снято'}: «${stationName(id)}»`);
+        });
+        els.invBoard.addEventListener('click', (e) => {
             const tile = e.target.closest('[data-inv-id]');
             if (tile) openInvEditor(tile.dataset.invId);
         });
