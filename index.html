@@ -205,7 +205,9 @@
         .night-tag.buy { color: var(--muted); }
         .bag-box { margin-bottom: 14px; padding-bottom: 12px; }
         .bag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .bag-chip { border: 1px solid var(--line); background: #120e1b; color: var(--text); border-radius: 999px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+        .bag-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: #120e1b; color: var(--text); border-radius: 999px; padding: 2px 6px 2px 10px; font-size: 12px; }
+        .bag-chip button { background: transparent; border: 0; color: var(--accent); padding: 2px 4px; border-radius: 999px; font-size: 14px; line-height: 1; }
+        .bag-qty { min-width: 1.2em; text-align: center; color: var(--accent); }
         .bag-suggest { display: flex; flex-direction: column; }
         .bag-suggest button { text-align: left; background: transparent; border: 0; border-top: 1px solid var(--line); color: var(--text); border-radius: 0; padding: 8px 2px; }
         .bench-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -311,7 +313,7 @@
             <p class="night-lead">Цены текущего аукциона: что выгодно купить, что имеет смысл фармить и куда деть уже добытое.</p>
             <section class="night-card bag-box" id="bagCard">
                 <h2>Мой рюкзак</h2>
-                <p class="night-hint">Отметьте, что уже есть. Списки закупки и «куда деть» не будут просить это купить.</p>
+                <p class="night-hint">Сколько уже есть. Списки закупки и «куда деть» вычтут это количество, а не всю строку.</p>
                 <input type="text" id="bagSearch" placeholder="Добавить по названию..." autocomplete="off">
                 <div id="bagSuggest" class="bag-suggest"></div>
                 <div id="bagChips" class="bag-chips"></div>
@@ -341,6 +343,11 @@
                     <div id="farmList"></div>
                 </section>
             </div>
+            <section class="night-card bag-box">
+                <h2>Не бери</h2>
+                <p class="night-hint">Живой лот заметно дороже средней продажи. Это ловушка, не скупка.</p>
+                <div id="trapList"></div>
+            </section>
             <section class="night-card bag-box">
                 <h2>Где крафтить</h2>
                 <p class="night-hint">Три верстака с самой большой суммой плюсовых рецептов.</p>
@@ -379,7 +386,7 @@
         const SKILL_LEVELS_KEY = 'sz_skill_levels';
         const BAG_KEY = 'sz_backpack';
         const BUDGET_KEY = 'sz_budget';
-        let backpack = new Set();
+        let backpack = new Map();
 
         const CATEGORY_NAMES = {
             "weapon": "Оружие", "weapon_modules": "Модули оружия", "attachment": "Обвесы",
@@ -716,18 +723,55 @@
             return isFavorite(id);
         }
         function loadBackpack() {
+            backpack = new Map();
             try {
-                const raw = JSON.parse(localStorage.getItem(BAG_KEY) || '[]');
-                backpack = new Set(Array.isArray(raw) ? raw.filter(id => typeof id === 'string' && id) : []);
+                const raw = JSON.parse(localStorage.getItem(BAG_KEY) || '{}');
+                if (Array.isArray(raw)) {
+                    raw.forEach(id => { if (typeof id === 'string' && id) backpack.set(id, 1); });
+                    saveBackpack();
+                } else if (raw && typeof raw === 'object') {
+                    Object.entries(raw).forEach(([id, count]) => {
+                        const n = Math.floor(Number(count));
+                        if (id && n > 0) backpack.set(id, n);
+                    });
+                }
             } catch {
-                backpack = new Set();
+                backpack = new Map();
             }
         }
         function saveBackpack() {
-            localStorage.setItem(BAG_KEY, JSON.stringify([...backpack]));
+            const stored = {};
+            backpack.forEach((count, id) => { if (count > 0) stored[id] = count; });
+            localStorage.setItem(BAG_KEY, JSON.stringify(stored));
+        }
+        function ownedCount(id) {
+            return backpack.get(id) || 0;
         }
         function owns(id) {
-            return backpack.has(id);
+            return ownedCount(id) > 0;
+        }
+        function setOwned(id, count) {
+            const n = Math.max(0, Math.floor(Number(count) || 0));
+            if (n <= 0) backpack.delete(id);
+            else backpack.set(id, n);
+        }
+        function bagTake(id, quantity, unit) {
+            const need = Math.max(0, quantity || 0);
+            const have = Math.min(ownedCount(id), need);
+            const left = Math.max(0, need - have);
+            const price = unit || 0;
+            return {
+                have,
+                left,
+                covered: have * price,
+                rest: left * price,
+                full: have > 0 && left <= 1e-6,
+                partial: have > 0 && left > 1e-6
+            };
+        }
+        function fmtQty(n) {
+            if (Math.abs(n - Math.round(n)) < 1e-6) return Math.round(n).toLocaleString('ru-RU');
+            return n.toFixed(2).replace('.', ',');
         }
         function bagCandidates(query) {
             const q = query.trim().toLowerCase();
@@ -749,8 +793,8 @@
             return rows.slice(0, 6);
         }
         function renderBag() {
-            const chips = [...backpack].map(id =>
-                `<button type="button" class="bag-chip" data-bag-drop="${escapeHtml(id)}">${escapeHtml(humanName(id))} ×</button>`
+            const chips = [...backpack.entries()].filter(([, count]) => count > 0).map(([id, count]) =>
+                `<div class="bag-chip"><span>${escapeHtml(humanName(id))}</span><button type="button" data-bag-dec="${escapeHtml(id)}" aria-label="меньше">−</button><span class="bag-qty">${count}</span><button type="button" data-bag-inc="${escapeHtml(id)}" aria-label="больше">+</button><button type="button" data-bag-drop="${escapeHtml(id)}" aria-label="убрать">×</button></div>`
             ).join('');
             els.bagChips.innerHTML = chips || '<span class="night-sub">Пока пусто.</span>';
             renderBagReady();
@@ -765,8 +809,9 @@
                 const craft = resolveNode(id);
                 const econ = craftEconomics(craft);
                 const ingredients = craft.ingredients || [];
+                const per = craft.craftAmount || 1;
                 if (!(econ.profitBuy > 0) || econ.buy.missing || !ingredients.length) return null;
-                if (!ingredients.every(ing => owns(ing.id))) return null;
+                if (!ingredients.every(ing => ownedCount(ing.id) + 1e-9 >= (ing.amount || 0) / per)) return null;
                 return { id, name: craft.name, profit: econ.profitBuy };
             }).filter(Boolean).sort((a, b) => b.profit - a.profit).slice(0, 3);
             els.bagReady.innerHTML = ready.length
@@ -823,6 +868,7 @@
             budgetInput: document.getElementById('budgetInput'),
             benchList: document.getElementById('benchList'),
             bagReady: document.getElementById('bagReady'),
+            trapList: document.getElementById('trapList'),
         };
 
         document.querySelectorAll('.tab').forEach(tab => {
@@ -1278,7 +1324,6 @@
                 if (dev === null || dev > -15) return false;
                 if ((item.sold14 || 0) < 20) return false;
                 if (saleIsStale(item.id)) return false;
-                if (typeof item.trend7 === 'number' && item.trend7 < -25) return false;
                 return true;
             }).map(item => {
                 const dev = fairDeviation(item);
@@ -1370,17 +1415,45 @@
             const budget = readBudget();
             return plan.flips.filter(row => budget === null || buySpend(row) <= budget);
         }
+        function priceIsFalling(item) {
+            return typeof item.trend7 === 'number' && item.trend7 <= -15;
+        }
         function flipRow(row) {
             const item = row.item;
             const spend = buySpend(row);
+            const falling = priceIsFalling(item) ? ' · <span class="warn">ещё падает</span>' : '';
             return `<div class="night-row" data-open-item="${escapeHtml(item.id)}">
                 ${nightIcon(item.icon)}
                 <div class="night-main">
                     <div class="night-name">${escapeHtml(item.name)}</div>
-                    <div class="night-sub">лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${item.sold14.toLocaleString('ru-RU')} за 14д</div>
+                    <div class="night-sub">лот ${money(item.price)} · средняя ${money(item.avg)} · закупка ${money(spend)} · продано ${item.sold14.toLocaleString('ru-RU')} за 14д${falling}</div>
                 </div>
                 <div class="night-side green">${row.dev.toFixed(0)}%</div>
             </div>`;
+        }
+        function renderTraps() {
+            if (!els.trapList) return;
+            const budget = readBudget();
+            const rows = itemsCache.filter(item => {
+                const dev = fairDeviation(item);
+                return dev !== null && dev >= 20 && (item.sold14 || 0) >= 20;
+            }).map(item => ({ item, dev: fairDeviation(item) }))
+                .sort((a, b) => b.dev - a.dev)
+                .slice(0, 8);
+            els.trapList.innerHTML = rows.length
+                ? rows.map(row => {
+                    const item = row.item;
+                    const overBudget = budget !== null && item.price > budget ? ' · выше бюджета' : '';
+                    return `<div class="night-row" data-open-item="${escapeHtml(item.id)}">
+                        ${nightIcon(item.icon)}
+                        <div class="night-main">
+                            <div class="night-name">${escapeHtml(item.name)}</div>
+                            <div class="night-sub">лот ${money(item.price)} · средняя ${money(item.avg)}${overBudget}</div>
+                        </div>
+                        <div class="night-side red">+${row.dev.toFixed(0)}%</div>
+                    </div>`;
+                }).join('')
+                : '<div class="night-sub">Нет жидких лотов, которые сильно дороже средней.</div>';
         }
         function farmRow(row) {
             const why = row.best
@@ -1417,8 +1490,9 @@
                 const line = unit * qty;
                 const share = econ.buy.cost > 0 ? line / econ.buy.cost : 0;
                 return { id: node.id, name: node.name, icon: node.icon, qty, unit, line, share, source: node.price_source };
-            }).filter(part => part.name && part.name !== part.id).sort((a, b) => b.line - a.line);
-            const ownedCost = parts.filter(part => owns(part.id)).reduce((sum, part) => sum + part.line, 0);
+            }).filter(part => part.name && part.name !== part.id).sort((a, b) => b.line - a.line)
+                .map(part => ({ ...part, take: bagTake(part.id, part.qty, part.unit) }));
+            const ownedCost = parts.reduce((sum, part) => sum + part.take.covered, 0);
             const restCost = Math.max(0, (econ.buy.cost || 0) - ownedCost);
             const withBag = econ.sell > 0 && ownedCost > 0 && econ.buy.missing === 0 ? econ.sell - restCost : null;
             const head = econ.buy.missing > 0
@@ -1431,16 +1505,22 @@
                             ? `В плюсе только со своим сырьём: <b class="green">+${money(econ.profitCraft)}</b>. Покупка ингредиентов съедает прибыль.`
                             : 'Сейчас крафт не окупается ни покупкой, ни своим сырьём.')));
             const rows = parts.map(part => {
-                const owned = owns(part.id);
-                const dubious = !owned && part.source === 'sale' && part.share >= 0.45 && !(econ.profitBuy > 0);
-                const farm = !owned && !dubious && part.share >= 0.18;
-                const tag = owned ? 'в рюкзаке' : (dubious ? 'цена неясна' : (farm ? 'фармить' : 'купить'));
-                const tagClass = owned || !farm ? ' buy' : '';
+                const owned = part.take.full;
+                const partial = part.take.partial;
+                const dubious = !owned && !partial && part.source === 'sale' && part.share >= 0.45 && !(econ.profitBuy > 0);
+                const farm = !owned && !partial && !dubious && part.share >= 0.18;
+                const tag = owned ? 'в рюкзаке' : (partial ? `есть ${fmtQty(part.take.have)}` : (dubious ? 'цена неясна' : (farm ? 'фармить' : 'купить')));
+                const tagClass = owned || partial || !farm ? ' buy' : '';
+                const stockText = owned
+                    ? 'уже есть'
+                    : (partial
+                        ? `есть ${fmtQty(part.take.have)} из ${fmtQty(part.qty)}, докупить ${part.unit ? money(part.take.rest) : 'нет цены'}`
+                        : (part.unit ? money(part.unit) : 'нет цены'));
                 return `<div class="night-row" data-open-item="${escapeHtml(part.id)}">
                     ${nightIcon(part.icon)}
                     <div class="night-main">
                         <div class="night-name">${escapeHtml(part.name)}<span class="night-tag${tagClass}">${tag}</span></div>
-                        <div class="night-sub">${part.qty.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} шт · ${owned ? 'уже есть' : (part.unit ? money(part.unit) : 'нет цены')}${!owned && part.source === 'sale' ? ' продажа' : ''}${!owned && part.source === 'sale' && saleIsStale(part.id) ? ' · давно не продавалось' : ''} · ${Math.round(part.share * 100)}% себестоимости</div>
+                        <div class="night-sub">${part.qty.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} шт · ${stockText}${!owned && !partial && part.source === 'sale' ? ' продажа' : ''}${!owned && part.source === 'sale' && saleIsStale(part.id) ? ' · давно не продавалось' : ''} · ${Math.round(part.share * 100)}% себестоимости</div>
                     </div>
                 </div>`;
             }).join('');
@@ -1448,7 +1528,8 @@
         }
         function materialPathHtml(row) {
             const stock = row.listed ? `на аукционе ${row.lots.toLocaleString('ru-RU')} шт` : 'сейчас лотов нет';
-            const have = owns(row.id) ? 'Уже в рюкзаке. ' : '';
+            const haveN = ownedCount(row.id);
+            const have = haveN > 0 ? `В рюкзаке ${fmtQty(haveN)} шт. ` : '';
             const ranked = row.crafts.filter(craft => craft.sell > 0).slice().sort((a, b) => (b.profitBuy ?? -1e15) - (a.profitBuy ?? -1e15)).slice(0, 3);
             const best = ranked.find(craft => craft.profitBuy > 0 && craft.share >= 0.15) || null;
             const thin = !best && ranked.find(craft => craft.profitBuy > 0);
@@ -1512,11 +1593,11 @@
                 const ticket = flipTicket(row);
                 return {
                     open: row.item.id,
-                    text: `Купить ${ticket.stack.toLocaleString('ru-RU')} шт «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(buySpend(row))}. Затраты вернутся, если продать ${ticket.need.toLocaleString('ru-RU')} шт по средней ${money(row.item.avg)}.`
+                    text: `Купить ${ticket.stack.toLocaleString('ru-RU')} шт «${row.item.name}» по ${money(row.item.price)}. Закупка ${money(buySpend(row))}. Затраты вернутся, если продать ${ticket.need.toLocaleString('ru-RU')} шт по средней ${money(row.item.avg)}.${priceIsFalling(row.item) ? ' Ещё падает.' : ''}`
                 };
             });
             const farms = plan.farms
-                .filter(row => row.craftScore > 0 && !owns(row.id))
+                .filter(row => row.craftScore > 0 && ownedCount(row.id) + 1e-9 < (row.best.qty || 0))
                 .sort((a, b) => b.craftScore - a.craftScore)
                 .slice(0, 3)
                 .map(row => ({
@@ -1524,7 +1605,7 @@
                     text: `Добыть «${row.name}»: это ${Math.round(row.best.share * 100)}% выгодного крафта «${row.best.name}».`
                 }));
             const ready = plan.farms
-                .filter(row => row.best && owns(row.id))
+                .filter(row => row.best && ownedCount(row.id) + 1e-9 >= (row.best.qty || 0) && row.best.qty > 0)
                 .sort((a, b) => b.craftScore - a.craftScore)
                 .slice(0, 1)
                 .map(row => ({
@@ -1555,9 +1636,13 @@
             els.bottlenecks.innerHTML = top.length
                 ? `<div class="night-sub" style="padding-top:8px">Упирается в одно сырьё</div>` + top.map(row => {
                     const share = Math.round(row.best.share * 100);
-                    const text = owns(row.id)
-                        ? `«${row.best.name}» можно закрывать: «${row.name}» уже в рюкзаке и это ${share}% себестоимости.`
-                        : `«${row.best.name}» упирается в «${row.name}»: ${share}% себестоимости, плюс ${money(row.best.profitBuy)} если докупить остальное.`;
+                    const have = ownedCount(row.id);
+                    const need = row.best.qty || 0;
+                    const text = have + 1e-9 >= need && need > 0
+                        ? `«${row.best.name}» можно закрывать: «${row.name}» уже в рюкзаке (${fmtQty(have)} шт) и это ${share}% себестоимости.`
+                        : (have > 0
+                            ? `«${row.best.name}» упирается в «${row.name}»: в рюкзаке ${fmtQty(have)} из ${fmtQty(need)}, плюс ${money(row.best.profitBuy)} если докупить остальное.`
+                            : `«${row.best.name}» упирается в «${row.name}»: ${share}% себестоимости, плюс ${money(row.best.profitBuy)} если докупить остальное.`);
                     return `<div class="night-row plan-row" data-loot="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">${escapeHtml(text)}</div></div></div>`;
                 }).join('')
                 : '';
@@ -1583,6 +1668,7 @@
                 : '<div class="night-sub">Сейчас нет короткого плана.</div>';
         }
         function renderTonight() {
+            renderTraps();
             if (!recipeIds().length) {
                 els.flipList.innerHTML = '';
                 els.farmList.innerHTML = '<div class="night-sub">Рецепты ещё грузятся…</div>';
@@ -1905,36 +1991,41 @@
             if (items.length === 0) {
                 return '<div class="empty-state" style="padding:20px;">Нет сырьевых материалов</div>';
             }
-            const billable = items.filter(item => item.unit_price > 0 && !owns(item.id));
-            const pricedTotal = billable.reduce((sum, item) => sum + item.total_cost, 0);
+            const billable = items
+                .map(item => ({ item, take: bagTake(item.id, item.quantity, item.unit_price) }))
+                .filter(row => row.item.unit_price > 0 && row.take.left > 1e-6);
+            const pricedTotal = billable.reduce((sum, row) => sum + row.take.rest, 0);
             const showPath = billable.length > 1;
-            const anyOwned = items.some(item => owns(item.id));
+            const anyOwned = items.some(item => bagTake(item.id, item.quantity, item.unit_price).have > 0);
             let totalCost = 0;
             const rows = items.map(item => {
                 const hasPrice = item.unit_price > 0;
-                const owned = owns(item.id);
-                if (hasPrice && !owned) totalCost += item.total_cost;
-                const share = hasPrice && !owned && pricedTotal > 0 ? item.total_cost / pricedTotal : 0;
-                const pathTag = owned
+                const take = bagTake(item.id, item.quantity, item.unit_price);
+                if (hasPrice && take.left > 1e-6) totalCost += take.rest;
+                const share = hasPrice && take.left > 1e-6 && pricedTotal > 0 ? take.rest / pricedTotal : 0;
+                const pathTag = take.full
                     ? '<span class="night-tag buy">в рюкзаке</span>'
-                    : (!showPath || !hasPrice
-                        ? ''
-                        : `<span class="night-tag${share >= 0.18 ? '' : ' buy'}">${share >= 0.18 ? 'фармить' : 'купить'}</span>`);
-                const priceText = owned
+                    : (take.partial
+                        ? `<span class="night-tag buy">есть ${fmtQty(take.have)}</span>`
+                        : (!showPath || !hasPrice
+                            ? ''
+                            : `<span class="night-tag${share >= 0.18 ? '' : ' buy'}">${share >= 0.18 ? 'фармить' : 'купить'}</span>`));
+                const priceText = take.full
                     ? '<span style="color:#8b7da3">уже есть</span>'
                     : (hasPrice
                         ? `${Math.round(item.unit_price).toLocaleString('ru-RU')} ₽${item.price_source === 'sale' ? ' <span style="color:#8b7da3;font-size:11px;">продажа</span>' : ''}`
                         : '<span class="no-price">—</span>');
-                const costText = owned ? 'есть' : (hasPrice ? `${Math.round(item.total_cost).toLocaleString('ru-RU')} ₽` : '—');
+                const costText = take.full ? 'есть' : (hasPrice ? `${Math.round(take.rest).toLocaleString('ru-RU')} ₽` : '—');
                 const iconHtml = item.icon
                     ? `<img class="shopping-icon" src="${item.icon}" alt="" data-id="${item.id}" onerror="iconError(this)">`
                     : '';
                 const qtyText = Number.isInteger(item.quantity)
                     ? item.quantity.toLocaleString('ru-RU')
                     : item.quantity.toFixed(2).replace('.', ',');
+                const leftNote = take.partial ? ` <span style="color:#8b7da3;font-size:11px;">ещё ${fmtQty(take.left)}</span>` : '';
                 return `<tr data-item="${escapeHtml(item.id)}">
                     <td>${iconHtml}${escapeHtml(item.name)}${pathTag}</td>
-                    <td style="text-align:right;font-weight:bold;">${qtyText}</td>
+                    <td style="text-align:right;font-weight:bold;">${qtyText}${leftNote}</td>
                     <td style="text-align:right;">${priceText}</td>
                     <td style="text-align:right;" class="price-cell">${costText}</td>
                 </tr>`;
@@ -2106,7 +2197,7 @@
             const bought = directBuyCost(craft, qty / perCraft);
             const buyList = directItemList(craft, qty / perCraft);
             const covered = (list) => (list instanceof Map ? [...list.values()] : list).reduce((sum, item) => (
-                owns(item.id) && item.unit_price > 0 ? sum + item.total_cost : sum
+                item.unit_price > 0 ? sum + bagTake(item.id, item.quantity, item.unit_price).covered : sum
             ), 0);
             const buyCovered = covered(buyList);
             const baseCovered = covered(flatBase);
@@ -2504,16 +2595,24 @@
         document.getElementById('bagCard').addEventListener('click', (e) => {
             const add = e.target.closest('[data-bag-add]');
             if (add) {
-                backpack.add(add.dataset.bagAdd);
+                setOwned(add.dataset.bagAdd, ownedCount(add.dataset.bagAdd) + 1);
                 saveBackpack();
                 els.bagSearch.value = '';
                 els.bagSuggest.innerHTML = '';
                 refreshOwnedViews();
                 return;
             }
+            const step = e.target.closest('[data-bag-inc], [data-bag-dec]');
+            if (step) {
+                const id = step.dataset.bagInc || step.dataset.bagDec;
+                setOwned(id, ownedCount(id) + (step.dataset.bagInc ? 1 : -1));
+                saveBackpack();
+                refreshOwnedViews();
+                return;
+            }
             const drop = e.target.closest('[data-bag-drop]');
             if (!drop) return;
-            backpack.delete(drop.dataset.bagDrop);
+            setOwned(drop.dataset.bagDrop, 0);
             saveBackpack();
             refreshOwnedViews();
         });
