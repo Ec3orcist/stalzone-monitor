@@ -632,6 +632,7 @@
                     icon: humanIcon(id, last && last.icon, meta.icon),
                     category: (last && last.category) || meta.category || 'other',
                     price: cur,
+                    listed: priced,
                     priced,
                     avg,
                     deviation: dev,
@@ -750,10 +751,13 @@
                 ? `<img class="card-icon" src="${item.icon}" alt="" loading="lazy" decoding="async" draggable="false" onerror="this.outerHTML='<div class=&quot;card-icon-empty&quot;>?</div>'">`
                 : `<div class="card-icon-empty">?</div>`;
             let devClass = 'neutral', devText = '—';
-            if (item.priced && item.deviation > 0.5) { devClass = 'red'; devText = '+' + item.deviation.toFixed(1) + '%'; }
-            else if (item.priced && item.deviation < -0.5) { devClass = 'green'; devText = item.deviation.toFixed(1) + '%'; }
-            else if (item.priced) { devText = '0%'; }
-            const priceText = item.priced ? `${item.price.toLocaleString('ru-RU')} ₽` : 'нет лотов';
+            if (item.listed && item.deviation > 0.5) { devClass = 'red'; devText = '+' + item.deviation.toFixed(1) + '%'; }
+            else if (item.listed && item.deviation < -0.5) { devClass = 'green'; devText = item.deviation.toFixed(1) + '%'; }
+            else if (item.listed) { devText = '0%'; }
+            else if (item.avg) { devText = 'по продажам'; }
+            const shown = item.listed ? item.price : Math.round(item.avg || 0);
+            const priceText = shown ? `${shown.toLocaleString('ru-RU')} ₽` : 'нет лотов';
+            const amountText = item.listed ? `· ${item.total_amount.toLocaleString('ru-RU')} шт` : (item.avg ? '· нет лотов' : '');
             const fav = isFavorite(item.id);
             card.innerHTML = `
                 <button class="card-star ${fav ? 'active' : ''}" data-star="${item.id}" title="${fav ? 'Убрать из избранного' : 'В избранное'}">★</button>
@@ -763,7 +767,7 @@
                     <div class="card-price">${priceText}</div>
                     <div class="card-meta">
                         <span class="card-dev ${devClass}">${devText}</span>
-                        <span>· ${item.total_amount.toLocaleString('ru-RU')} шт</span>
+                        ${amountText ? `<span>${amountText}</span>` : ''}
                     </div>
                 </div>
             `;
@@ -844,7 +848,7 @@
                     <button id="modalFavBtn" class="card-star ${fav ? 'active' : ''}" style="position:static; font-size:32px; padding:0 12px;" title="В избранное">★</button>
                 </div>
                 <div class="stats">
-                    <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : 'нет лотов'}</div><div class="stat-label">Цена за 1 шт</div><div class="stat-sub">${bestLotInfo}</div></div>
+                    <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : (avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : 'нет лотов')}</div><div class="stat-label">${cur ? 'Цена за 1 шт' : 'Средняя сделок'}</div><div class="stat-sub">${cur ? bestLotInfo : 'Сейчас лотов нет'}</div></div>
                     <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя сделок (14 дней)</div></div>
                     <div class="stat-item"><div class="stat-value ${cur && avg ? devClass : ''}">${cur && avg ? ((dev > 0 ? '+' : '') + dev.toFixed(1) + '%') : '—'}</div><div class="stat-label">Отклонение</div></div>
                     <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? last.total_amount.toLocaleString('ru-RU') + ' шт' : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? last.lots_count + ' лотов' : ''}</div></div>
