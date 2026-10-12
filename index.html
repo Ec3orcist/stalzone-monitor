@@ -409,6 +409,22 @@
         .loot-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
         .loot-drop { background: transparent; border: 0; color: var(--muted); font-size: 18px; padding: 0 6px; }
         .loot-drop:hover { color: var(--danger); }
+        .view-switch { display: flex; gap: 4px; margin-bottom: 10px; }
+        .view-btn { padding: 8px 14px; font-family: var(--hud); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; background: transparent; color: var(--muted); border: 1px solid var(--edge); }
+        .view-btn.active { color: #fff; background: linear-gradient(180deg, #7a56e6, #4c2f96); border-color: transparent; }
+        .rare-controls { display: contents; }
+        .rare-controls[hidden] { display: none !important; }
+        .rare-note { flex: 1 1 100%; margin: 0; }
+        .market-layout.rare-mode { grid-template-columns: minmax(0, 1fr); }
+        .market-layout.rare-mode .cat-rail { display: none; }
+        .rank-badge, .qlt-badge, .plus-badge { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); }
+        .rank-newbie, .qlt-0 { color: #b7b0c4; }
+        .rank-stalker, .qlt-1 { color: #86efac; }
+        .rank-veteran, .qlt-2 { color: #7dd3fc; }
+        .rank-master, .qlt-3 { color: #c4b5fd; }
+        .qlt-4 { color: #f9a8d4; }
+        .rank-legend, .qlt-5 { color: #f0c36a; }
+        .plus-badge { color: var(--text); }
         #clearBuiltBtn { background: transparent; border-color: var(--line); color: var(--muted); }
         #clearBuiltBtn:hover { color: var(--danger); border-color: rgba(251,113,133,.5); }
         .unlock-meter { margin: 10px 0; }
@@ -549,9 +565,13 @@
         </header>
 
         <div id="tab-market">
-            <div class="market-layout">
+            <div class="market-layout" id="marketLayout">
             <aside class="cat-rail" id="catRail" aria-label="Категории"></aside>
             <div class="market-main">
+            <div class="view-switch">
+                <button type="button" class="view-btn active" data-market-view="all">Все лоты</button>
+                <button type="button" class="view-btn" data-market-view="rare">Редкие</button>
+            </div>
             <div class="controls">
                 <select id="categorySelect" hidden><option value="">Все категории</option></select>
                 <select id="marketFilter">
@@ -579,6 +599,27 @@
                     <option value="amount_desc">По количеству</option>
                 </select>
                 <button id="refreshBtn">Обновить</button>
+                <div id="rareControls" class="rare-controls" hidden>
+                    <select id="rareKind">
+                        <option value="gear">Снаряжение</option>
+                        <option value="weapon">Оружие</option>
+                        <option value="armor">Броня</option>
+                        <option value="attachment">Обвесы и модули</option>
+                        <option value="artefact">Артефакты</option>
+                        <option value="">Всё редкое</option>
+                    </select>
+                    <select id="rareRank"><option value="">Любая редкость</option></select>
+                    <select id="rareUpgrade">
+                        <option value="">Любая заточка</option>
+                    </select>
+                    <select id="rareSort">
+                        <option value="rank">По редкости</option>
+                        <option value="upgrade">По заточке</option>
+                        <option value="price">Сначала дороже</option>
+                        <option value="sold">Реже продаётся</option>
+                    </select>
+                    <p class="night-sub rare-note" id="rareNote"></p>
+                </div>
             </div>
             <div class="stats-bar"><span id="resultCount">Загрузка...</span></div>
             <div class="items-grid" id="itemsGrid"></div>
@@ -892,6 +933,13 @@
             "supplies", "misc", "other"
         ];
         const FAVORITES_KEY = "__favorites__";
+        const RANK_NAMES = { newbie: 'Новичок', stalker: 'Сталкер', veteran: 'Ветеран', master: 'Мастер', legend: 'Легенда' };
+        const RANK_ORDER = { newbie: 1, stalker: 2, veteran: 3, master: 4, legend: 5 };
+        const QLT_NAMES = ['Обычный', 'Необычный', 'Особый', 'Редкий', 'Исключительный', 'Легендарный'];
+        const GEAR_CATS = new Set(['weapon', 'armor', 'armour', 'attachment', 'weapon_modules']);
+        const ART_CATS = new Set(['artefact', 'artifact']);
+        let marketView = 'all';
+        let rareRankMode = '';
         const CATEGORY_GLYPHS = {
             weapon: '⌖', weapon_modules: '⚙', attachment: '⊕', ammo: '⁞', bullet: '⁞', armor: '⛨', armour: '⛨',
             backpacks: '▣', backpack: '▣', artefact: '✦', artifact: '✦', containers: '⬡', container: '⬡',
@@ -1594,6 +1642,13 @@
             searchInput: document.getElementById('searchInput'),
             sortSelect: document.getElementById('sortSelect'),
             refreshBtn: document.getElementById('refreshBtn'),
+            marketLayout: document.getElementById('marketLayout'),
+            rareControls: document.getElementById('rareControls'),
+            rareKind: document.getElementById('rareKind'),
+            rareRank: document.getElementById('rareRank'),
+            rareUpgrade: document.getElementById('rareUpgrade'),
+            rareSort: document.getElementById('rareSort'),
+            rareNote: document.getElementById('rareNote'),
             itemsGrid: document.getElementById('itemsGrid'),
             resultCount: document.getElementById('resultCount'),
             sentinel: document.getElementById('sentinel'),
@@ -1805,6 +1860,8 @@
                     trend7: flow.trend7,
                     total_amount: (last && last.total_amount) || 0,
                     lots_count: (last && last.lots_count) || 0,
+                    lots: (last && last.lots) || [],
+                    rank: meta.rank || '',
                     lastRecord: last
                 };
             }).filter(item => item.id);
@@ -1877,7 +1934,118 @@
             if (current) els.craftSkillSelect.value = current;
         }
 
+        function traitGroups(item) {
+            const lots = Array.isArray(item.lots) ? item.lots : [];
+            const groups = new Map();
+            lots.forEach(lot => {
+                const q = Number.isInteger(lot.q) ? lot.q : null;
+                const u = Number.isInteger(lot.u) ? lot.u : null;
+                if (q === null && u === null) return;
+                const key = `${q}|${u}`;
+                const row = groups.get(key) || { q, u, price: lot.price_per_unit, amount: 0 };
+                row.amount += lot.amount || 0;
+                if (lot.price_per_unit < row.price) row.price = lot.price_per_unit;
+                groups.set(key, row);
+            });
+            if (groups.size) return [...groups.values()];
+            return [{ q: null, u: null, price: item.price || 0, amount: item.total_amount || 0 }];
+        }
+        function rareKindMatch(item) {
+            const kind = els.rareKind.value;
+            if (kind === 'weapon') return item.category === 'weapon';
+            if (kind === 'armor') return item.category === 'armor' || item.category === 'armour';
+            if (kind === 'attachment') return item.category === 'attachment' || item.category === 'weapon_modules';
+            if (kind === 'artefact') return ART_CATS.has(item.category);
+            if (kind === 'gear') return GEAR_CATS.has(item.category);
+            return GEAR_CATS.has(item.category) || ART_CATS.has(item.category);
+        }
+        function isSlowListing(item) {
+            if (ART_CATS.has(item.category)) return item.listed || (item.sold14 || 0) > 0 || (item.avg || 0) > 0;
+            return (item.sold14 || 0) <= 12;
+        }
+        function fillRareRank() {
+            const art = els.rareKind.value === 'artefact';
+            const mode = art ? 'q' : 'r';
+            if (mode === rareRankMode) return;
+            rareRankMode = mode;
+            const options = art
+                ? QLT_NAMES.map((name, index) => `<option value="q${index}">${name}</option>`)
+                : Object.keys(RANK_NAMES).map(key => `<option value="${key}">${RANK_NAMES[key]}</option>`);
+            els.rareRank.innerHTML = `<option value="">${art ? 'Любое качество' : 'Любая редкость'}</option>${options.join('')}`;
+        }
+        function syncMarketView() {
+            const rare = marketView === 'rare';
+            els.marketFilter.hidden = rare;
+            els.signalFilter.hidden = rare;
+            els.sortSelect.hidden = rare;
+            els.rareControls.hidden = !rare;
+            els.marketLayout.classList.toggle('rare-mode', rare);
+            document.querySelectorAll('[data-market-view]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.marketView === marketView);
+            });
+        }
+        function rareViews() {
+            fillRareRank();
+            const query = els.searchInput.value.toLowerCase().trim();
+            const upgrade = els.rareUpgrade.value;
+            const rarity = els.rareRank.value;
+            const rows = [];
+            itemsCache.forEach(item => {
+                if (!rareKindMatch(item) || !isSlowListing(item)) return;
+                if (query && !item.name.toLowerCase().includes(query) && !item.id.toLowerCase().includes(query)) return;
+                traitGroups(item).forEach(group => {
+                    if (upgrade !== '' && group.u !== Number(upgrade)) return;
+                    if (rarity.startsWith('q') && group.q !== Number(rarity.slice(1))) return;
+                    if (rarity && !rarity.startsWith('q') && item.rank !== rarity) return;
+                    const price = group.price || 0;
+                    const listed = price > 0;
+                    rows.push({
+                        ...item,
+                        price,
+                        listed,
+                        priced: listed,
+                        total_amount: group.amount || 0,
+                        deviation: listed && item.avg > 0 ? ((price - item.avg) / item.avg) * 100 : 0,
+                        traitQ: group.q,
+                        traitU: group.u,
+                        showTraits: true
+                    });
+                });
+            });
+            const sort = els.rareSort.value;
+            const rarityScore = row => ART_CATS.has(row.category) ? (row.traitQ == null ? -1 : row.traitQ + 1) : (RANK_ORDER[row.rank] || 0);
+            rows.sort((a, b) => {
+                if (sort === 'upgrade') return (b.traitU == null ? -1 : b.traitU) - (a.traitU == null ? -1 : a.traitU) || b.price - a.price;
+                if (sort === 'price') return b.price - a.price;
+                if (sort === 'sold') return (a.sold14 || 0) - (b.sold14 || 0) || b.price - a.price;
+                return rarityScore(b) - rarityScore(a) || (b.traitU == null ? -1 : b.traitU) - (a.traitU == null ? -1 : a.traitU) || a.name.localeCompare(b.name, 'ru');
+            });
+            return rows;
+        }
+        function renderRareList() {
+            syncMarketView();
+            const rows = rareViews();
+            const knownUpgrade = rows.some(row => row.traitU != null);
+            els.rareNote.textContent = knownUpgrade ? '' : 'Заточка +0…+15 появится здесь после следующего обновления цен, если такой лот есть на аукционе.';
+            filteredItems = rows;
+            currentChunk = 0;
+            els.itemsGrid.innerHTML = '';
+            if (!rows.length) {
+                els.itemsGrid.innerHTML = `<div class="empty-state">${els.rareUpgrade.value !== '' ? 'С этой заточкой лотов нет.' : 'Таких редких лотов сейчас нет.'}</div>`;
+                els.resultCount.textContent = `Найдено ${ruCount(0, 'предмет', 'предмета', 'предметов')}`;
+                els.sentinel.style.display = 'none';
+                return;
+            }
+            els.resultCount.textContent = `Редкие · ${ruCount(rows.length, 'лот', 'лота', 'лотов')}`;
+            els.sentinel.style.display = 'block';
+            renderNextChunk();
+        }
         function applyFilters() {
+            if (marketView === 'rare') {
+                renderRareList();
+                return;
+            }
+            syncMarketView();
             const cat = els.categorySelect.value;
             const query = els.searchInput.value.toLowerCase().trim();
             const sort = els.sortSelect.value;
@@ -1956,11 +2124,14 @@
                 ? `${item.trend7 > 0 ? '+' : ''}${item.trend7.toFixed(0)}% 7д`
                 : '';
             const trendClass = !trendText ? '' : (item.trend7 < 0 ? 'green' : (item.trend7 > 0 ? 'red' : 'neutral'));
-            const soldText = item.sold14 > 0 ? `продано ${ruPieces(item.sold14)}` : '';
+            const soldText = item.sold14 > 0 ? `продано ${ruPieces(item.sold14)}` : (item.showTraits ? 'за 14д не продавалось' : '');
             const amountText = item.listed
                 ? ruPieces(item.total_amount)
                 : (item.avg ? 'нет лотов' : '');
             const fav = isFavorite(item.id);
+            const traitHtml = item.showTraits
+                ? `${item.rank ? `<span class="rank-badge rank-${item.rank}">${RANK_NAMES[item.rank] || ''}</span>` : ''}${Number.isInteger(item.traitQ) ? `<span class="qlt-badge qlt-${item.traitQ}">${QLT_NAMES[item.traitQ] || ''}</span>` : ''}${Number.isInteger(item.traitU) ? `<span class="plus-badge">+${item.traitU}</span>` : ''}`
+                : '';
             card.innerHTML = `
                 <button class="card-star ${fav ? 'active' : ''}" data-star="${item.id}" title="${fav ? 'Убрать из избранного' : 'В избранное'}">★</button>
                 ${iconHtml}
@@ -1968,6 +2139,7 @@
                     <div class="card-name">${escapeHtml(item.name)}</div>
                     <div class="card-price">${priceText}</div>
                     <div class="card-meta">
+                        ${traitHtml}
                         <span class="card-dev ${signal.cls}">${signal.text}</span>
                         ${item.listed && fairDeviation(item) !== null ? `<span>${(item.deviation > 0 ? '+' : '') + item.deviation.toFixed(0)}%</span>` : ''}
                         ${avgText ? `<span>${avgText}</span>` : ''}
@@ -2101,16 +2273,19 @@
             }
             let lotsHtml = '';
             if (last.lots && last.lots.length) {
+                const hasTrait = last.lots.some(lot => Number.isInteger(lot.q) || Number.isInteger(lot.u));
                 const rows = last.lots.map((lot, i) => {
                     const endTime = lot.endTime ? new Date(lot.endTime).toLocaleString('ru-RU') : '—';
-                    return `<tr><td>${i+1}</td><td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td><td>${ruPieces(lot.amount)}</td><td>${lot.buyout.toLocaleString('ru-RU')} ₽</td><td class="time-cell">${endTime}</td></tr>`;
+                    const trait = [Number.isInteger(lot.u) ? `+${lot.u}` : '', Number.isInteger(lot.q) ? (QLT_NAMES[lot.q] || '') : ''].filter(Boolean).join(' · ') || '—';
+                    return `<tr><td>${i+1}</td>${hasTrait ? `<td>${trait}</td>` : ''}<td class="price-cell">${lot.price_per_unit.toLocaleString('ru-RU')} ₽</td><td>${ruPieces(lot.amount)}</td><td>${lot.buyout.toLocaleString('ru-RU')} ₽</td><td class="time-cell">${endTime}</td></tr>`;
                 }).join('');
                 const shownLots = last.lots.length;
                 const totalLots = last.lots_count || shownLots;
                 const lotTitle = totalLots > shownLots
                     ? `Актуальные лоты · ${shownLots.toLocaleString('ru-RU')} из ${ruCount(totalLots, 'лота', 'лотов', 'лотов')}`
                     : `Актуальные лоты · ${ruCount(shownLots, 'лот', 'лота', 'лотов')}`;
-                lotsHtml = `<h3 class="lots-title">📋 ${lotTitle}</h3><table><thead><tr><th>#</th><th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
+                const traitHead = last.lots.some(lot => Number.isInteger(lot.q) || Number.isInteger(lot.u)) ? '<th>Заточка</th>' : '';
+                lotsHtml = `<h3 class="lots-title">📋 ${lotTitle}</h3><table><thead><tr><th>#</th>${traitHead}<th>Цена за 1 шт</th><th>Количество</th><th>Цена лота</th><th>Истекает</th></tr></thead><tbody>${rows}</tbody></table>`;
             }
 
             let salesHtml = '';
@@ -4469,6 +4644,16 @@
             syncCatRail();
             applyFilters();
             if (window.matchMedia('(max-width: 760px)').matches) btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+        });
+        els.rareUpgrade.innerHTML = '<option value="">Любая заточка</option>' + Array.from({ length: 16 }, (_, level) => `<option value="${level}">+${level}</option>`).join('');
+        document.querySelectorAll('[data-market-view]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                marketView = btn.dataset.marketView || 'all';
+                applyFilters();
+            });
+        });
+        [els.rareKind, els.rareRank, els.rareUpgrade, els.rareSort].forEach(select => {
+            select.addEventListener('change', applyFilters);
         });
         els.marketFilter.addEventListener('change', applyFilters);
         els.signalFilter.addEventListener('change', applyFilters);

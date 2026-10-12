@@ -33,6 +33,14 @@ MAX_ITEMS = 3000
 RESCAN_BATCH = 200
 WORKERS = 4
 MAX_LOTS_PER_ITEM = 10
+GEAR_CATS = {"weapon", "armor", "armour", "attachment", "weapon_modules"}
+RANK_CODES = {
+    "RANK_NEWBIE": "newbie",
+    "RANK_STALKER": "stalker",
+    "RANK_VETERAN": "veteran",
+    "RANK_MASTER": "master",
+    "RANK_LEGEND": "legend",
+}
 MIN_REQUEST_INTERVAL = 1.05
 REQUEST_TIMEOUT = 15
 RETRIES = 3
@@ -231,6 +239,7 @@ def scan_item_database(item_db_dir, existing_icons):
             "name": localized_name(content),
             "icon": icon_url(item_id, category, existing_icons),
             "category": top_category,
+            "rank": RANK_CODES.get(content.get("color") or "", ""),
         }
         meta[item_id] = info
         if parse_item_state(content) in UNTRADABLE_STATES:
@@ -276,6 +285,9 @@ def pick_items(tradable, active_ids, priority_ids, cursor):
     ]
     covered.update(item["id"] for item in priority)
     rest = [item for item in tradable if item["id"] not in covered]
+    gear = [item for item in rest if item.get("category") in GEAR_CATS]
+    other = [item for item in rest if item.get("category") not in GEAR_CATS]
+    rest = gear + other
     if not rest:
         window = []
         next_cursor = 0
@@ -287,8 +299,51 @@ def pick_items(tradable, active_ids, priority_ids, cursor):
     return primary + priority + window, next_cursor
 
 
+def bounded_int(extra, keys, low, high):
+    if not isinstance(extra, dict):
+        return None
+    for key in keys:
+        if key not in extra:
+            continue
+        try:
+            value = int(extra[key])
+        except (TypeError, ValueError):
+            continue
+        if low <= value <= high:
+            return value
+    return None
+
+
+def lot_traits(raw):
+    extra = raw.get("additional") if isinstance(raw, dict) else None
+    traits = {}
+    quality = bounded_int(extra, ("qlt", "quality"), 0, 5)
+    upgrade = bounded_int(extra, ("ptn", "upgrade", "level"), 0, 15)
+    if quality is not None:
+        traits["q"] = quality
+    if upgrade is not None:
+        traits["u"] = upgrade
+    return traits
+
+
+def keep_lots(lots):
+    grouped = {}
+    plain = []
+    for lot in lots:
+        key = (lot.get("q"), lot.get("u"))
+        if key == (None, None):
+            if len(plain) < MAX_LOTS_PER_ITEM:
+                plain.append(lot)
+            continue
+        grouped.setdefault(key, lot)
+    if not grouped:
+        return plain
+    chosen = sorted(grouped.values(), key=lambda lot: lot["price_per_unit"])
+    return chosen[:24]
+
+
 def fetch_lots(api, item_id):
-    data = api.get(f"{API_BASE}/{REGION}/auction/{item_id}/lots?limit=200")
+    data = api.get(f"{API_BASE}/{REGION}/auction/{item_id}/lots?limit=200&additional=true")
     if not data:
         return item_id, []
     raw_lots = data.get("lots", []) if isinstance(data, dict) else data
@@ -298,12 +353,14 @@ def fetch_lots(api, item_id):
         amount = lot.get("amount") or 0
         if buyout <= 0 or amount <= 0:
             continue
-        processed.append({
+        row = {
             "price_per_unit": round(buyout / amount),
             "buyout": buyout,
             "amount": amount,
             "endTime": lot.get("endTime", ""),
-        })
+        }
+        row.update(lot_traits(lot))
+        processed.append(row)
     processed.sort(key=lambda lot: lot["price_per_unit"])
     return item_id, processed
 
@@ -675,7 +732,7 @@ def update_prices(api, items, history):
             "best_lot_buyout": best["buyout"],
             "total_amount": sum(lot["amount"] for lot in lots),
             "lots_count": len(lots),
-            "lots": lots[:MAX_LOTS_PER_ITEM],
+            "lots": keep_lots(lots),
             "name": meta.get("name", item_id),
             "icon": meta.get("icon", ""),
             "category": meta.get("category", "other"),
@@ -733,16 +790,19 @@ def update_sales(api, item_ids, previous):
 
 def save_item_catalog(meta, tradable):
     tradable_ids = {item["id"] for item in tradable}
-    catalog = {
-        item_id: {
+    catalog = {}
+    for item_id, info in meta.items():
+        if not info.get("name"):
+            continue
+        row = {
             "name": info.get("name") or item_id,
             "icon": info.get("icon") or "",
             "category": info.get("category") or "other",
             "tradable": item_id in tradable_ids,
         }
-        for item_id, info in meta.items()
-        if info.get("name")
-    }
+        if info.get("rank"):
+            row["rank"] = info["rank"]
+        catalog[item_id] = row
     save_json(ITEMS_FILE, catalog)
     tradable_count = sum(1 for row in catalog.values() if row["tradable"])
     print(f"✅ Каталог: {len(catalog)} предметов, торгуемых {tradable_count}")
