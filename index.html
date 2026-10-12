@@ -1835,15 +1835,17 @@
             const rows = missing.map(row => {
                 const share = row.unit > 0 && spend > 0 ? row.take.rest / spend : 0;
                 const farm = row.unit > 0 && share >= 0.18;
-                const tag = !(row.unit > 0) ? 'нет цены' : (farm ? 'фармить' : 'купить');
                 const listed = listedAmount(itemsCache.find(item => item.id === row.id));
-                const shortBuy = tag === 'купить' && row.take.left > listed + 1e-6;
+                const buy = row.unit > 0 && !farm;
+                const unsold = buy && listed <= 0;
+                const shortBuy = buy && row.take.left > listed + 1e-6;
+                const tag = !(row.unit > 0) ? 'нет цены' : (farm ? 'фармить' : (unsold ? 'нет в продаже' : 'купить'));
                 const tagClass = farm ? '' : ' buy';
                 const stale = row.stale ? ' · цена старая' : (row.source === 'sale' && saleIsStale(row.id) ? ' · давно не продавалось' : '');
                 const absurd = row.absurd ? ` · ${row.quotedLot ? 'лот' : 'продажа'} ${money(row.quoted)} не берём` : '';
                 const costText = !(row.unit > 0)
                     ? 'нет цены'
-                    : (shortBuy ? `на аукционе только ${ruPieces(listed)}` : money(row.take.rest));
+                    : (unsold ? 'на аукционе нет' : (shortBuy ? `на аукционе только ${ruPieces(listed)}` : money(row.take.rest)));
                 return {
                     row,
                     tag,
@@ -1860,7 +1862,7 @@
             const payable = rows.reduce((sum, entry) => sum + entry.payable, 0);
             const profit = known && revenue > 0 && !shortBuy ? revenue - spend : null;
             const profitText = shortBuy
-                ? 'На аукционе не всё, что помечено «купить».'
+                ? 'На аукционе не всё, что нужно докупить.'
                 : (!known
                     ? 'Нет цены на часть сырья, плюс не считаю.'
                     : (profit === null
