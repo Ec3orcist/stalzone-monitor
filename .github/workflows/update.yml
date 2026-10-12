@@ -45,6 +45,7 @@ jobs:
         id: gate
         env:
           CATALOG: ${{ github.event.inputs.catalog == 'true' || github.event.schedule == '17 3 * * *' }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           python - << 'PY'
           import json
@@ -53,9 +54,12 @@ jobs:
           from pathlib import Path
 
           catalog = os.environ.get("CATALOG") == "true"
+          event = os.environ.get("EVENT_NAME") or ""
           run = True
           path = Path("prices.json")
-          if catalog:
+          if event != "schedule":
+              print(f"Keep the chain going ({event or 'push'})")
+          elif catalog:
               print("Catalog refresh")
           elif not path.exists():
               print("No prices yet")
@@ -73,9 +77,9 @@ jobs:
                   if ts.tzinfo is None:
                       ts = ts.replace(tzinfo=timezone.utc)
                   age = (datetime.now(timezone.utc) - ts).total_seconds()
-                  if age < 12 * 60:
+                  if age < 20 * 60:
                       run = False
-                      print(f"Prices are {int(age)}s old, skip")
+                      print(f"Prices are {int(age)}s old, scheduled pass is not needed")
                   else:
                       print(f"Prices are {int(age)}s old, fetch")
               else:
