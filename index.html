@@ -805,20 +805,38 @@
                 els.bagReady.innerHTML = '';
                 return;
             }
-            const ready = recipeIds().map(id => {
+            const ready = [];
+            const almost = [];
+            recipeIds().forEach(id => {
                 const craft = resolveNode(id);
                 const econ = craftEconomics(craft);
                 const ingredients = craft.ingredients || [];
                 const per = craft.craftAmount || 1;
-                if (!(econ.profitBuy > 0) || econ.buy.missing || !ingredients.length) return null;
-                if (!ingredients.every(ing => ownedCount(ing.id) + 1e-9 >= (ing.amount || 0) / per)) return null;
-                return { id, name: craft.name, profit: econ.profitBuy };
-            }).filter(Boolean).sort((a, b) => b.profit - a.profit).slice(0, 3);
-            els.bagReady.innerHTML = ready.length
-                ? `<div class="night-sub" style="padding-top:8px">Уже можно скрафтить</div>` + ready.map(row =>
-                    `<div class="night-row plan-row" data-loot-craft="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">«${escapeHtml(row.name)}» +${money(row.profit)} — сырьё уже в рюкзаке.</div></div></div>`
-                ).join('')
-                : '<div class="night-sub">Из отмеченного плюсовый рецепт целиком пока не собирается.</div>';
+                if (!(econ.profitBuy > 0) || econ.buy.missing || !ingredients.length) return;
+                const gaps = [];
+                let ownedSome = false;
+                ingredients.forEach(ing => {
+                    const need = (ing.amount || 0) / per;
+                    const have = ownedCount(ing.id);
+                    if (have > 0) ownedSome = true;
+                    if (have + 1e-9 < need) gaps.push({ name: humanName(ing.id), left: need - have });
+                });
+                if (!gaps.length) ready.push({ id, name: craft.name, profit: econ.profitBuy });
+                else if (gaps.length === 1 && ownedSome) almost.push({ id, name: craft.name, missing: gaps[0].name, left: gaps[0].left, profit: econ.profitBuy });
+            });
+            ready.sort((a, b) => b.profit - a.profit);
+            almost.sort((a, b) => a.left - b.left || b.profit - a.profit);
+            const readyHtml = ready.slice(0, 3).map(row =>
+                `<div class="night-row plan-row" data-loot-craft="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">«${escapeHtml(row.name)}» +${money(row.profit)} — сырьё уже в рюкзаке.</div></div></div>`
+            ).join('');
+            const almostHtml = almost.slice(0, 3).map(row =>
+                `<div class="night-row plan-row" data-loot-craft="${escapeHtml(row.id)}"><div class="night-main"><div class="night-name">«${escapeHtml(row.name)}»: не хватает ${fmtQty(Math.ceil(row.left - 1e-9))} шт «${escapeHtml(row.missing)}».</div></div></div>`
+            ).join('');
+            const blocks = [
+                readyHtml ? `<div class="night-sub" style="padding-top:8px">Уже можно скрафтить</div>${readyHtml}` : '',
+                almostHtml ? `<div class="night-sub" style="padding-top:8px">Почти собрано</div>${almostHtml}` : ''
+            ].join('');
+            els.bagReady.innerHTML = blocks || '<div class="night-sub">Из отмеченного плюсовый рецепт целиком пока не собирается.</div>';
         }
         function renderBagSuggest() {
             const rows = bagCandidates(els.bagSearch.value);
