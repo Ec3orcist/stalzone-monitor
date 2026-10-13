@@ -39,6 +39,8 @@
     "1kw1",
     "1n91",
     "1r0gg",
+    "1r15q",
+    "1r1wg",
     "1r216",
     "1r246",
     "1r2l6",
@@ -70,6 +72,7 @@
     "2dq0",
     "2nw5",
     "2o3d6",
+    "2o4km",
     "2o65l",
     "2o9g0",
     "2ogqm",
@@ -687,7 +690,6 @@
     "zzqk2",
     "zzqn2",
     "zzqn9",
-    "zzwmm",
     "zzy1n"
   ],
   "warm": [
@@ -708,8 +710,6 @@
     "1pyq",
     "1r0y6",
     "1r0zg",
-    "1r15q",
-    "1r1wg",
     "1r39q",
     "1rd7r",
     "1rj9g",
@@ -720,7 +720,6 @@
     "21wo5",
     "2o0zm",
     "2o405",
-    "2o4km",
     "2o6zl",
     "2o760",
     "2od6m",
@@ -903,6 +902,7 @@
     "zz7g9",
     "zzo3m",
     "zzoln",
+    "zzwmm",
     "zzyly"
   ],
   "probed": {
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1329,
-  "quiet_cursor": 11,
-  "warm_cursor": 16,
+  "cursor": 1482,
+  "quiet_cursor": 26,
+  "warm_cursor": 31,
   "probe_cursor": 2195,
-  "sales_cursor": 424,
-  "rare_cursor": 136
+  "sales_cursor": 436,
+  "rare_cursor": 140
 }
