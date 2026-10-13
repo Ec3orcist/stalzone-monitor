@@ -165,6 +165,7 @@
     "5l23g",
     "5l7m4",
     "5ldgo",
+    "5lgvo",
     "5lnp0",
     "5lo3o",
     "5logg",
@@ -252,7 +253,6 @@
     "9g6z",
     "9mgw",
     "9mmq",
-    "9mr0",
     "9n1w",
     "9n7z",
     "9nd0",
@@ -745,7 +745,6 @@
     "523g",
     "5250",
     "52l0",
-    "5lgvo",
     "5lnv0",
     "5lq41",
     "5lzyg",
@@ -774,6 +773,7 @@
     "9g10",
     "9m7w",
     "9mn0",
+    "9mr0",
     "9yly",
     "9ypy",
     "dm0dn",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 152,
-  "quiet_cursor": 80,
-  "warm_cursor": 33,
+  "cursor": 241,
+  "quiet_cursor": 95,
+  "warm_cursor": 48,
   "probe_cursor": 2195,
-  "sales_cursor": 112,
-  "rare_cursor": 19
+  "sales_cursor": 124,
+  "rare_cursor": 23
 }
