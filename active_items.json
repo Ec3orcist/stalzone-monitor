@@ -264,6 +264,7 @@
     "dm165",
     "dm1ln",
     "dm925",
+    "dm9qn",
     "dmj6j",
     "dmjdn",
     "dmjwn",
@@ -284,6 +285,7 @@
     "drmwj",
     "dry5g",
     "dryl2",
+    "g00n",
     "g02p",
     "g05g",
     "g060",
@@ -520,7 +522,6 @@
     "qjqw9",
     "qjrd6",
     "qjwv3",
-    "qmn6",
     "qo06",
     "qo59",
     "qo94",
@@ -540,7 +541,6 @@
     "rn1z",
     "rnkl",
     "rnvg",
-    "ropg",
     "rr05",
     "rr45",
     "rr7g",
@@ -779,12 +779,10 @@
     "d3kg",
     "dm0dn",
     "dm2y9",
-    "dm9qn",
     "dmgvj",
     "dmlwj",
     "dmyd9",
     "dr96g",
-    "g00n",
     "g325",
     "g3zg",
     "g49dg",
@@ -2279,7 +2277,9 @@
     "kr2np": "2026-10-13",
     "g40vn": "2026-10-13",
     "3v3z": "2026-10-13",
-    "l65j": "2026-10-13"
+    "l65j": "2026-10-13",
+    "qmn6": "2026-10-13",
+    "ropg": "2026-10-13"
   },
   "deep": [
     "0r2g1",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1884,
-  "quiet_cursor": 71,
-  "warm_cursor": 76,
+  "cursor": 2041,
+  "quiet_cursor": 86,
+  "warm_cursor": 91,
   "probe_cursor": 2195,
-  "sales_cursor": 472,
-  "rare_cursor": 152
+  "sales_cursor": 484,
+  "rare_cursor": 156
 }
