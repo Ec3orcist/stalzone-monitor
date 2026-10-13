@@ -498,7 +498,6 @@
     "q10k",
     "q1lk",
     "q224",
-    "q2p3",
     "q2wk",
     "q2yj",
     "qj1lk",
@@ -692,9 +691,11 @@
     "zz939",
     "zzjgn",
     "zznok",
+    "zzo3m",
     "zzqk2",
     "zzqn2",
     "zzqn9",
+    "zzwmm",
     "zzy1n"
   ],
   "warm": [
@@ -854,6 +855,7 @@
     "pjn64",
     "pjo64",
     "q194",
+    "q2p3",
     "qj253",
     "qj9n6",
     "qjlzj",
@@ -896,9 +898,7 @@
     "z7y2",
     "zjn9",
     "zz7g9",
-    "zzo3m",
     "zzoln",
-    "zzwmm",
     "zzyly"
   ],
   "probed": {
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 473,
-  "quiet_cursor": 73,
-  "warm_cursor": 196,
+  "cursor": 569,
+  "quiet_cursor": 88,
+  "warm_cursor": 9,
   "probe_cursor": 2195,
-  "sales_cursor": 568,
-  "rare_cursor": 184
+  "sales_cursor": 580,
+  "rare_cursor": 188
 }
