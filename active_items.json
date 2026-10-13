@@ -200,6 +200,7 @@
     "6wvqy",
     "77oy6",
     "77w9j",
+    "79w7",
     "7l127",
     "7l1kr",
     "7l1z6",
@@ -690,7 +691,6 @@
     "zz75n",
     "zz939",
     "zzjgn",
-    "zznok",
     "zzo3m",
     "zzqk2",
     "zzqn2",
@@ -763,7 +763,6 @@
     "77dlj",
     "7933",
     "7977",
-    "79w7",
     "7ldq3",
     "7lnk7",
     "7lrr9",
@@ -2279,7 +2278,8 @@
     "3v3z": "2026-10-13",
     "l65j": "2026-10-13",
     "qmn6": "2026-10-13",
-    "ropg": "2026-10-13"
+    "ropg": "2026-10-13",
+    "zznok": "2026-10-13"
   },
   "deep": [
     "0r2g1",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 833,
-  "quiet_cursor": 16,
-  "warm_cursor": 54,
+  "cursor": 931,
+  "quiet_cursor": 31,
+  "warm_cursor": 69,
   "probe_cursor": 2195,
-  "sales_cursor": 616,
-  "rare_cursor": 200
+  "sales_cursor": 628,
+  "rare_cursor": 204
 }
