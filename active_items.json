@@ -563,7 +563,6 @@
     "rw23l",
     "rw255",
     "rw27g",
-    "rw2ky",
     "rw4ry",
     "rw6nl",
     "rw9pz",
@@ -863,6 +862,7 @@
     "r2mv",
     "rg5y",
     "row5",
+    "rw2ky",
     "rwl5v",
     "rwol5",
     "rwzmv",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 367,
-  "quiet_cursor": 92,
-  "warm_cursor": 112,
+  "cursor": 448,
+  "quiet_cursor": 107,
+  "warm_cursor": 127,
   "probe_cursor": 2195,
-  "sales_cursor": 616,
-  "rare_cursor": 187
+  "sales_cursor": 628,
+  "rare_cursor": 191
 }
