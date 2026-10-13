@@ -25,9 +25,11 @@
     "0rqqk",
     "0rymk",
     "12dq",
+    "12r1",
     "1731",
     "17k6",
     "19on2",
+    "19y1r",
     "1d31",
     "1d56",
     "1dk6",
@@ -669,6 +671,7 @@
     "y7rw",
     "y94o",
     "yq3o",
+    "z29n",
     "z2om",
     "z2y2",
     "z301y",
@@ -711,6 +714,7 @@
     "zzqk2",
     "zzqn2",
     "zzqn9",
+    "zzwmm",
     "zzy1n"
   ],
   "warm": [
@@ -719,8 +723,6 @@
     "0or1",
     "0rlzr",
     "0rp9r",
-    "12r1",
-    "19y1r",
     "19yr2",
     "1ddr",
     "1dwq",
@@ -887,13 +889,11 @@
     "z13n",
     "z1o2",
     "z22k",
-    "z29n",
     "z3oln",
     "z77k",
     "z7y2",
     "zjn9",
     "zz7g9",
-    "zzwmm",
     "zzyly"
   ],
   "probed": {
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1733,
-  "quiet_cursor": 94,
-  "warm_cursor": 173,
+  "cursor": 1864,
+  "quiet_cursor": 109,
+  "warm_cursor": 7,
   "probe_cursor": 2195,
-  "sales_cursor": 520,
-  "rare_cursor": 155
+  "sales_cursor": 532,
+  "rare_cursor": 159
 }
