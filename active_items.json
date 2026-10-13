@@ -234,7 +234,6 @@
     "96pdw",
     "96pwy",
     "96qjl",
-    "96qll",
     "96z2z",
     "96z7y",
     "96zjw",
@@ -271,7 +270,6 @@
     "dmqqg",
     "dmvjg",
     "dmypg",
-    "dmzn9",
     "dmzy2",
     "dq0n",
     "dq2n",
@@ -689,6 +687,7 @@
     "zz75n",
     "zzjgn",
     "zzo3m",
+    "zzoln",
     "zzqk2",
     "zzqn2",
     "zzqn9",
@@ -771,6 +770,7 @@
     "7zqj",
     "969r0",
     "96k7l",
+    "96qll",
     "99pz",
     "9dokq",
     "9g10",
@@ -782,6 +782,7 @@
     "dmgvj",
     "dmlwj",
     "dmyd9",
+    "dmzn9",
     "g325",
     "g3zg",
     "g49dg",
@@ -895,7 +896,6 @@
     "zjn9",
     "zz7g9",
     "zz939",
-    "zzoln",
     "zzyly"
   ],
   "probed": {
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 2093,
-  "quiet_cursor": 35,
-  "warm_cursor": 189,
+  "cursor": 2245,
+  "quiet_cursor": 50,
+  "warm_cursor": 3,
   "probe_cursor": 2195,
-  "sales_cursor": 76,
-  "rare_cursor": 7
+  "sales_cursor": 88,
+  "rare_cursor": 11
 }
