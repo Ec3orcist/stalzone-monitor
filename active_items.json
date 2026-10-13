@@ -274,7 +274,6 @@
     "dmj6j",
     "dmjdn",
     "dmjwn",
-    "dmldj",
     "dmpjn",
     "dmql9",
     "dmqqg",
@@ -788,6 +787,7 @@
     "d3kg",
     "dm0dn",
     "dmgvj",
+    "dmldj",
     "dmlwj",
     "dmyd9",
     "g00n",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1709,
-  "quiet_cursor": 47,
-  "warm_cursor": 56,
+  "cursor": 1831,
+  "quiet_cursor": 62,
+  "warm_cursor": 71,
   "probe_cursor": 2195,
-  "sales_cursor": 280,
-  "rare_cursor": 75
+  "sales_cursor": 292,
+  "rare_cursor": 79
 }
