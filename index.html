@@ -822,7 +822,7 @@
             <div class="hq-head">
                 <div>
                     <h2 class="hq-title">Убежище</h2>
-                    <p class="night-lead">Прокачка навыков и пристройки. Цены — по текущему аукциону, выход крафта продаётся не больше, чем рынок купил за 14 дней.</p>
+                    <p class="night-lead">Прокачка навыков и пристройки. У каждого рецепта видно, за сколько дней рынок разберёт всю партию — по продажам за 14 дней.</p>
                 </div>
             </div>
             <div class="shelter-layout">
@@ -4102,8 +4102,9 @@
             const sellable = sale.stale ? 0 : Math.min(out, sold14);
             const back = sellable * (sale.price || 0);
             const net = spend - back;
+            const flow = outputFlow(r.itemId, out);
             return {
-                r, crafts, spend, back, net, out, sellable,
+                r, crafts, spend, back, net, out, sellable, flow,
                 perXp: net / need,
                 energy: crafts * (r.energy || 0),
                 priced: !bill.missing && bill.cost > 0,
@@ -4146,6 +4147,42 @@
                 return `<span class="st-pill ${built ? 'ok' : 'no'}">${built ? '✓' : '✕'} ${escapeHtml(stationName(id))}${cost}</span>`;
             }).join('');
         }
+        function outputFlow(itemId, out) {
+            const known = Array.isArray(salesData[itemId]);
+            const sold14 = saleStats(itemId).sold14 || 0;
+            const pace = sold14 > 0 ? sold14 / 14 : 0;
+            const days = pace > 0 && out > 0 ? Math.max(1, Math.ceil(out / pace)) : null;
+            let kind = 'unknown';
+            if (known && !(sold14 > 0)) kind = 'dead';
+            else if (days !== null && days <= 14) kind = 'ok';
+            else if (days !== null && days <= 45) kind = 'slow';
+            else if (days !== null) kind = 'stuck';
+            return { known, sold14, pace, days, kind };
+        }
+        function flowSpan(days) {
+            if (days <= 1) return 'за день';
+            if (days < 60) return `за ${ruCount(days, 'день', 'дня', 'дней')}`;
+            const months = Math.max(2, Math.round(days / 30));
+            if (months >= 12) return 'дольше года';
+            return `за ${ruCount(months, 'месяц', 'месяца', 'месяцев')}`;
+        }
+        function flowPace(pace) {
+            const shown = pace >= 10 ? Math.round(pace) : Math.round(pace * 10) / 10;
+            return Number.isInteger(shown) ? String(shown) : String(shown).replace('.', ',');
+        }
+        function flowLabel(flow) {
+            if (flow.kind === 'dead') return { cls: 'blocked', title: 'не продаётся', line: 'За 14 дней это не покупали. Партия останется у тебя.' };
+            if (flow.kind === 'unknown') return { cls: 'ext', title: 'нет истории', line: 'Истории продаж нет, как быстро уйдёт партия — неизвестно.' };
+            const pace = `рынок берёт около ${flowPace(flow.pace)} в день`;
+            const span = flowSpan(flow.days);
+            if (flow.kind === 'ok') return { cls: 'built', title: span, line: `${pace}. Вся партия уйдёт ${span}.` };
+            if (flow.kind === 'slow') return { cls: 'ready', title: span, line: `${pace}. Вся партия уйдёт ${span}.` };
+            return { cls: 'blocked', title: span, line: `${pace}. Вся партия уйдёт ${span}. Продавать придётся долго.` };
+        }
+        function flowMark(flow) {
+            const label = flowLabel(flow);
+            return `<span class="st-badge ${label.cls}">${escapeHtml(label.title)}</span>`;
+        }
         function netText(net) {
             return net <= 0 ? `<span class="green">+${money(-net)}</span>` : `<span class="red">−${money(net)}</span>`;
         }
@@ -4168,6 +4205,7 @@
                     <div><b>${perXpText(o.perXp)}</b><span>за 1 опыт</span></div>
                     <div><b>${Math.round(o.energy).toLocaleString('ru-RU')}</b><span>энергии</span></div>
                 </div>
+                <div class="night-sub">${flowMark(o.flow)} ${escapeHtml(flowLabel(o.flow).line)}</div>
                 ${o.out > o.sellable ? `<div class="night-sub">Выход ${fmtQty(o.out)} шт, рынок за 14 дней взял ${fmtQty(o.sellable)} — остальное в расчёт продажи не входит.</div>` : ''}
                 <div class="st-pills">${stationBadges(o.r)}</div>
             </div>`;
@@ -4212,14 +4250,14 @@
                 const done = my && p.level < my;
                 const now = my && p.level === my;
                 const alt = !builtOnly && p.bestBuilt && p.bestAny && p.bestBuilt !== p.bestAny
-                    ? `<div class="lvl-alt" data-craft-open="${escapeHtml(p.bestBuilt.r.itemId)}">Из уже построенного: <b>${escapeHtml(p.bestBuilt.r.name)}</b> ×${p.bestBuilt.crafts.toLocaleString('ru-RU')} · итого ${netText(p.bestBuilt.net)}</div>`
+                    ? `<div class="lvl-alt" data-craft-open="${escapeHtml(p.bestBuilt.r.itemId)}">Из уже построенного: <b>${escapeHtml(p.bestBuilt.r.name)}</b> ×${p.bestBuilt.crafts.toLocaleString('ru-RU')} · итого ${netText(p.bestBuilt.net)} ${flowMark(p.bestBuilt.flow)}</div>`
                     : (builtOnly && p.bestAny && p.bestAny !== pick
-                        ? `<div class="lvl-alt" data-craft-open="${escapeHtml(p.bestAny.r.itemId)}">Если достроить ${p.bestAny.lacks.map(s => '«' + escapeHtml(stationName(s)) + '»').join(', ')}: <b>${escapeHtml(p.bestAny.r.name)}</b> · итого ${netText(p.bestAny.net)}</div>`
+                        ? `<div class="lvl-alt" data-craft-open="${escapeHtml(p.bestAny.r.itemId)}">Если достроить ${p.bestAny.lacks.map(s => '«' + escapeHtml(stationName(s)) + '»').join(', ')}: <b>${escapeHtml(p.bestAny.r.name)}</b> · итого ${netText(p.bestAny.net)} ${flowMark(p.bestAny.flow)}</div>`
                         : '');
                 const more = p.ranked.filter(o => o !== pick).filter(o => !builtOnly || o.built).slice(0, 6);
                 const moreHtml = more.length
                     ? `<details class="st-more"><summary>Другие варианты</summary>${more.map(o => `<div class="lvl-row" data-craft-open="${escapeHtml(o.r.itemId)}">
-                        <span class="lvl-row-name">${escapeHtml(o.r.name)}${o.built ? '' : ' <i class="red">нет пристройки</i>'}</span>
+                        <span class="lvl-row-name">${escapeHtml(o.r.name)}${o.built ? '' : ' <i class="red">нет пристройки</i>'} ${flowMark(o.flow)}</span>
                         <span>×${o.crafts.toLocaleString('ru-RU')}</span><span>${netText(o.net)}</span>
                         <span>${perXpText(o.perXp)}/оп</span></div>`).join('')}</details>`
                     : '';
