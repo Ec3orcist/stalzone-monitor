@@ -544,10 +544,14 @@ def fetch_lots(api, item_id):
         collected.extend(raw_lots)
         if not raw_lots or len(raw_lots) < LOT_PAGE or (total and len(collected) >= total):
             break
+    now = utc_now()
     processed = []
     for lot in collected:
         buyout, amount = lot_numbers(lot)
         if buyout <= 0 or amount <= 0:
+            continue
+        end_ts = _parse_ts({"timestamp": lot.get("endTime") or ""})
+        if end_ts is not None and end_ts <= now:
             continue
         row = {
             "price_per_unit": round(buyout / amount),
@@ -714,8 +718,11 @@ def compact_history(records):
             continue
         key = ts.strftime("%Y-%m-%dT%H")
         prev = hourly.get(key)
-        if prev is None or record.get("price", 0) < prev["price"]:
-            hourly[key] = {"timestamp": f"{key}:00:00+00:00", "price": record.get("price", 0), "aggregated": True}
+        price = record.get("price") or 0
+        if price <= 0:
+            continue
+        if prev is None or price < prev["price"]:
+            hourly[key] = {"timestamp": f"{key}:00:00+00:00", "price": price, "aggregated": True}
 
     result = [hourly[k] for k in sorted(hourly)] + fresh
     if not result:
@@ -931,19 +938,30 @@ def update_prices(api, items, history):
         if lots is None:
             failed.add(item_id)
             continue
-        if not lots:
-            continue
-        found.add(item_id)
-        best = lots[0]
         meta = meta_map.get(item_id, {})
+        if lots:
+            found.add(item_id)
+            best = lots[0]
+            point = {
+                "price": best["price_per_unit"],
+                "best_lot_amount": best["amount"],
+                "best_lot_buyout": best["buyout"],
+                "total_amount": sum(lot["amount"] for lot in lots),
+                "lots_count": len(lots),
+                "lots": keep_lots(lots),
+            }
+        else:
+            point = {
+                "price": 0,
+                "best_lot_amount": 0,
+                "best_lot_buyout": 0,
+                "total_amount": 0,
+                "lots_count": 0,
+                "lots": [],
+            }
         history.setdefault(item_id, []).append({
             "timestamp": now,
-            "price": best["price_per_unit"],
-            "best_lot_amount": best["amount"],
-            "best_lot_buyout": best["buyout"],
-            "total_amount": sum(lot["amount"] for lot in lots),
-            "lots_count": len(lots),
-            "lots": keep_lots(lots),
+            **point,
             "name": meta.get("name", item_id),
             "icon": meta.get("icon", ""),
             "category": meta.get("category", "other"),

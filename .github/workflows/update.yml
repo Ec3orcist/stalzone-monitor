@@ -135,13 +135,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          start=$(cat "$RUNNER_TEMP/started")
-          now=$(date -u +%s)
-          wait=$((start + 900 - now))
-          if [ "$wait" -gt 0 ]; then
-            echo "Wait ${wait}s so the next pass stays on a 15 minute pace"
-            sleep "$wait"
-          fi
+          echo "Queue the next pass as soon as this one is saved"
           for attempt in 1 2 3; do
             if curl -fsS -X POST \
               -H "Authorization: Bearer $GH_TOKEN" \

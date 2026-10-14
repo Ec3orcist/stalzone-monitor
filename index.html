@@ -1842,7 +1842,8 @@
                 const last = hist && hist.length ? hist[hist.length - 1] : null;
                 const meta = catalogData[id] || {};
                 const cur = last ? (last.price || 0) : 0;
-                const avg = typicalSale(id) || (hist && hist.length ? hist.reduce((sum, h) => sum + h.price, 0) / hist.length : 0);
+                const pricedHist = (hist || []).filter(h => h && h.price > 0);
+                const avg = typicalSale(id) || (pricedHist.length ? pricedHist.reduce((sum, h) => sum + h.price, 0) / pricedHist.length : 0);
                 const flow = saleStats(id);
                 const priced = cur > 0;
                 const dev = priced && avg > 0 ? ((cur - avg) / avg) * 100 : 0;
