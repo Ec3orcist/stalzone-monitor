@@ -284,9 +284,22 @@ def tradable_from_catalog():
     return tradable, meta
 
 
-def recipe_item_ids(recipes):
-    ids = set(recipes)
-    for recipe in recipes.values():
+SLOW_CRAFT_SKILLS = frozenset({
+    "Боеприпасы",
+    "Медицина",
+    "Пиротехника",
+    "Защитное снаряжение",
+})
+
+
+def frequent_craft_ids(recipes):
+    fast = {
+        item_id: recipe
+        for item_id, recipe in recipes.items()
+        if recipe.get("skill") not in SLOW_CRAFT_SKILLS
+    }
+    ids = set(fast)
+    for recipe in fast.values():
         ids.update(ing["id"] for ing in recipe.get("ingredients", []))
     return ids
 
@@ -1207,7 +1220,7 @@ def main():
         if item_id in known and item_id not in state["hot"] and sold_this_month(sales_raw, item_id)
     }
     history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
-    craft_ids = recipe_item_ids(recipes)
+    craft_ids = frequent_craft_ids(recipes)
     price_items, state["cursor"], state["quiet_cursor"], state["warm_cursor"] = pick_price_items(
         tradable, history, sales_raw, state["hot"], state["warm"], state, craft_ids
     )
