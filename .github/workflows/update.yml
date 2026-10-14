@@ -2,11 +2,16 @@ name: Update Auction Data
 
 on:
   schedule:
-    - cron: '17 3 * * *'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/update.yml'
+    # 06:00–08:40 MSK, one part per run. A missed slot is picked up by the next one.
+    - cron: '0 3 * * *'
+    - cron: '20 3 * * *'
+    - cron: '40 3 * * *'
+    - cron: '0 4 * * *'
+    - cron: '20 4 * * *'
+    - cron: '40 4 * * *'
+    - cron: '0 5 * * *'
+    - cron: '20 5 * * *'
+    - cron: '40 5 * * *'
   workflow_dispatch:
     inputs:
       item:
@@ -22,13 +27,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: stalzone-update
+  group: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.item != '' && 'stalzone-item' || 'stalzone-daily' }}
   cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,54 +63,19 @@ jobs:
           ONLY_ITEM: ${{ github.event.inputs.item }}
         run: python fetch_prices.py
 
-      - name: Scan the daily parts
+      - name: Scan the next morning part
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.item == ''
-        timeout-minutes: 140
+        timeout-minutes: 25
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REGION: EU
           PARTS: '8'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          commit_prices() {
-            git add -- prices.json crafts.json active_items.json sales_history.json sale_clock.json items.json
-            if git diff --cached --quiet; then
-              echo "No price changes"
-              return 0
-            fi
-            git commit -m "Auto-update prices, crafts & sales"
-            for attempt in 1 2 3 4 5; do
-              git fetch origin main
-              if git rebase --onto origin/main HEAD~1 HEAD && git push origin HEAD:main; then
-                return 0
-              fi
-              git rebase --abort || true
-              echo "Push rejected, retry ${attempt}"
-              sleep 5
-            done
-            return 1
-          }
-          for part in 0 1 2 3 4 5 6 7; do
-            echo "Part $((part + 1))/8"
-            ok=0
-            for attempt in 1 2 3; do
-              if PART="$part" python fetch_prices.py; then
-                ok=1
-                break
-              fi
-              echo "Part $part failed, retry ${attempt}"
-              sleep 20
-            done
-            if [ "$ok" -ne 1 ]; then
-              exit 1
-            fi
-            commit_prices || exit 1
-          done
+          NEXT_PART: '1'
+        run: python fetch_prices.py
 
-      - name: Commit one item
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.item != '' && success()
+      - name: Commit and push
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -114,7 +84,11 @@ jobs:
             echo "No price changes"
             exit 0
           fi
-          git commit -m "Refresh ${{ github.event.inputs.item }}"
+          if [ -n "${{ github.event.inputs.item }}" ]; then
+            git commit -m "Refresh ${{ github.event.inputs.item }}"
+          else
+            git commit -m "Auto-update prices, crafts & sales"
+          fi
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             if git rebase --onto origin/main HEAD~1 HEAD && git push origin HEAD:main; then

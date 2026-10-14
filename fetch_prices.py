@@ -1234,6 +1234,16 @@ def part_already_done(state, part):
     return part < int(state.get("next_part") or 0)
 
 
+def pending_part(state, parts):
+    today = utc_now().date().isoformat()
+    if state.get("scan_day") != today:
+        return 0
+    nxt = int(state.get("next_part") or 0)
+    if nxt >= parts:
+        return None
+    return nxt
+
+
 def refresh_sales_for(api, item_ids, sales, state):
     clock = load_json(CLOCK_FILE, {})
     if not isinstance(clock, dict):
@@ -1285,6 +1295,11 @@ def main():
     parts = int(os.environ.get("PARTS") or DAILY_PARTS)
     state = load_scan_state()
     part = int(part_env) if part_env != "" else None
+    if os.environ.get("NEXT_PART") == "1" and only_item == "":
+        part = pending_part(state, parts)
+        if part is None:
+            print(f"Все {parts} частей на сегодня уже сняты")
+            return
     if only_item == "" and part is not None and part_already_done(state, part):
         print(f"Часть {part + 1}/{parts} уже записана сегодня")
         return
