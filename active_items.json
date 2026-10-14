@@ -491,7 +491,6 @@
     "p6r1d",
     "p6r3d",
     "p6rm6",
-    "p6y44",
     "pjkj2",
     "pjn64",
     "pjo5d",
@@ -560,6 +559,7 @@
     "rwrwv",
     "rwv7l",
     "rwz2z",
+    "v25p",
     "vdjd",
     "vdnd",
     "vj2mp",
@@ -847,6 +847,7 @@
     "p062",
     "p0j2",
     "p6m1w",
+    "p6y44",
     "pjo64",
     "prp5",
     "q194",
@@ -863,7 +864,6 @@
     "rwl5v",
     "rwol5",
     "rwzmv",
-    "v25p",
     "vj3zg",
     "vjg2d",
     "vjm3p",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 606,
-  "quiet_cursor": 41,
-  "warm_cursor": 152,
+  "cursor": 691,
+  "quiet_cursor": 56,
+  "warm_cursor": 167,
   "probe_cursor": 2195,
-  "sales_cursor": 63,
-  "rare_cursor": 204
+  "sales_cursor": 75,
+  "rare_cursor": 208
 }
