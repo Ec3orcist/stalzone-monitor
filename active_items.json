@@ -160,7 +160,6 @@
     "55j5q",
     "55olq",
     "55ymq",
-    "5d24",
     "5dgo",
     "5dkg",
     "5dm4",
@@ -257,7 +256,6 @@
     "9do6y",
     "9g6z",
     "9m7w",
-    "9mgw",
     "9mmq",
     "9mr0",
     "9n1w",
@@ -787,6 +785,7 @@
     "99pz",
     "9dokq",
     "9g10",
+    "9mgw",
     "9mn0",
     "9yly",
     "9ypy",
@@ -2279,7 +2278,8 @@
     "ovo4": "2026-10-13",
     "5lq41": "2026-10-14",
     "2v55": "2026-10-14",
-    "4qlnr": "2026-10-14"
+    "4qlnr": "2026-10-14",
+    "5d24": "2026-10-14"
   },
   "deep": [
     "0r2g1",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1887,
-  "quiet_cursor": 33,
-  "warm_cursor": 132,
+  "cursor": 2036,
+  "quiet_cursor": 48,
+  "warm_cursor": 147,
   "probe_cursor": 2195,
-  "sales_cursor": 120,
-  "rare_cursor": 8
+  "sales_cursor": 132,
+  "rare_cursor": 12
 }
