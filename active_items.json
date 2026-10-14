@@ -405,7 +405,6 @@
     "l0ryo",
     "l222",
     "l2kk",
-    "l2oo",
     "l362",
     "lj0j",
     "ljn2",
@@ -810,6 +809,7 @@
     "kmmj",
     "kn2zj",
     "knlvj",
+    "l2oo",
     "l3mo",
     "l601",
     "l6y1",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 145,
-  "quiet_cursor": 16,
-  "warm_cursor": 148,
+  "cursor": 234,
+  "quiet_cursor": 31,
+  "warm_cursor": 163,
   "probe_cursor": 2195,
-  "sales_cursor": 408,
-  "rare_cursor": 104
+  "sales_cursor": 420,
+  "rare_cursor": 108
 }
