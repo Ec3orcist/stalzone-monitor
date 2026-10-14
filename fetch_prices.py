@@ -3,11 +3,12 @@ import os
 import sys
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-import requests
 
 REGION = os.environ.get("REGION", "EU")
 LANG = "ru"
@@ -114,36 +115,33 @@ class RateLimiter:
 
 class StalcraftApi:
     def __init__(self, token):
-        self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/json",
-        })
+        self.token = token
         self.limiter = RateLimiter(MIN_REQUEST_INTERVAL)
 
     def get(self, url):
         last_error = None
         for attempt in range(RETRIES):
             self.limiter.wait()
+            request = urllib.request.Request(url, headers={
+                "Authorization": f"Bearer {self.token}",
+                "Accept": "application/json",
+            })
             try:
-                resp = self.session.get(url, timeout=REQUEST_TIMEOUT)
-            except requests.RequestException as exc:
+                with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                if exc.code == 429:
+                    retry_after = float(exc.headers.get("Retry-After") or (2 + attempt))
+                    time.sleep(retry_after)
+                    continue
+                if exc.code >= 500:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                return None
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
                 last_error = exc
                 time.sleep(1.5 * (attempt + 1))
                 continue
-            if resp.status_code == 429:
-                retry_after = float(resp.headers.get("Retry-After", 2 + attempt))
-                time.sleep(retry_after)
-                continue
-            if resp.status_code >= 500:
-                time.sleep(1.5 * (attempt + 1))
-                continue
-            if resp.status_code != 200:
-                return None
-            try:
-                return resp.json()
-            except ValueError:
-                return None
         if last_error:
             print(f"  сеть: {last_error}")
         return None
@@ -152,18 +150,21 @@ class StalcraftApi:
 def get_access_token(client_id, client_secret):
     if not client_id or not client_secret:
         raise SystemExit("Нет CLIENT_ID / CLIENT_SECRET")
-    resp = requests.post(
-        TOKEN_URL,
-        data={
-            "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "scope": "",
-        },
-        timeout=10,
-    )
-    resp.raise_for_status()
-    token = resp.json().get("access_token")
+    body = urllib.parse.urlencode({
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "scope": "",
+    }).encode("utf-8")
+    request = urllib.request.Request(TOKEN_URL, data=body, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=10) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise SystemExit(f"OAuth {exc.code}") from exc
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        raise SystemExit(f"OAuth не ответил: {exc}") from exc
+    token = payload.get("access_token") if isinstance(payload, dict) else None
     if not token:
         raise SystemExit("OAuth не вернул access_token")
     return token
@@ -532,7 +533,8 @@ def lot_numbers(lot):
 def fetch_lots(api, item_id):
     collected = []
     total = 0
-    for page in range(MAX_LOT_PAGES):
+    page_cap = 1 if os.environ.get("ONLY_ITEM", "").strip() else MAX_LOT_PAGES
+    for page in range(page_cap):
         offset = page * LOT_PAGE
         data = api.get(
             f"{API_BASE}/{REGION}/auction/{item_id}/lots"
@@ -1272,19 +1274,21 @@ def remember_listings(state, known, scanned, found, failed, sales):
     state["warm"] &= known
 
 
-def scan_items(api, tradable, all_meta, recipes, state, sales_raw, history, items):
+def scan_items(api, tradable, all_meta, recipes, state, sales_raw, history, items, with_sales=True):
     known = {item["id"] for item in tradable}
     history, found, failed = update_prices(api, items, history)
     scanned = {item["id"] for item in items}
     remember_listings(state, known, scanned, found, failed, sales_raw)
     save_scan_state(state)
-    sales = refresh_sales_for(api, [item["id"] for item in items], sales_raw, state)
-    state["warm"] = {
-        item_id for item_id in (state["warm"] | set(sales)) & known
-        if item_id not in state["hot"] and sold_this_month(sales, item_id)
-    }
-    save_scan_state(state)
-    update_crafts(recipes, history, all_meta, sales)
+    sales = sales_raw if isinstance(sales_raw, dict) else {}
+    if with_sales:
+        sales = refresh_sales_for(api, [item["id"] for item in items], sales, state)
+        state["warm"] = {
+            item_id for item_id in (state["warm"] | set(sales)) & known
+            if item_id not in state["hot"] and sold_this_month(sales, item_id)
+        }
+        save_scan_state(state)
+        update_crafts(recipes, history, all_meta, sales)
     return history, sales
 
 
@@ -1318,16 +1322,27 @@ def main():
     print("✅ Токен получен")
     api = StalcraftApi(token)
 
-    recipes = load_recipes()
+    recipes = {} if only_item else load_recipes()
     state = load_scan_state()
     known = {item["id"] for item in tradable}
-    sales_raw = load_json(SALES_FILE, {})
+    sales_raw = {} if only_item else load_json(SALES_FILE, {})
     state["hot"] &= known
-    state["warm"] = {
-        item_id for item_id in (state["warm"] | set(sales_raw))
-        if item_id in known and item_id not in state["hot"] and sold_this_month(sales_raw, item_id)
-    }
-    history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
+    if only_item == "":
+        state["warm"] = {
+            item_id for item_id in (state["warm"] | set(sales_raw))
+            if item_id in known and item_id not in state["hot"] and sold_this_month(sales_raw, item_id)
+        }
+    loaded_history = load_json(DATA_FILE, {})
+    if only_item:
+        rows = loaded_history.get(only_item)
+        if isinstance(rows, list):
+            loaded_history[only_item] = compact_history(rows)
+        history = loaded_history
+    else:
+        history = {
+            item_id: compact_history(records)
+            for item_id, records in loaded_history.items()
+        }
     by_id = {item["id"]: item for item in tradable}
     if only_item:
         chosen = [by_id.get(only_item) or {
@@ -1350,7 +1365,10 @@ def main():
             state["next_part"] = part + 1
             save_scan_state(state)
         return
-    scan_items(api, tradable, all_meta, recipes, state, sales_raw, history, chosen)
+    scan_items(
+        api, tradable, all_meta, recipes, state, sales_raw, history, chosen,
+        with_sales=only_item == "",
+    )
     if only_item == "" and part is not None:
         state["scan_day"] = utc_now().date().isoformat()
         state["next_part"] = part + 1

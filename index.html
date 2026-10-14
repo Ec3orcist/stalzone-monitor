@@ -4773,12 +4773,15 @@
             });
         }
 
-        async function waitForItemPrice(itemId, previousStamp, since) {
+        async function waitForItemPrice(itemId, previousStamp, since, token) {
             const deadline = Date.now() + 4 * 60 * 1000;
             while (Date.now() < deadline) {
-                await new Promise(resolve => setTimeout(resolve, 15000));
+                await new Promise(resolve => setTimeout(resolve, 5000));
                 const commits = await fetch(`https://api.github.com/repos/${REFRESH_REPO}/commits?path=prices.json&per_page=1`, {
-                    headers: { Accept: 'application/vnd.github+json' }
+                    headers: {
+                        Accept: 'application/vnd.github+json',
+                        Authorization: `Bearer ${token}`
+                    }
                 });
                 if (!commits.ok) continue;
                 const data = await commits.json();
@@ -4830,8 +4833,8 @@
                 refreshToast('Запуск не удался');
                 return;
             }
-            refreshToast('Жду запись лотов, это пара минут');
-            const rows = await waitForItemPrice(itemId, previous, since);
+            refreshToast('Жду запись лотов');
+            const rows = await waitForItemPrice(itemId, previous, since, token);
             if (!rows) {
                 refreshToast('Съём запущен, обнови страницу чуть позже');
                 return;

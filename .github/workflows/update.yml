@@ -31,7 +31,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update:
+  item:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.item != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Refresh one item
+        timeout-minutes: 3
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REGION: EU
+          ONLY_ITEM: ${{ github.event.inputs.item }}
+        run: python3 fetch_prices.py
+
+      - name: Commit and push
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- prices.json active_items.json
+          if git diff --cached --quiet; then
+            echo "No price changes"
+            exit 0
+          fi
+          git commit -m "Refresh ${{ github.event.inputs.item }}"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if git rebase --onto origin/main HEAD~1 HEAD && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort || true
+            echo "Push rejected, retry ${attempt}"
+            sleep 3
+          done
+          exit 1
+
+  daily:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.item == ''
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -39,32 +80,12 @@ jobs:
         with:
           fetch-depth: 50
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: pip install requests
-
       - name: Clone item database
-        if: github.event_name != 'workflow_dispatch' || github.event.inputs.item == ''
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/EXBO-Studio/stalzone-database.git itemdb
           git -C itemdb sparse-checkout set ru/items
 
-      - name: Refresh one item
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.item != ''
-        timeout-minutes: 8
-        env:
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          REGION: EU
-          ONLY_ITEM: ${{ github.event.inputs.item }}
-        run: python fetch_prices.py
-
       - name: Scan the next morning part
-        if: github.event_name != 'workflow_dispatch' || github.event.inputs.item == ''
         timeout-minutes: 25
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -72,7 +93,7 @@ jobs:
           REGION: EU
           PARTS: '8'
           NEXT_PART: '1'
-        run: python fetch_prices.py
+        run: python3 fetch_prices.py
 
       - name: Commit and push
         if: success()
@@ -84,11 +105,7 @@ jobs:
             echo "No price changes"
             exit 0
           fi
-          if [ -n "${{ github.event.inputs.item }}" ]; then
-            git commit -m "Refresh ${{ github.event.inputs.item }}"
-          else
-            git commit -m "Auto-update prices, crafts & sales"
-          fi
+          git commit -m "Auto-update prices, crafts & sales"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             if git rebase --onto origin/main HEAD~1 HEAD && git push origin HEAD:main; then
