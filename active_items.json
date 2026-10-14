@@ -191,7 +191,6 @@
     "5rpq",
     "5rwq",
     "5rzo",
-    "63oy",
     "65r6",
     "6g5n",
     "6gk0",
@@ -766,6 +765,7 @@
     "5lgvo",
     "5lnv0",
     "5lzyg",
+    "63oy",
     "63yy",
     "6rn6",
     "6w22n",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1483,
-  "quiet_cursor": 119,
-  "warm_cursor": 87,
+  "cursor": 1626,
+  "quiet_cursor": 3,
+  "warm_cursor": 102,
   "probe_cursor": 2195,
-  "sales_cursor": 84,
-  "rare_cursor": 227
+  "sales_cursor": 96,
+  "rare_cursor": 0
 }
