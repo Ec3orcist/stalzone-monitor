@@ -467,7 +467,6 @@
     "npq3",
     "npr6",
     "npz3",
-    "nv43",
     "ok3q0",
     "ok5wm",
     "okm20",
@@ -827,6 +826,7 @@
     "n4wdw",
     "nl43",
     "nlk3",
+    "nv43",
     "nvpw",
     "o335",
     "o37m",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 242,
+  "cursor": 263,
   "quiet_cursor": 11,
-  "warm_cursor": 31,
+  "warm_cursor": 39,
   "probe_cursor": 2195,
-  "sales_cursor": 44,
-  "rare_cursor": 47
+  "sales_cursor": 56,
+  "rare_cursor": 51
 }
