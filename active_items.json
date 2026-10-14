@@ -479,7 +479,6 @@
     "okv95",
     "okvm5",
     "okvv5",
-    "ol6km",
     "olz36",
     "om46",
     "om6m",
@@ -841,6 +840,7 @@
     "okq16",
     "okrq0",
     "okzo6",
+    "ol6km",
     "ork0",
     "p062",
     "p0j2",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1919,
-  "quiet_cursor": 78,
-  "warm_cursor": 88,
+  "cursor": 2082,
+  "quiet_cursor": 93,
+  "warm_cursor": 103,
   "probe_cursor": 2195,
-  "sales_cursor": 360,
-  "rare_cursor": 88
+  "sales_cursor": 372,
+  "rare_cursor": 92
 }
