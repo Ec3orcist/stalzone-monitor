@@ -104,13 +104,11 @@
     "31rk",
     "34z1l",
     "34zvl",
-    "3g0yl",
     "3g12z",
     "3g1qz",
     "3g1zz",
     "3g2yz",
     "3g6rl",
-    "3g72l",
     "3g7wg",
     "3g9n1",
     "3gkjk",
@@ -735,6 +733,8 @@
     "2p16",
     "342g5",
     "3dy5",
+    "3g0yl",
+    "3g72l",
     "3gp6g",
     "3vog",
     "40dl",
@@ -2297,5 +2297,5 @@
   "sales_cursor": 104,
   "rare_cursor": 67,
   "scan_day": "2026-10-14",
-  "next_part": 1
+  "next_part": 2
 }
