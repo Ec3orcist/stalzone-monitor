@@ -235,7 +235,6 @@
     "964ow",
     "964z0",
     "969vz",
-    "96gqz",
     "96m5q",
     "96m5z",
     "96m9q",
@@ -297,7 +296,6 @@
     "g34p",
     "g35n",
     "g40mn",
-    "g40on",
     "g40op",
     "g40rg",
     "g40vn",
@@ -767,6 +765,7 @@
     "7zqj",
     "969jz",
     "969r0",
+    "96gqz",
     "96k7l",
     "96ngz",
     "96qjl",
@@ -789,6 +788,7 @@
     "dmzy2",
     "g325",
     "g3zg",
+    "g40on",
     "g49dg",
     "g4rz0",
     "g54p",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1224,
-  "quiet_cursor": 63,
-  "warm_cursor": 131,
+  "cursor": 1399,
+  "quiet_cursor": 78,
+  "warm_cursor": 146,
   "probe_cursor": 2195,
-  "sales_cursor": 540,
-  "rare_cursor": 148
+  "sales_cursor": 552,
+  "rare_cursor": 152
 }
