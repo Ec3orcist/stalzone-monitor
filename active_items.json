@@ -211,6 +211,7 @@
     "6wvqy",
     "77oy6",
     "77w9j",
+    "79w7",
     "7l127",
     "7l1kr",
     "7l1z6",
@@ -765,7 +766,6 @@
     "77dlj",
     "7933",
     "7977",
-    "79w7",
     "7lnk7",
     "7yrr",
     "7zqj",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1514,
-  "quiet_cursor": 33,
-  "warm_cursor": 43,
+  "cursor": 1675,
+  "quiet_cursor": 48,
+  "warm_cursor": 58,
   "probe_cursor": 2195,
-  "sales_cursor": 324,
-  "rare_cursor": 76
+  "sales_cursor": 336,
+  "rare_cursor": 80
 }
