@@ -85,7 +85,6 @@
     "2o3d6",
     "2o405",
     "2o4km",
-    "2o65l",
     "2o6zl",
     "2o9g0",
     "2od6m",
@@ -348,6 +347,7 @@
     "j34l",
     "j3ml",
     "j3p6",
+    "j3rg",
     "j52lg",
     "j5456",
     "j5go6",
@@ -717,6 +717,7 @@
     "1r39q",
     "1rj9g",
     "1rnr1",
+    "2o65l",
     "2o760",
     "2opo6",
     "2p16",
@@ -781,7 +782,6 @@
     "g5np",
     "gm2p",
     "gnz45",
-    "j3rg",
     "j456",
     "j4g7",
     "j56d6",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1426,
-  "quiet_cursor": 20,
-  "warm_cursor": 67,
+  "cursor": 1599,
+  "quiet_cursor": 35,
+  "warm_cursor": 82,
   "probe_cursor": 2195,
-  "sales_cursor": 147,
-  "rare_cursor": 3
+  "sales_cursor": 159,
+  "rare_cursor": 7
 }
