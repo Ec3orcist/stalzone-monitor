@@ -324,6 +324,7 @@
     "g4w7g",
     "g4y5p",
     "g4zg0",
+    "g54p",
     "g5p0",
     "gdj6",
     "gl0g",
@@ -799,7 +800,6 @@
     "g3zg",
     "g49dg",
     "g4rz0",
-    "g54p",
     "g5np",
     "gm2p",
     "gnz45",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1328,
-  "quiet_cursor": 104,
-  "warm_cursor": 72,
+  "cursor": 1483,
+  "quiet_cursor": 119,
+  "warm_cursor": 87,
   "probe_cursor": 2195,
-  "sales_cursor": 72,
-  "rare_cursor": 223
+  "sales_cursor": 84,
+  "rare_cursor": 227
 }
