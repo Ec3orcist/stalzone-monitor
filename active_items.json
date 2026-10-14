@@ -441,7 +441,6 @@
     "m0mz2",
     "m0pyj",
     "m0q7r",
-    "m0vvk",
     "m0wdy",
     "m0woy",
     "m22k",
@@ -824,6 +823,7 @@
     "m022k",
     "m02wr",
     "m0gqr",
+    "m0vvk",
     "m0ym7",
     "m3o2",
     "mj07",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 819,
-  "quiet_cursor": 85,
-  "warm_cursor": 142,
+  "cursor": 918,
+  "quiet_cursor": 100,
+  "warm_cursor": 157,
   "probe_cursor": 2195,
-  "sales_cursor": 264,
-  "rare_cursor": 56
+  "sales_cursor": 276,
+  "rare_cursor": 60
 }
