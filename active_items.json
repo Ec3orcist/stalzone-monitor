@@ -321,6 +321,7 @@
     "g4w7g",
     "g4y5p",
     "g4zg0",
+    "g54p",
     "g5p0",
     "gdj6",
     "gl0g",
@@ -643,7 +644,6 @@
     "y3kgz",
     "y3knz",
     "y3mgw",
-    "y3mz3",
     "y3nmw",
     "y3pwo",
     "y409k",
@@ -784,7 +784,6 @@
     "g4lp0",
     "g4mgp",
     "g4rz0",
-    "g54p",
     "g5np",
     "gm2p",
     "gnz45",
@@ -873,6 +872,7 @@
     "y263",
     "y31mk",
     "y37j0",
+    "y3mz3",
     "y3pdo",
     "y75z",
     "y770",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 307,
+  "cursor": 326,
   "quiet_cursor": 11,
-  "warm_cursor": 55,
+  "warm_cursor": 63,
   "probe_cursor": 2195,
-  "sales_cursor": 80,
-  "rare_cursor": 59
+  "sales_cursor": 92,
+  "rare_cursor": 63
 }
