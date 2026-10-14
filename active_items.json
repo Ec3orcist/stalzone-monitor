@@ -644,10 +644,10 @@
     "y32po",
     "y359o",
     "y35l3",
+    "y37j0",
     "y391o",
     "y39yz",
     "y3j20",
-    "y3kgz",
     "y3knz",
     "y3mgw",
     "y3nmw",
@@ -670,6 +670,7 @@
     "y7po",
     "y7rw",
     "yq3o",
+    "z13n",
     "z29n",
     "z2om",
     "z2y2",
@@ -878,7 +879,7 @@
     "wjw9p",
     "y263",
     "y31mk",
-    "y37j0",
+    "y3kgz",
     "y3mz3",
     "y3pdo",
     "y75z",
@@ -886,7 +887,6 @@
     "y7dz",
     "y94o",
     "y9go",
-    "z13n",
     "z1o2",
     "z22k",
     "z3oln",
@@ -2302,5 +2302,5 @@
   "sales_cursor": 104,
   "rare_cursor": 67,
   "scan_day": "2026-10-14",
-  "next_part": 7
+  "next_part": 8
 }
