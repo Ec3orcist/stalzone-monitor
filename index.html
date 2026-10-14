@@ -77,6 +77,16 @@
         .card-star { position: absolute; top: 8px; right: 6px; z-index: 2; background: transparent; border: none; color: #5c516e; font-size: 20px; cursor: pointer; padding: 2px 7px; line-height: 1; border-radius: 4px; }
         .card-star:hover { color: var(--muted); }
         .card-star.active { color: var(--accent); }
+        .lot-refresh { margin-top: 8px; border: 1px solid var(--edge); background: rgba(196,181,253,.08); color: var(--accent); border-radius: 8px; padding: 5px 10px; font: 600 12px/1 var(--hud); cursor: pointer; }
+        .lot-refresh:hover { background: rgba(196,181,253,.16); }
+        .lot-refresh:disabled { opacity: .55; cursor: wait; }
+        .refresh-toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 80; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 13px; box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+        .token-layer { position: fixed; inset: 0; z-index: 90; background: rgba(4,3,8,.72); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .token-card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+        .token-card h3 { margin: 0 0 8px; font-size: 18px; }
+        .token-card p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+        .token-card input { width: 100%; margin-bottom: 12px; }
+        .token-actions { display: flex; gap: 8px; justify-content: flex-end; }
         .card-icon { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: radial-gradient(circle at 50% 40%, #241a3a, #0a0812 75%); border: 1px solid rgba(139,108,240,.18); pointer-events: none; -webkit-user-drag: none; user-select: none; flex-shrink: 0; }
         .card-icon-empty { width: 52px; height: 52px; background: var(--bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 20px; pointer-events: none; flex-shrink: 0; }
         .card-name { font-size: 14px; color: var(--text); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -575,7 +585,8 @@
             <div class="controls">
                 <select id="categorySelect" hidden><option value="">Все категории</option></select>
                 <select id="marketFilter">
-                    <option value="">Все с рынком</option>
+                    <option value="">Вся база</option>
+                    <option value="seen">Уже сканировались</option>
                     <option value="lots">Есть лоты</option>
                     <option value="sales">Только продажи</option>
                 </select>
@@ -1833,10 +1844,12 @@
             return Array.isArray(sales) && sales.some(entry => entry && ((entry.a || 0) > 0 || (entry.avg || 0) > 0));
         }
         function buildItemsCache() {
+            const tradableIds = Object.keys(catalogData).filter(id => catalogData[id] && catalogData[id].tradable);
             const ids = new Set([
+                ...tradableIds,
                 ...Object.keys(allData),
                 ...Object.keys(salesData).filter(id => id !== '_updated_at')
-            ].filter(seenOnMarket));
+            ]);
             itemsCache = [...ids].map(id => {
                 const hist = allData[id];
                 const last = hist && hist.length ? hist[hist.length - 1] : null;
@@ -1864,6 +1877,7 @@
                     lots: (last && last.lots) || [],
                     rank: meta.rank || '',
                     salesKnown: Array.isArray(salesData[id]),
+                    scanned: Boolean(last && last.timestamp),
                     lastRecord: last
                 };
             }).filter(item => item.id);
@@ -2054,7 +2068,8 @@
             const market = els.marketFilter.value;
             const signal = els.signalFilter.value;
             let items = itemsCache.slice();
-            if (market === 'lots') items = items.filter(it => it.listed);
+            if (market === 'seen') items = items.filter(it => it.scanned);
+            else if (market === 'lots') items = items.filter(it => it.listed);
             else if (market === 'sales') items = items.filter(it => !it.listed && it.avg > 0);
             if (signal === 'cheap') items = items.filter(it => priceSignal(it).text === 'дёшево');
             else if (signal === 'fair') items = items.filter(it => priceSignal(it).text === 'норма');
@@ -2120,7 +2135,9 @@
                 : `<div class="card-icon-empty">?</div>`;
             const signal = priceSignal(item);
             const shown = shownPrice(item);
-            const priceText = shown ? `${shown.toLocaleString('ru-RU')} ₽` : 'нет лотов';
+            const priceText = item.listed
+                ? `${shown.toLocaleString('ru-RU')} ₽`
+                : (item.scanned ? 'нет лотов' : 'нет снимка');
             const avgText = item.avg ? `ср. ${Math.round(item.avg).toLocaleString('ru-RU')}` : '';
             const trendText = typeof item.trend7 === 'number'
                 ? `${item.trend7 > 0 ? '+' : ''}${item.trend7.toFixed(0)}% 7д`
@@ -2152,6 +2169,7 @@
                         ${saleIsStale(item.id) ? '<span class="warn">давно не продавалось</span>' : ''}
                         ${amountText ? `<span>· ${amountText}</span>` : ''}
                     </div>
+                    <button type="button" class="lot-refresh" data-refresh="${item.id}">Обновить лоты</button>
                 </div>
             `;
             return card;
@@ -2332,10 +2350,11 @@
                         <div class="item-title"><span>${escapeHtml(item.name)}</span><span class="category-badge">${escapeHtml(categoryName(item.category))}</span></div>
                         <div class="item-id">ID: ${item.id}</div>
                     </div>
+                    <button type="button" class="lot-refresh" data-refresh="${item.id}" style="margin-right:8px;">Обновить лоты</button>
                     <button id="modalFavBtn" class="card-star ${fav ? 'active' : ''}" style="position:static; font-size:32px; padding:0 12px;" title="В избранное">★</button>
                 </div>
                 <div class="stats">
-                    <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : (avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : 'нет лотов')}</div><div class="stat-label">${cur ? 'Цена за 1 шт' : 'Средняя цена сделок'}</div><div class="stat-sub">${cur ? bestLotInfo : 'Сейчас лотов нет'}</div></div>
+                    <div class="stat-item"><div class="stat-value">${cur ? cur.toLocaleString('ru-RU') + ' ₽' : (item.scanned ? (avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : 'нет лотов') : 'нет снимка')}</div><div class="stat-label">${cur ? 'Цена за 1 шт' : 'Средняя цена сделок'}</div><div class="stat-sub">${cur ? bestLotInfo : (item.scanned ? 'Сейчас лотов нет' : 'Ещё не снимали')}</div></div>
                     <div class="stat-item"><div class="stat-value">${avg ? Math.round(avg).toLocaleString('ru-RU') + ' ₽' : '—'}</div><div class="stat-label">Средняя цена сделок за 14 дней</div></div>
                     <div class="stat-item"><div class="stat-value ${cur && avg ? signal.cls : ''}">${devText}</div><div class="stat-label">К средней цене</div></div>
                     <div class="stat-item"><div class="stat-value">${last.total_amount !== undefined ? ruPieces(last.total_amount) : '—'}</div><div class="stat-label">Всего на аукционе</div><div class="stat-sub">${last.lots_count !== undefined ? ruCount(last.lots_count, 'лот', 'лота', 'лотов') : ''}</div></div>
@@ -4708,7 +4727,133 @@
             searchTimer = setTimeout(applyFilters, 200);
         });
 
+        const REFRESH_REPO = 'Ec3orcist/stalzone-monitor';
+        const REFRESH_TOKEN_KEY = 'stalzone-refresh-token';
+
+        function refreshToast(text) {
+            let el = document.getElementById('refreshToast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'refreshToast';
+                el.className = 'refresh-toast';
+                document.body.appendChild(el);
+            }
+            el.textContent = text;
+        }
+
+        function askRefreshToken() {
+            const saved = localStorage.getItem(REFRESH_TOKEN_KEY);
+            if (saved) return Promise.resolve(saved);
+            return new Promise(resolve => {
+                const layer = document.createElement('div');
+                layer.className = 'token-layer';
+                layer.innerHTML = `
+                    <form class="token-card">
+                        <h3>Токен для одного предмета</h3>
+                        <p>Аукцион не открыт из браузера. Кнопка запускает короткий съём этого предмета. Токен GitHub с правом actions остаётся только в этом браузере.</p>
+                        <input type="password" name="token" autocomplete="off" placeholder="github_pat_...">
+                        <div class="token-actions">
+                            <button type="button" class="lot-refresh" data-token-cancel>Отмена</button>
+                            <button type="submit" class="lot-refresh">Сохранить</button>
+                        </div>
+                    </form>`;
+                const close = (value) => {
+                    layer.remove();
+                    resolve(value);
+                };
+                layer.querySelector('[data-token-cancel]').addEventListener('click', () => close(''));
+                layer.querySelector('form').addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    const token = layer.querySelector('input').value.trim();
+                    if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token);
+                    close(token);
+                });
+                document.body.appendChild(layer);
+                layer.querySelector('input').focus();
+            });
+        }
+
+        async function waitForItemPrice(itemId, previousStamp, since) {
+            const deadline = Date.now() + 4 * 60 * 1000;
+            while (Date.now() < deadline) {
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                const commits = await fetch(`https://api.github.com/repos/${REFRESH_REPO}/commits?path=prices.json&per_page=1`, {
+                    headers: { Accept: 'application/vnd.github+json' }
+                });
+                if (!commits.ok) continue;
+                const data = await commits.json();
+                const savedAt = Date.parse(data[0] && data[0].commit && data[0].commit.committer && data[0].commit.committer.date);
+                if (!Number.isFinite(savedAt) || savedAt < since) continue;
+                const prices = await fetch(`https://raw.githubusercontent.com/${REFRESH_REPO}/main/prices.json?t=${Date.now()}`);
+                if (!prices.ok) continue;
+                const all = await prices.json();
+                const rows = all[itemId];
+                const stamp = rows && rows.length ? rows[rows.length - 1].timestamp : '';
+                if (stamp && stamp !== previousStamp) return rows;
+            }
+            return null;
+        }
+
+        async function forceRefresh(itemId, button) {
+            const token = await askRefreshToken();
+            if (!token) return;
+            const previous = ((allData[itemId] || []).slice(-1)[0] || {}).timestamp || '';
+            const since = Date.now() - 5000;
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Обновляю…';
+            }
+            refreshToast(`Снимаю ${itemId} с аукциона`);
+            const response = await fetch(`https://api.github.com/repos/${REFRESH_REPO}/actions/workflows/update.yml/dispatches`, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/vnd.github+json',
+                    Authorization: `Bearer ${token}`,
+                    'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify({ ref: 'main', inputs: { item: itemId, catalog: 'false' } })
+            });
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem(REFRESH_TOKEN_KEY);
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Обновить лоты';
+                }
+                refreshToast('Токен не подошёл, вставь другой');
+                return;
+            }
+            if (!response.ok && response.status !== 204) {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Обновить лоты';
+                }
+                refreshToast('Запуск не удался');
+                return;
+            }
+            refreshToast('Жду запись лотов, это пара минут');
+            const rows = await waitForItemPrice(itemId, previous, since);
+            if (!rows) {
+                refreshToast('Съём запущен, обнови страницу чуть позже');
+                return;
+            }
+            allData[itemId] = rows;
+            buildItemsCache();
+            applyFilters();
+            if (els.modalOverlay.style.display === 'flex') {
+                const openId = document.querySelector('#modalContent .item-id');
+                if (openId && openId.textContent.includes(itemId)) openModal(itemId);
+            }
+            refreshToast('Лоты обновлены');
+        }
+
         els.itemsGrid.addEventListener('click', (e) => {
+            const refreshBtn = e.target.closest('[data-refresh]');
+            if (refreshBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                forceRefresh(refreshBtn.dataset.refresh, refreshBtn);
+                return;
+            }
             const star = e.target.closest('[data-star]');
             if (star) {
                 e.preventDefault();
@@ -4728,6 +4873,13 @@
         });
 
         els.modalContent.addEventListener('click', (e) => {
+            const refreshBtn = e.target.closest('[data-refresh]');
+            if (refreshBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                forceRefresh(refreshBtn.dataset.refresh, refreshBtn);
+                return;
+            }
             const craftBtn = e.target.closest('[data-craft]');
             if (!craftBtn) return;
             const name = craftBtn.dataset.craft;

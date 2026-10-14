@@ -32,6 +32,7 @@ PROBE_STALE_DAYS = 7
 BACKFILL_PAGES = 4
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
+DAILY_PARTS = 8
 GRADUAL_PRICE_SLOTS = 48
 GRADUAL_WARM_SLOTS = 8
 GRADUAL_SEEK_SLOTS = 16
@@ -316,6 +317,8 @@ def empty_scan_state():
         "probe_cursor": 0,
         "sales_cursor": 0,
         "rare_cursor": 0,
+        "scan_day": "",
+        "next_part": 0,
     }
 
 
@@ -337,6 +340,8 @@ def load_scan_state():
         state[key] = int(raw.get(key) or 0)
     if "warm" not in raw:
         state["cursor"] = 0
+    state["scan_day"] = str(raw.get("scan_day") or "")
+    state["next_part"] = int(raw.get("next_part") or 0)
     return state
 
 
@@ -352,6 +357,8 @@ def save_scan_state(state):
         "probe_cursor": state["probe_cursor"],
         "sales_cursor": state["sales_cursor"],
         "rare_cursor": state["rare_cursor"],
+        "scan_day": state.get("scan_day") or "",
+        "next_part": int(state.get("next_part") or 0),
     }, compact=False)
 
 
@@ -1211,8 +1218,76 @@ def update_crafts(recipes, history, all_meta, sales):
     print(f"✅ Крафты: {len(trees) - 1}")
 
 
+def part_slice(tradable, part, parts):
+    ordered = sorted(tradable, key=lambda item: item["id"])
+    if parts <= 0:
+        return ordered
+    size = (len(ordered) + parts - 1) // parts
+    start = part * size
+    return ordered[start:start + size]
+
+
+def part_already_done(state, part):
+    today = utc_now().date().isoformat()
+    if state.get("scan_day") != today:
+        return False
+    return part < int(state.get("next_part") or 0)
+
+
+def refresh_sales_for(api, item_ids, sales, state):
+    clock = load_json(CLOCK_FILE, {})
+    if not isinstance(clock, dict):
+        clock = {}
+    sales = trim_sales(sales if isinstance(sales, dict) else {})
+    done = 0
+    for item_id in item_ids:
+        pull_history(api, item_id, 1, sales, clock, state["deep"])
+        done += 1
+        if done % 100 == 0:
+            print(f"  история: {done}/{len(item_ids)}")
+    sales["_updated_at"] = utc_now().isoformat()
+    save_json(SALES_FILE, sales)
+    save_clock(clock)
+    print(f"📊 История части: {done}")
+    return sales
+
+
+def remember_listings(state, known, scanned, found, failed, sales):
+    previous_hot = set(state["hot"])
+    state["hot"] = ((previous_hot - scanned) | found | (failed & previous_hot)) & known
+    dropped = (previous_hot & scanned) - found - failed
+    state["warm"] = ((state["warm"] - found) | {
+        item_id for item_id in dropped if sold_this_month(sales, item_id)
+    }) - state["hot"]
+    state["warm"] &= known
+
+
+def scan_items(api, tradable, all_meta, recipes, state, sales_raw, history, items):
+    known = {item["id"] for item in tradable}
+    history, found, failed = update_prices(api, items, history)
+    scanned = {item["id"] for item in items}
+    remember_listings(state, known, scanned, found, failed, sales_raw)
+    save_scan_state(state)
+    sales = refresh_sales_for(api, [item["id"] for item in items], sales_raw, state)
+    state["warm"] = {
+        item_id for item_id in (state["warm"] | set(sales)) & known
+        if item_id not in state["hot"] and sold_this_month(sales, item_id)
+    }
+    save_scan_state(state)
+    update_crafts(recipes, history, all_meta, sales)
+    return history, sales
+
+
 def main():
     print(f"Запуск (регион: {REGION})")
+    only_item = os.environ.get("ONLY_ITEM", "").strip()
+    part_env = os.environ.get("PART", "").strip()
+    parts = int(os.environ.get("PARTS") or DAILY_PARTS)
+    state = load_scan_state()
+    part = int(part_env) if part_env != "" else None
+    if only_item == "" and part is not None and part_already_done(state, part):
+        print(f"Часть {part + 1}/{parts} уже записана сегодня")
+        return
     item_db_dir = find_item_db_dir()
     if item_db_dir is None:
         tradable, all_meta = tradable_from_catalog()
@@ -1238,29 +1313,34 @@ def main():
         if item_id in known and item_id not in state["hot"] and sold_this_month(sales_raw, item_id)
     }
     history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
-    craft_ids = frequent_craft_ids(recipes)
-    price_items, state["cursor"], state["quiet_cursor"], state["warm_cursor"] = pick_price_items(
-        tradable, history, sales_raw, state["hot"], state["warm"], state, craft_ids
-    )
-
-    history, found, failed = update_prices(api, price_items, history)
-    scanned = {item["id"] for item in price_items}
-    previous_hot = set(state["hot"])
-    state["hot"] = ((previous_hot - scanned) | found | (failed & previous_hot)) & known
-    dropped = (previous_hot & scanned) - found - failed
-    state["warm"] = ((state["warm"] - found) | {
-        item_id for item_id in dropped if sold_this_month(sales_raw, item_id)
-    }) - state["hot"]
-    state["warm"] &= known
-    save_scan_state(state)
-    print(f"💾 Живых лотов: {len(state['hot'])}, за месяц без лота: {len(state['warm'])}")
-
-    sales = update_sales_budget(
-        api, tradable, state["hot"], state["warm"], sales_raw, state, craft_ids
-    )
-    save_scan_state(state)
-    print(f"💾 После истории без лота: {len(state['warm'])}")
-    update_crafts(recipes, history, all_meta, sales)
+    by_id = {item["id"]: item for item in tradable}
+    if only_item:
+        chosen = [by_id.get(only_item) or {
+            "id": only_item,
+            "name": only_item,
+            "icon": "",
+            "category": "other",
+        }]
+        print(f"⚡ Один предмет: {only_item}")
+    elif part is not None:
+        chosen = part_slice(tradable, part, parts)
+        print(f"⚡ Часть {part + 1}/{parts}: {len(chosen)} из {len(tradable)}")
+    else:
+        chosen = part_slice(tradable, 0, 1)
+        print(f"⚡ Вся база: {len(chosen)}")
+    if not chosen:
+        print("В этой части пусто")
+        if only_item == "" and part is not None:
+            state["scan_day"] = utc_now().date().isoformat()
+            state["next_part"] = part + 1
+            save_scan_state(state)
+        return
+    scan_items(api, tradable, all_meta, recipes, state, sales_raw, history, chosen)
+    if only_item == "" and part is not None:
+        state["scan_day"] = utc_now().date().isoformat()
+        state["next_part"] = part + 1
+        save_scan_state(state)
+        print(f"💾 Часть {part + 1}/{parts} записана")
 
 
 def rebuild_offline():

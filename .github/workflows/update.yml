@@ -2,23 +2,24 @@ name: Update Auction Data
 
 on:
   schedule:
-    - cron: '3,18,33,48 * * * *'
     - cron: '17 3 * * *'
-  workflow_dispatch:
-    inputs:
-      catalog:
-        description: Refresh the item catalog
-        type: boolean
-        default: false
   push:
     branches: [main]
     paths:
       - '.github/workflows/update.yml'
-      - 'fetch_prices.py'
+  workflow_dispatch:
+    inputs:
+      item:
+        description: Item id to refresh now
+        type: string
+        default: ''
+      catalog:
+        description: Refresh the item catalog
+        type: boolean
+        default: true
 
 permissions:
   contents: write
-  actions: write
 
 concurrency:
   group: stalzone-update
@@ -27,89 +28,84 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 50
-
-      - name: Mark start
-        run: date -u +%s > "$RUNNER_TEMP/started"
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Decide whether to fetch
-        id: gate
-        env:
-          CATALOG: ${{ github.event.inputs.catalog == 'true' || github.event.schedule == '17 3 * * *' }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          python - << 'PY'
-          import json
-          import os
-          from datetime import datetime, timezone
-          from pathlib import Path
-
-          catalog = os.environ.get("CATALOG") == "true"
-          event = os.environ.get("EVENT_NAME") or ""
-          run = True
-          path = Path("prices.json")
-          if event != "schedule":
-              print(f"Keep the chain going ({event or 'push'})")
-          elif catalog:
-              print("Catalog refresh")
-          elif not path.exists():
-              print("No prices yet")
-          else:
-              data = json.loads(path.read_text(encoding="utf-8"))
-              best = ""
-              if isinstance(data, dict):
-                  for rows in data.values():
-                      if isinstance(rows, list) and rows and isinstance(rows[-1], dict):
-                          stamp = str(rows[-1].get("timestamp") or "")
-                          if stamp > best:
-                              best = stamp
-              if best:
-                  ts = datetime.fromisoformat(best.replace("Z", "+00:00"))
-                  if ts.tzinfo is None:
-                      ts = ts.replace(tzinfo=timezone.utc)
-                  age = (datetime.now(timezone.utc) - ts).total_seconds()
-                  if age < 20 * 60:
-                      run = False
-                      print(f"Prices are {int(age)}s old, scheduled pass is not needed")
-                  else:
-                      print(f"Prices are {int(age)}s old, fetch")
-              else:
-                  print("No price stamp, fetch")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
-              handle.write(f"run={'yes' if run else 'no'}\n")
-          PY
-
       - name: Install dependencies
-        if: steps.gate.outputs.run == 'yes'
         run: pip install requests
 
       - name: Clone item database
-        if: steps.gate.outputs.run == 'yes' && (github.event.inputs.catalog == 'true' || github.event.schedule == '17 3 * * *')
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.item == ''
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/EXBO-Studio/stalzone-database.git itemdb
           git -C itemdb sparse-checkout set ru/items
 
-      - name: Fetch data
-        id: fetch
-        if: steps.gate.outputs.run == 'yes'
-        timeout-minutes: 16
+      - name: Refresh one item
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.item != ''
+        timeout-minutes: 8
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REGION: EU
+          ONLY_ITEM: ${{ github.event.inputs.item }}
         run: python fetch_prices.py
 
-      - name: Commit and push
-        if: steps.gate.outputs.run == 'yes' && steps.fetch.outcome == 'success'
+      - name: Scan the daily parts
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.item == ''
+        timeout-minutes: 140
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REGION: EU
+          PARTS: '8'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_prices() {
+            git add -- prices.json crafts.json active_items.json sales_history.json sale_clock.json items.json
+            if git diff --cached --quiet; then
+              echo "No price changes"
+              return 0
+            fi
+            git commit -m "Auto-update prices, crafts & sales"
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              if git rebase --onto origin/main HEAD~1 HEAD && git push origin HEAD:main; then
+                return 0
+              fi
+              git rebase --abort || true
+              echo "Push rejected, retry ${attempt}"
+              sleep 5
+            done
+            return 1
+          }
+          for part in 0 1 2 3 4 5 6 7; do
+            echo "Part $((part + 1))/8"
+            ok=0
+            for attempt in 1 2 3; do
+              if PART="$part" python fetch_prices.py; then
+                ok=1
+                break
+              fi
+              echo "Part $part failed, retry ${attempt}"
+              sleep 20
+            done
+            if [ "$ok" -ne 1 ]; then
+              exit 1
+            fi
+            commit_prices || exit 1
+          done
+
+      - name: Commit one item
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.item != '' && success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -118,7 +114,7 @@ jobs:
             echo "No price changes"
             exit 0
           fi
-          git commit -m "Auto-update prices, crafts & sales"
+          git commit -m "Refresh ${{ github.event.inputs.item }}"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             if git rebase --onto origin/main HEAD~1 HEAD && git push origin HEAD:main; then
@@ -126,27 +122,6 @@ jobs:
             fi
             git rebase --abort || true
             echo "Push rejected, retry ${attempt}"
-            sleep 5
-          done
-          exit 1
-
-      - name: Queue next update
-        if: always() && steps.gate.outputs.run == 'yes'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Queue the next pass as soon as this one is saved"
-          for attempt in 1 2 3; do
-            if curl -fsS -X POST \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/update.yml/dispatches" \
-              -d '{"ref":"main","inputs":{"catalog":"false"}}'; then
-              echo "Next pass queued"
-              exit 0
-            fi
-            echo "Dispatch failed, retry ${attempt}"
             sleep 5
           done
           exit 1
