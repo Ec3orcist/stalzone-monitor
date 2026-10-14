@@ -84,7 +84,6 @@
     "2o4km",
     "2o65l",
     "2o6zl",
-    "2o760",
     "2o9g0",
     "2od6m",
     "2oddv",
@@ -619,7 +618,6 @@
     "wjn52",
     "wjnq2",
     "wjo6z",
-    "wjr9d",
     "wjro3",
     "wjwzp",
     "wjz6o",
@@ -736,6 +734,7 @@
     "1rnr1",
     "2o0zm",
     "2o405",
+    "2o760",
     "2p16",
     "342g5",
     "3dy5",
@@ -878,6 +877,7 @@
     "w732",
     "wj2no",
     "wjg2o",
+    "wjr9d",
     "wjw9p",
     "y31mk",
     "y359o",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1356,
-  "quiet_cursor": 18,
-  "warm_cursor": 28,
+  "cursor": 1514,
+  "quiet_cursor": 33,
+  "warm_cursor": 43,
   "probe_cursor": 2195,
-  "sales_cursor": 312,
-  "rare_cursor": 72
+  "sales_cursor": 324,
+  "rare_cursor": 76
 }
