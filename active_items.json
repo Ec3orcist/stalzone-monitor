@@ -4,7 +4,6 @@
     "009n9",
     "00w01",
     "022k",
-    "026y",
     "0279",
     "033k",
     "035r",
@@ -244,7 +243,6 @@
     "96m5z",
     "96m9q",
     "96mqw",
-    "96mwq",
     "96pdw",
     "96pwy",
     "96qjl",
@@ -373,7 +371,6 @@
     "k3yv",
     "kl70",
     "kl9v",
-    "kllj",
     "klq0",
     "klwv",
     "km2p",
@@ -707,6 +704,7 @@
     "zzy1n"
   ],
   "warm": [
+    "026y",
     "03zd",
     "0ngy",
     "0or1",
@@ -761,6 +759,7 @@
     "7zqj",
     "969r0",
     "96gqz",
+    "96mwq",
     "96ngz",
     "96qll",
     "99pz",
@@ -797,6 +796,7 @@
     "jon0",
     "kkrv",
     "klk3",
+    "kllj",
     "kn2zj",
     "knlvj",
     "l2oo",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 1725,
-  "quiet_cursor": 50,
-  "warm_cursor": 97,
+  "cursor": 1851,
+  "quiet_cursor": 65,
+  "warm_cursor": 112,
   "probe_cursor": 2195,
-  "sales_cursor": 171,
-  "rare_cursor": 11
+  "sales_cursor": 183,
+  "rare_cursor": 15
 }
