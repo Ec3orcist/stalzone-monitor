@@ -501,7 +501,6 @@
     "pjqvd",
     "prl2",
     "prm6",
-    "prp5",
     "prrd",
     "pry2",
     "q03mj",
@@ -592,6 +591,7 @@
     "w3zj3",
     "w4jo",
     "w4no",
+    "w732",
     "w77z",
     "w7ro",
     "wg3p",
@@ -844,6 +844,7 @@
     "p6l4d",
     "p6m1w",
     "pjo64",
+    "prp5",
     "q194",
     "qj9n6",
     "qjlzj",
@@ -867,7 +868,6 @@
     "vyrg",
     "w23o",
     "w3zn3",
-    "w732",
     "wj2no",
     "wjg2o",
     "wjo6z",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 4,
-  "quiet_cursor": 110,
-  "warm_cursor": 157,
+  "cursor": 93,
+  "quiet_cursor": 125,
+  "warm_cursor": 172,
   "probe_cursor": 2195,
-  "sales_cursor": 219,
-  "rare_cursor": 27
+  "sales_cursor": 231,
+  "rare_cursor": 31
 }
