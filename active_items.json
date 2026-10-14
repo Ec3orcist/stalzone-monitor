@@ -339,7 +339,6 @@
     "gyq5",
     "gyv6",
     "j0w0g",
-    "j0w5g",
     "j0w96",
     "j306",
     "j34l",
@@ -397,7 +396,6 @@
     "kqoj",
     "kqp0",
     "kqr0",
-    "kr2rp",
     "kr53y",
     "l0og1",
     "l0oyo",
@@ -797,6 +795,7 @@
     "g5np",
     "gm2p",
     "gnz45",
+    "j0w5g",
     "j3rg",
     "j456",
     "j4g7",
@@ -810,6 +809,7 @@
     "kmmj",
     "kn2zj",
     "knlvj",
+    "kr2rp",
     "l2oo",
     "l3mo",
     "l601",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 406,
-  "quiet_cursor": 61,
-  "warm_cursor": 11,
+  "cursor": 491,
+  "quiet_cursor": 76,
+  "warm_cursor": 26,
   "probe_cursor": 2195,
-  "sales_cursor": 444,
-  "rare_cursor": 116
+  "sales_cursor": 456,
+  "rare_cursor": 120
 }
