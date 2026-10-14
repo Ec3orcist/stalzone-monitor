@@ -32,18 +32,18 @@ PROBE_STALE_DAYS = 7
 BACKFILL_PAGES = 4
 MAX_HISTORY = 168
 MAX_ITEMS = 3000
-PRICE_BUDGET = 340
-LIQUID_PRICE_SLOTS = 240
-QUIET_PRICE_SLOTS = 15
-WARM_PRICE_SLOTS = 15
-SALES_REQUEST_BUDGET = 120
+GRADUAL_PRICE_SLOTS = 48
+GRADUAL_WARM_SLOTS = 8
+GRADUAL_SEEK_SLOTS = 16
+SALES_REQUEST_BUDGET = 48
+LOT_PAGE = 200
+MAX_LOT_PAGES = 2
 LIQUID_SALES_CAP = 12
 RARE_SALES_CAP = 4
 CLASSIFY_CAP = 16
 BACKFILL_REQUEST_CAP = 12
 WORKERS = 4
 MAX_LOTS_PER_ITEM = 10
-ALWAYS_PRICE_CATS = {"weapon", "armor", "armour", "weapon_modules"}
 RANK_CODES = {
     "RANK_NEWBIE": "newbie",
     "RANK_STALKER": "stalker",
@@ -398,7 +398,7 @@ def sold_this_month(sales, item_id):
 def rotate_ids(ids, cursor, slots):
     ordered = sorted(ids)
     if not ordered or slots <= 0:
-        return [], 0
+        return [], cursor if ordered else 0
     start = cursor % len(ordered)
     window = (ordered[start:] + ordered[:start])[:slots]
     return window, (start + len(window)) % len(ordered)
@@ -410,40 +410,27 @@ def price_age(history, item_id):
     return seen or datetime.min.replace(tzinfo=timezone.utc)
 
 
-def pick_price_items(tradable, history, sales, hot_ids, warm_ids, cursors, priority_ids):
+def pick_price_items(tradable, history, _sales, hot_ids, warm_ids, cursors, craft_ids):
     by_id = {item["id"]: item for item in tradable}
-    liquid = []
-    quiet = []
+    craft_items = [by_id[item_id] for item_id in sorted(craft_ids) if item_id in by_id]
+    craft_set = {item["id"] for item in craft_items}
+    listed = []
     for item_id in hot_ids:
-        item = by_id.get(item_id)
-        if not item:
+        if item_id in craft_set:
             continue
-        if is_liquid(sales, item_id):
-            liquid.append(item)
-        else:
-            quiet.append(item)
-    liquid.sort(key=lambda item: (
-        price_age(history, item["id"]),
-        0 if item.get("category") in ALWAYS_PRICE_CATS else 1,
-    ))
-    budget = PRICE_BUDGET
-    liquid_take = liquid[:min(len(liquid), LIQUID_PRICE_SLOTS, budget)]
-    budget -= len(liquid_take)
-    quiet_ids, quiet_cursor = rotate_ids(
-        [item["id"] for item in quiet], cursors["quiet_cursor"], min(QUIET_PRICE_SLOTS, budget)
-    )
-    budget -= len(quiet_ids)
-    warm_ids_take, warm_cursor = rotate_ids(
-        [item_id for item_id in warm_ids if item_id in by_id],
-        cursors["warm_cursor"],
-        min(WARM_PRICE_SLOTS, budget),
-    )
-    budget -= len(warm_ids_take)
-    skip = set(hot_ids) | set(warm_ids) | {item["id"] for item in liquid_take} | set(quiet_ids) | set(warm_ids_take)
-    ordered = sorted(tradable, key=lambda item: (discovery_rank(item, priority_ids), item["id"]))
+        item = by_id.get(item_id)
+        if item:
+            listed.append(item)
+    listed.sort(key=lambda item: price_age(history, item["id"]))
+    warm_pool = [item_id for item_id in warm_ids if item_id in by_id and item_id not in craft_set]
+    warm_take, warm_cursor = rotate_ids(warm_pool, cursors["warm_cursor"], GRADUAL_WARM_SLOTS)
+    listed_slots = max(0, GRADUAL_PRICE_SLOTS - GRADUAL_WARM_SLOTS - GRADUAL_SEEK_SLOTS)
+    listed_take = listed[:listed_slots]
+    skip = craft_set | set(hot_ids) | set(warm_ids) | {item["id"] for item in listed_take} | set(warm_take)
+    ordered = sorted(tradable, key=lambda item: (discovery_rank(item, craft_set), item["id"]))
     window = []
     next_cursor = cursors["cursor"]
-    if ordered and budget > 0:
+    if ordered and GRADUAL_SEEK_SLOTS > 0:
         start = cursors["cursor"] % len(ordered)
         rotated = ordered[start:] + ordered[:start]
         seen = 0
@@ -452,15 +439,15 @@ def pick_price_items(tradable, history, sales, hot_ids, warm_ids, cursors, prior
             if item["id"] in skip:
                 continue
             window.append(item)
-            if len(window) >= budget:
+            if len(window) >= GRADUAL_SEEK_SLOTS:
                 break
         next_cursor = (start + seen) % len(ordered)
-    items = liquid_take + [by_id[item_id] for item_id in quiet_ids] + [by_id[item_id] for item_id in warm_ids_take] + window
+    items = craft_items + listed_take + [by_id[item_id] for item_id in warm_take] + window
     print(
-        f"⚡ Ходовые лоты: {len(liquid_take)} из {len(liquid)}, тихие: {len(quiet_ids)} из {len(quiet)}, "
-        f"без лота за месяц: {len(warm_ids_take)} из {len(warm_ids)}, поиск лотов: {len(window)}"
+        f"⚡ Крафт каждый проход: {len(craft_items)}, остальные лоты: {len(listed_take)} из {len(listed)}, "
+        f"без лота за месяц: {len(warm_take)} из {len(warm_pool)}, поиск: {len(window)}"
     )
-    return items, next_cursor, quiet_cursor, warm_cursor
+    return items, next_cursor, cursors["quiet_cursor"], warm_cursor
 
 
 def bounded_int(extra, keys, low, high):
@@ -506,15 +493,47 @@ def keep_lots(lots):
     return chosen[:24]
 
 
+def lot_numbers(lot):
+    try:
+        buyout = int(lot.get("buyoutPrice") or 0)
+    except (TypeError, ValueError):
+        return 0, 0
+    raw_amount = lot.get("amount")
+    if raw_amount is None:
+        amount = 1
+    else:
+        try:
+            amount = int(raw_amount)
+        except (TypeError, ValueError):
+            return 0, 0
+    return buyout, amount
+
+
 def fetch_lots(api, item_id):
-    data = api.get(f"{API_BASE}/{REGION}/auction/{item_id}/lots?limit=200&additional=true")
-    if not isinstance(data, dict) or not isinstance(data.get("lots"), list):
-        return item_id, None
-    raw_lots = data["lots"]
+    collected = []
+    total = 0
+    for page in range(MAX_LOT_PAGES):
+        offset = page * LOT_PAGE
+        data = api.get(
+            f"{API_BASE}/{REGION}/auction/{item_id}/lots"
+            f"?limit={LOT_PAGE}&offset={offset}&additional=true&sort=buyout_price&order=asc"
+        )
+        if not isinstance(data, dict) or not isinstance(data.get("lots"), list):
+            if collected:
+                break
+            return item_id, None
+        raw_lots = data["lots"]
+        if page == 0:
+            try:
+                total = int(data.get("total") or 0)
+            except (TypeError, ValueError):
+                total = 0
+        collected.extend(raw_lots)
+        if not raw_lots or len(raw_lots) < LOT_PAGE or (total and len(collected) >= total):
+            break
     processed = []
-    for lot in raw_lots:
-        buyout = lot.get("buyoutPrice") or 0
-        amount = lot.get("amount") or 0
+    for lot in collected:
+        buyout, amount = lot_numbers(lot)
         if buyout <= 0 or amount <= 0:
             continue
         row = {
@@ -1057,14 +1076,15 @@ def update_sales_budget(api, tradable, hot_ids, warm_ids, previous, state, prior
         item_id for item_id in (hot_ids | warm_ids) & known
         if isinstance(sales.get(item_id), list) and is_liquid(sales, item_id)
     ]
+    craft_liquid = [item_id for item_id in liquid_ids if item_id in priority_ids]
+    liquid_take, state["sales_cursor"] = rotate_ids(
+        craft_liquid or liquid_ids, state["sales_cursor"], min(LIQUID_SALES_CAP, budget)
+    )
+    spend(liquid_take, 1, "liquid", budget)
     rare_ids = [
         item_id for item_id in (hot_ids | warm_ids) & known
         if isinstance(sales.get(item_id), list) and not is_liquid(sales, item_id)
     ]
-    liquid_take, state["sales_cursor"] = rotate_ids(
-        liquid_ids, state["sales_cursor"], min(LIQUID_SALES_CAP, budget)
-    )
-    spend(liquid_take, 1, "liquid", budget)
     rare_take, state["rare_cursor"] = rotate_ids(rare_ids, state["rare_cursor"], min(RARE_SALES_CAP, budget))
     spend(rare_take, 1, "rare", budget)
     spend(unsettled, BACKFILL_PAGES, "backfill", min(BACKFILL_REQUEST_CAP, budget))
@@ -1187,9 +1207,9 @@ def main():
         if item_id in known and item_id not in state["hot"] and sold_this_month(sales_raw, item_id)
     }
     history = {item_id: compact_history(records) for item_id, records in load_json(DATA_FILE, {}).items()}
-    missing_recipe_ids = recipe_item_ids(recipes) - set(history)
+    craft_ids = recipe_item_ids(recipes)
     price_items, state["cursor"], state["quiet_cursor"], state["warm_cursor"] = pick_price_items(
-        tradable, history, sales_raw, state["hot"], state["warm"], state, missing_recipe_ids
+        tradable, history, sales_raw, state["hot"], state["warm"], state, craft_ids
     )
 
     history, found, failed = update_prices(api, price_items, history)
@@ -1205,7 +1225,7 @@ def main():
     print(f"💾 Живых лотов: {len(state['hot'])}, за месяц без лота: {len(state['warm'])}")
 
     sales = update_sales_budget(
-        api, tradable, state["hot"], state["warm"], sales_raw, state, missing_recipe_ids
+        api, tradable, state["hot"], state["warm"], sales_raw, state, craft_ids
     )
     save_scan_state(state)
     print(f"💾 После истории без лота: {len(state['warm'])}")
