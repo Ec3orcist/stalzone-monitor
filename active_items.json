@@ -97,7 +97,6 @@
     "2onz6",
     "2opg0",
     "2opo6",
-    "2opw0",
     "2pr6",
     "31rk",
     "34z1l",
@@ -300,6 +299,7 @@
     "g34p",
     "g35n",
     "g40mn",
+    "g40on",
     "g40op",
     "g40rg",
     "g40vn",
@@ -726,6 +726,7 @@
     "21wo5",
     "2o405",
     "2o760",
+    "2opw0",
     "2own6",
     "2p16",
     "342g5",
@@ -786,7 +787,6 @@
     "dmzy2",
     "g325",
     "g3zg",
-    "g40on",
     "g49dg",
     "g4rz0",
     "g54p",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 167,
-  "quiet_cursor": 82,
-  "warm_cursor": 77,
+  "cursor": 257,
+  "quiet_cursor": 97,
+  "warm_cursor": 92,
   "probe_cursor": 2195,
-  "sales_cursor": 3,
-  "rare_cursor": 184
+  "sales_cursor": 15,
+  "rare_cursor": 188
 }
