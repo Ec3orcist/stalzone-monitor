@@ -403,7 +403,6 @@
     "kqoj",
     "kqp0",
     "kqr0",
-    "kr2np",
     "kr2rp",
     "kr53y",
     "l0og1",
@@ -2279,7 +2278,8 @@
     "2v55": "2026-10-14",
     "4qlnr": "2026-10-14",
     "5d24": "2026-10-14",
-    "ly9mq": "2026-10-14"
+    "ly9mq": "2026-10-14",
+    "kr2np": "2026-10-14"
   },
   "deep": [
     "0r2g1",
@@ -2288,10 +2288,10 @@
     "1pyq",
     "2opw0"
   ],
-  "cursor": 736,
-  "quiet_cursor": 70,
-  "warm_cursor": 127,
+  "cursor": 819,
+  "quiet_cursor": 85,
+  "warm_cursor": 142,
   "probe_cursor": 2195,
-  "sales_cursor": 252,
-  "rare_cursor": 52
+  "sales_cursor": 264,
+  "rare_cursor": 56
 }
