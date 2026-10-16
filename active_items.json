@@ -845,7 +845,6 @@
     "okzo6",
     "ork0",
     "p062",
-    "p0j2",
     "p6l4d",
     "p6m1w",
     "pjo64",
@@ -2301,6 +2300,6 @@
   "probe_cursor": 2195,
   "sales_cursor": 104,
   "rare_cursor": 67,
-  "scan_day": "2026-10-15",
-  "next_part": 8
+  "scan_day": "2026-10-16",
+  "next_part": 1
 }
