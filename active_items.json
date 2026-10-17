@@ -799,10 +799,8 @@
     "gm2p",
     "gnz45",
     "j0w0g",
-    "j4g7",
     "j56d6",
     "j5lvl",
-    "j5mg7",
     "j5mq7",
     "j5pr0",
     "j5vol",
@@ -838,7 +836,6 @@
     "o37m",
     "okdpo",
     "okm10",
-    "okp24",
     "okq16",
     "okrq0",
     "okvm5",
@@ -2300,6 +2297,6 @@
   "probe_cursor": 2195,
   "sales_cursor": 104,
   "rare_cursor": 67,
-  "scan_day": "2026-10-16",
-  "next_part": 7
+  "scan_day": "2026-10-17",
+  "next_part": 1
 }
