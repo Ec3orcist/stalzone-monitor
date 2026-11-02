@@ -747,7 +747,6 @@
     "4q3nn",
     "4qnkr",
     "4qzpr",
-    "5250",
     "52l0",
     "5ddo",
     "5lgvo",
@@ -789,7 +788,6 @@
     "g5np",
     "gnz45",
     "j0w0g",
-    "j56d6",
     "j5lvl",
     "j5mq7",
     "j5pr0",
@@ -817,7 +815,6 @@
     "n42m9",
     "n4691",
     "n4wdw",
-    "nl43",
     "nv43",
     "nvpw",
     "o37m",
@@ -837,7 +834,6 @@
     "qmjk",
     "qv76",
     "r2mv",
-    "rg5y",
     "row5",
     "rwl5v",
     "rwol5",
@@ -2275,6 +2271,6 @@
   "probe_cursor": 2195,
   "sales_cursor": 104,
   "rare_cursor": 67,
-  "scan_day": "2026-11-01",
-  "next_part": 6
+  "scan_day": "2026-11-02",
+  "next_part": 1
 }
