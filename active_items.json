@@ -800,7 +800,6 @@
     "knzlv",
     "l2oo",
     "l3mo",
-    "l601",
     "l6y1",
     "lny1",
     "ly2m1",
@@ -824,10 +823,8 @@
     "ork0",
     "p062",
     "p6l4d",
-    "pjo64",
     "pjqvd",
     "prp5",
-    "q194",
     "qj9n6",
     "qjpn4",
     "qm0k",
@@ -2271,6 +2268,6 @@
   "probe_cursor": 2195,
   "sales_cursor": 104,
   "rare_cursor": 67,
-  "scan_day": "2026-11-02",
-  "next_part": 8
+  "scan_day": "2026-11-03",
+  "next_part": 1
 }
