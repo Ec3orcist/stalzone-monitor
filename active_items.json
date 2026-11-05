@@ -729,7 +729,6 @@
     "1n46",
     "1r2o6",
     "1rd0q",
-    "1rj9g",
     "2o0zm",
     "2o65l",
     "2opo6",
@@ -745,7 +744,6 @@
     "4kjko",
     "4nnj",
     "4q3nn",
-    "4qnkr",
     "4qzpr",
     "52l0",
     "5ddo",
@@ -759,7 +757,6 @@
     "6wjkj",
     "6wmkp",
     "7933",
-    "7977",
     "79w7",
     "7lnk7",
     "7yrr",
@@ -791,7 +788,6 @@
     "j5lvl",
     "j5mq7",
     "j5pr0",
-    "j5vol",
     "jon0",
     "klk3",
     "kn2zj",
@@ -840,7 +836,6 @@
     "vjm3p",
     "vr1n",
     "vrwg",
-    "w23o",
     "wj2no",
     "wjg2o",
     "wjw9p",
@@ -2266,6 +2261,6 @@
   "probe_cursor": 2195,
   "sales_cursor": 104,
   "rare_cursor": 67,
-  "scan_day": "2026-11-04",
-  "next_part": 8
+  "scan_day": "2026-11-05",
+  "next_part": 1
 }
