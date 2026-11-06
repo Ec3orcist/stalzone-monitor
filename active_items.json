@@ -720,7 +720,6 @@
   "warm": [
     "03zd",
     "0ngy",
-    "0rlzr",
     "12r1",
     "19y1r",
     "19yr2",
@@ -743,7 +742,6 @@
     "4dkn",
     "4kjko",
     "4nnj",
-    "4q3nn",
     "4qzpr",
     "52l0",
     "5ddo",
@@ -796,7 +794,6 @@
     "knzlv",
     "l2oo",
     "l3mo",
-    "l6y1",
     "lny1",
     "ly2m1",
     "ly4z2",
@@ -843,13 +840,11 @@
     "y31mk",
     "y3kgz",
     "y3mz3",
-    "y3pdo",
     "y75z",
     "y770",
     "y7dz",
     "y94o",
     "z1o2",
-    "z22k",
     "z3oln",
     "z77k",
     "zj9m",
@@ -2261,6 +2256,6 @@
   "probe_cursor": 2195,
   "sales_cursor": 104,
   "rare_cursor": 67,
-  "scan_day": "2026-11-05",
-  "next_part": 8
+  "scan_day": "2026-11-06",
+  "next_part": 1
 }
