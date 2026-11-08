@@ -718,7 +718,6 @@
     "zzy1n"
   ],
   "warm": [
-    "03zd",
     "0ngy",
     "12r1",
     "19y1r",
@@ -740,7 +739,6 @@
     "40dl",
     "4d3p",
     "4kjko",
-    "4nnj",
     "4qzpr",
     "52l0",
     "5ddo",
@@ -765,7 +763,6 @@
     "99pz",
     "9g10",
     "9mmq",
-    "9mn0",
     "9yly",
     "dm9qn",
     "dmgvj",
@@ -773,7 +770,6 @@
     "dmlwj",
     "dmzy2",
     "g00n",
-    "g325",
     "g3zg",
     "g4lp0",
     "g4mgp",
@@ -822,7 +818,6 @@
     "rwl5v",
     "rwol5",
     "vdjd",
-    "vj3zg",
     "vjg2d",
     "vjm3p",
     "vr1n",
@@ -2249,6 +2244,6 @@
   "probe_cursor": 2195,
   "sales_cursor": 104,
   "rare_cursor": 67,
-  "scan_day": "2026-11-07",
-  "next_part": 8
+  "scan_day": "2026-11-08",
+  "next_part": 1
 }
